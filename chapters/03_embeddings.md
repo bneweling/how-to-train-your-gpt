@@ -1,127 +1,129 @@
-# Chapter 3 — Embeddings: Giving Numbers Meaning
+# Kapitel 3 — Embeddings: Zahlen Bedeutung geben
 
-## The 5-Year-Old Analogy
+## Die Analogie für Fünfjährige
 
-Imagine each word lives in a **giant apartment building** with 768 floors (dimensions).
+Stell dir vor, jedes Wort lebt in einem **riesigen Wohnhaus** mit 768 Stockwerken (Dimensionen).
 
-- **"Cat"** lives on the 3rd floor east, 15th floor north, etc.
-- **"Dog"** lives nearby — similar floors, because they're both animals.
-- **"Car"** lives far away — completely different floors.
+- **„cat“** wohnt im 3. Stock Ost, 15. Stock Nord usw.
+- **„dog“** wohnt in der Nähe — ähnliche Stockwerke, weil beide Tiere sind.
+- **„car“** wohnt weit entfernt — völlig andere Stockwerke.
 
-Every word has a **coordinate** in this building. Words with similar meanings have similar coordinates. That's what an embedding is: **a coordinate for a word in meaning-space.**
+Jedes Wort hat eine **Koordinate** in diesem Gebäude. Wörter mit ähnlicher Bedeutung haben ähnliche Koordinaten. Genau das ist ein Embedding: **eine Koordinate für ein Wort im Bedeutungsraum.**
 
 ```mermaid
 graph TD
-    subgraph "768-Dimensional Space (simplified to 3D)"
+    subgraph "768-dimensionaler Raum (vereinfacht auf 3D)"
         A["cat: (0.2, -0.5, 0.8)"]
         B["dog: (0.3, -0.4, 0.7)"]
         C["car: (-0.7, 0.6, -0.2)"]
     end
-    A -. "close!" .- B
-    A -."far!".-> C
-    B -."far!".-> C
+    A -. "nah!" .- B
+    A -."weit!".-> C
+    B -."weit!".-> C
 ```
 
-## The Famous "King - Man + Woman = Queen" Analogy
+## Die berühmte Analogie „King - Man + Woman = Queen“
 
-This is the most famous example of what embeddings can capture:
+Dies ist das berühmteste Beispiel dafür, was Embeddings erfassen können:
 
 ```python
-# In a well-trained embedding space:
+# In einem gut trainierten Embedding-Raum:
 # embedding("king") - embedding("man") + embedding("woman")
 # ≈ embedding("queen")
 ```
 
-**Why does this work?** "King" has two components in meaning-space:
-- Royalty (shared with "queen", "prince", "throne")
-- Masculinity (shared with "man", "he", "boy")
+**Warum funktioniert das?** „king“ hat zwei Komponenten im Bedeutungsraum:
+- Königlichkeit (gemeinsam mit „queen“, „prince“, „throne“)
+- Männlichkeit (gemeinsam mit „man“, „he“, „boy“)
 
-Subtracting "man" removes the masculinity component. Adding "woman" adds femininity. Result: a vector that means "royalty + femininity" = "queen."
+Das Subtrahieren von „man“ entfernt die Männlichkeits-Komponente. Das Addieren von „woman“ fügt Weiblichkeit hinzu. Ergebnis: ein Vektor, der „Königlichkeit + Weiblichkeit“ bedeutet = „queen.“
 
-This isn't programmed — it **emerges naturally** from the math of training. The model learns that changing gender while keeping meaning produces a consistent "direction" in embedding space.
+Das ist nicht einprogrammiert — es **entsteht auf natürliche Weise** aus der Mathematik des Trainings. Das Modell lernt, dass eine Änderung des Geschlechts bei gleichbleibender Bedeutung eine konsistente „Richtung“ im Embedding-Raum erzeugt.
 
-## How Embeddings Are LEARNED
+## Wie Embeddings GELERNT werden
 
-This is the most important question: "If embeddings start random, how do they become meaningful?"
+Dies ist die wichtigste Frage: „Wenn Embeddings zufällig starten, wie werden sie bedeutungsvoll?“
 
-### Step 1: Random Initialization
+### Schritt 1: Zufällige Initialisierung
 
-When we create the model, every embedding row is random noise:
+Wenn wir das Modell erstellen, ist jede Embedding-Zeile zufälliges Rauschen:
 ```
-Token 9246 ("cat"): [0.002, -0.013, 0.007, ..., -0.009]   (768 random numbers)
-Token 6734 ("sat"): [0.015, 0.001, -0.011, ..., 0.004]   (768 random numbers)
+Token 9246 ("cat"): [0.002, -0.013, 0.007, ..., -0.009]   (768 Zufallszahlen)
+Token 6734 ("sat"): [0.015, 0.001, -0.011, ..., 0.004]   (768 Zufallszahlen)
 ```
 
-At this point, "cat" and "dog" are **no closer** to each other than "cat" and "the." The model knows nothing.
+An diesem Punkt sind „cat“ und „dog“ einander **nicht näher** als „cat“ und „the.“ Das Modell weiß noch nichts.
 
-### Step 2: Training Signal
+### Schritt 2: Trainingssignal
 
-During training, the model sees: `"The cat sat on the mat"` and tries to predict the next word.
+Während des Trainings sieht das Modell: `"The cat sat on the mat"` und versucht, das nächste Wort vorherzusagen.
 
-When it's wrong about "mat" (predicting "dog" instead), the **loss** is high. Backpropagation sends a signal:
-- "The embedding for 'cat' should be updated so it's more predictive of 'mat'"
-- "The embedding for 'mat' should be closer to things that follow 'the'"
+Wenn es bei „mat“ falsch liegt (und stattdessen „dog“ vorhersagt), ist der **Loss** hoch. Backpropagation sendet ein Signal:
+- „Das Embedding für ‚cat‘ sollte so aktualisiert werden, dass es ‚mat‘ besser vorhersagt“
+- „Das Embedding für ‚mat‘ sollte näher an Dingen liegen, die auf ‚the‘ folgen“
 
-### Step 3: Gradient Descent Updates Embeddings
+### Schritt 3: Gradient Descent aktualisiert Embeddings
 
 ```python
-# Simplified — what happens to one embedding during one training step:
+# Vereinfacht — was mit einem Embedding während eines Trainingsschritts passiert:
 
-# Current embedding for token "cat":
+# Aktuelles Embedding für Token "cat":
 cat_embedding = [0.002, -0.013, 0.007, ..., -0.009]
 
-# After seeing "The ___ sat on the mat" (filling in "cat"):
-# The gradient says: "move dimension 5 up by 0.0003, dimension 42 down by 0.0001..."
-cat_embedding = [0.002, -0.012, 0.008, ..., -0.010]  # Tiny update
+# Nachdem "The ___ sat on the mat" gesehen wurde (mit "cat" eingesetzt):
+# Der Gradient sagt: "Dimension 5 um 0.0003 erhöhen, Dimension 42 um 0.0001 verringern..."
+cat_embedding = [0.002, -0.012, 0.008, ..., -0.010]  # Kleines Update
 
-# After MILLIONS of examples, patterns emerge:
-# - "cat" moves close to "dog", "pet", "feline"
-# - "cat" stays far from "car", "democracy", "photosynthesis"
+# Nach MILLIONEN von Beispielen entstehen Muster:
+# - "cat" rückt näher an "dog", "pet", "feline"
+# - "cat" bleibt weit entfernt von "car", "democracy", "photosynthesis"
 ```
 
-### Step 4: After Training — Emergent Structure
+### Schritt 4: Nach dem Training — Emergente Struktur
 
-After training on billions of tokens, the 768-dimensional space develops meaningful structure:
+Nach dem Training auf Milliarden von Tokens entwickelt der 768-dimensionale Raum eine bedeutungsvolle Struktur:
 
 ```
-Direction 1 (0-63):   Animacy — alive vs non-alive
-Direction 2 (64-127): Size — big vs small  
-Direction 3 (128-191): Sentiment — positive vs negative
-Direction 4 (192-255): Formality — formal vs casual
+Richtung 1 (0-63):   Belebtheit — belebt vs. unbelebt
+Richtung 2 (64-127): Größe — groß vs. klein  
+Richtung 3 (128-191): Sentiment — positiv vs. negativ
+Richtung 4 (192-255): Formalität — formell vs. informell
 ...
 ```
 
-These "directions" aren't assigned by humans. They emerge from the geometry of language. The model discovers that it's useful to cluster related concepts together because they appear in similar contexts.
+Diese „Richtungen“ werden nicht von Menschen zugewiesen. Sie entstehen aus der Geometrie der Sprache. Das Modell entdeckt, dass es nützlich ist, verwandte Konzepte zusammenzufassen, weil sie in ähnlichen Kontexten auftreten.
 
-## A note on scaling
+## Ein Hinweis zur Skalierung
 
-GPT-2 and GPT-3 multiply embeddings by `sqrt(d_model)`. This is needed
-when you ADD positional encodings to embeddings because the two signals
-must have comparable magnitude. Position values from sin/cos are between
--1 and 1 while freshly initialized embeddings are much smaller.
+GPT-2 und GPT-3 multiplizieren Embeddings mit `sqrt(d_model)`. Das ist
+notwendig, wenn man Positional Encodings zu Embeddings ADDIERT, weil die
+beiden Signale eine vergleichbare Größenordnung haben müssen. Positionswerte
+aus sin/cos liegen zwischen -1 und 1, während frisch initialisierte
+Embeddings deutlich kleiner sind.
 
-We use RoPE instead. RoPE does not add position information. It rotates
-the query and key vectors. Rotation preserves vector magnitude so there
-is no problem of one signal drowning out the other. Following LLaMA's
-convention we do not apply any scaling to the embeddings in our code.
-The embedding layer just looks up the vector and returns it.
+Wir verwenden stattdessen RoPE. RoPE addiert keine Positionsinformation. Es
+rotiert die Query- und Key-Vektoren. Rotation erhält die Vektorlänge, sodass
+kein Problem entsteht, bei dem ein Signal das andere überlagert. Der
+Konvention von LLaMA folgend wenden wir in unserem Code keinerlei Skalierung
+auf die Embeddings an. Der Embedding-Layer schlägt den Vektor lediglich
+nach und gibt ihn zurück.
 
 ```python
-embeddings = self.embed(x)           # Values are ~N(0, 0.02) from init
-# No scaling needed with RoPE — LLaMA and Mistral do not scale embeddings
+embeddings = self.embed(x)           # Werte sind ~N(0, 0.02) aus der Initialisierung
+# Keine Skalierung nötig bei RoPE — LLaMA und Mistral skalieren Embeddings nicht
 ```
 
-## What Determines Embedding Quality?
+## Was bestimmt die Qualität von Embeddings?
 
-| Factor | Good Embeddings | Bad Embeddings |
+| Faktor | Gute Embeddings | Schlechte Embeddings |
 |---|---|---|
-| Training data volume | 100B+ tokens | 1M tokens |
-| Embedding dimension | 768+ (GPT-2) to 12288 (GPT-3) | 64 or less |
-| Vocabulary size | 50K (balanced) | 5K (too small) or 500K (too sparse) |
-| Training duration | Converged loss | Early stopping |
-| Data diversity | Books, web, code, conversation | Single domain |
+| Umfang der Trainingsdaten | 100B+ Tokens | 1M Tokens |
+| Embedding-Dimension | 768+ (GPT-2) bis 12288 (GPT-3) | 64 oder weniger |
+| Vokabulargröße | 50K (ausgewogen) | 5K (zu klein) oder 500K (zu dünn besetzt) |
+| Trainingsdauer | Konvergierter Loss | Frühes Abbrechen |
+| Datenvielfalt | Bücher, Web, Code, Konversation | Einzelne Domäne |
 
-## Embedding Code — Annotated
+## Embedding-Code — Kommentiert
 
 ```python
 import torch
@@ -131,96 +133,96 @@ import math
 
 class Embedding(nn.Module):
     """
-    WHAT: Converts token IDs into dense vectors (embeddings).
-    WHY: A neural network can't do meaningful math on integer IDs
-         like [9246, 6734]. It needs continuous numbers in vectors.
+    WAS: Wandelt Token-IDs in dichte Vektoren (Embeddings) um.
+    WARUM: Ein neuronales Netz kann mit ganzzahligen IDs wie [9246, 6734]
+           keine sinnvolle Mathematik betreiben. Es braucht kontinuierliche Zahlen in Vektorform.
 
-         Think of it as a giant lookup table:
-         Row 9246 -> vector of 768 floats (the "meaning" of "cat")
-         Row 6734 -> vector of 768 floats (the "meaning" of "sat")
+           Man kann es sich als riesige Nachschlagetabelle vorstellen:
+           Zeile 9246 -> Vektor aus 768 Floats (die "Bedeutung" von "cat")
+           Zeile 6734 -> Vektor aus 768 Floats (die "Bedeutung" von "sat")
 
-         This table is LEARNED. Initially random, backpropagation
-         gradually moves related tokens closer together in the
-         768-dimensional space.
+           Diese Tabelle wird GELERNT. Anfangs zufällig, verschiebt
+           Backpropagation nach und nach verwandte Tokens im
+           768-dimensionalen Raum näher zueinander.
     """
 
     def __init__(self, vocab_size: int, d_model: int):
         """
-        WHAT: Create the embedding table (a learnable matrix).
+        WAS: Erstellt die Embedding-Tabelle (eine lernbare Matrix).
 
         Args:
-            vocab_size: How many unique tokens exist (50,257 for GPT-2)
-            d_model:    Size of each embedding vector.
+            vocab_size: Wie viele eindeutige Tokens es gibt (50,257 bei GPT-2)
+            d_model:    Größe jedes Embedding-Vektors.
 
-        Examples by model scale:
-            GPT-2 small:  vocab=50257, d_model=768   → table is 50257 × 768
-            GPT-2 medium: vocab=50257, d_model=1024  → table is 50257 × 1024
-            GPT-3 small:  vocab=50257, d_model=4096  → table is 50257 × 4096
-            GPT-3 large:  vocab=50257, d_model=12288 → table is 50257 × 12288
+        Beispiele nach Modellgröße:
+            GPT-2 small:  vocab=50257, d_model=768   → Tabelle ist 50257 × 768
+            GPT-2 medium: vocab=50257, d_model=1024  → Tabelle ist 50257 × 1024
+            GPT-3 small:  vocab=50257, d_model=4096  → Tabelle ist 50257 × 4096
+            GPT-3 large:  vocab=50257, d_model=12288 → Tabelle ist 50257 × 12288
 
-        WHY: The embedding dimension determines how much "space"
-             each word has to express its meaning. Bigger d_model =
-             more nuanced meanings can be captured, at the cost of
-             more parameters and slower training.
+        WARUM: Die Embedding-Dimension bestimmt, wie viel "Raum"
+               jedes Wort hat, um seine Bedeutung auszudrücken. Größeres
+               d_model = feinere Bedeutungsnuancen können erfasst werden,
+               auf Kosten von mehr Parametern und langsamerem Training.
         """
         super().__init__()
 
-        # WHAT: The actual embedding weights — a [vocab_size, d_model] matrix
-        # WHY: nn.Embedding is an optimized lookup table. When you pass
-        #      a tensor of token IDs, it returns the corresponding rows.
-        #      It's backed by a standard weight matrix, so gradients
-        #      flow through it just like any nn.Linear layer.
+        # WAS: Die eigentlichen Embedding-Gewichte — eine [vocab_size, d_model]-Matrix
+        # WARUM: nn.Embedding ist eine optimierte Nachschlagetabelle. Übergibt man
+        #        einen Tensor von Token-IDs, liefert sie die entsprechenden Zeilen zurück.
+        #        Sie wird von einer normalen Gewichtsmatrix gestützt, sodass Gradienten
+        #        genauso hindurchfließen wie bei jedem nn.Linear-Layer.
         #
-        #      Internally, nn.Embedding is essentially:
-        #      def forward(self, x):
-        #          return self.weight[x]  # index into the weight matrix
+        #        Intern ist nn.Embedding im Wesentlichen:
+        #        def forward(self, x):
+        #            return self.weight[x]  # Index in die Gewichtsmatrix
         self.embed = nn.Embedding(vocab_size, d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
-        WHAT: Look up embeddings for each token ID in the input.
+        WAS: Schlägt für jede Token-ID in der Eingabe das Embedding nach.
 
-        Input shape:  [batch_size, seq_len]    — each cell is a token ID
-        Output shape: [batch_size, seq_len, d_model] — each cell is a vector
+        Input-Shape:  [batch_size, seq_len]    — jede Zelle ist eine Token-ID
+        Output-Shape: [batch_size, seq_len, d_model] — jede Zelle ist ein Vektor
 
-        Example walkthrough:
+        Beispiel-Durchlauf:
             Input:  [[464, 3797]]              # ["The", "cat"]
-            Step 1: Look up row 464 → [768 floats] for "The"
-                    Look up row 3797 → [768 floats] for "cat"
-            Step 2: Scale by sqrt(768) ≈ 27.7
-            Output: [[[v0..v767], [v0..v767]]] # 2 vectors of 768 numbers
+            Schritt 1: Zeile 464 nachschlagen → [768 Floats] für "The"
+                       Zeile 3797 nachschlagen → [768 Floats] für "cat"
+            Schritt 2: Skalieren mit sqrt(768) ≈ 27.7
+            Output: [[[v0..v767], [v0..v767]]] # 2 Vektoren aus je 768 Zahlen
 
-        WHY each dimension:
-            batch_size = how many sequences we process at once (parallelism)
-            seq_len    = how many tokens per sequence (context window)
-            d_model    = how rich each token's representation is (expressiveness)
+        WARUM diese Dimensionen:
+            batch_size = wie viele Sequenzen wir gleichzeitig verarbeiten (Parallelität)
+            seq_len    = wie viele Tokens pro Sequenz (Context Window)
+            d_model    = wie reichhaltig die Repräsentation jedes Tokens ist (Ausdruckskraft)
         """
-        # WHAT: Index into the embedding matrix
-        # WHY: For each token ID, return its row. This is an O(1)
-        #      lookup operation — very fast, even for 50K+ vocabulary.
+        # WAS: Index in die Embedding-Matrix
+        # WARUM: Für jede Token-ID wird deren Zeile zurückgegeben. Das ist eine
+        #        O(1)-Lookup-Operation — sehr schnell, selbst bei 50K+ Vokabular.
         embeddings = self.embed(x)  # [batch, seq_len, d_model]
 
-        # WHAT: Return embeddings unchanged
-        # WHY: We use RoPE for position encoding. RoPE rotates rather
-        #      than adds, so no scaling is needed. LLaMA and Mistral
-        #      follow this same convention.
+        # WAS: Embeddings unverändert zurückgeben
+        # WARUM: Wir verwenden RoPE für die Positionskodierung. RoPE
+        #        rotiert, statt zu addieren, daher ist keine Skalierung
+        #        nötig. LLaMA und Mistral folgen derselben Konvention.
         return embeddings
 ```
 
-## Quick Mind-Test
+## Kurzer Verständnistest
 
-Before moving on, check your understanding:
+Bevor es weitergeht, überprüfe dein Verständnis:
 
-1. **Q:** If "cat" is token 9246, what is the embedding of "cat"?
-   **A:** Whatever row 9246 of the embedding matrix contains. Initially random, after training it's a 768-dimensional vector that captures the "meaning" of "cat."
+1. **F:** Wenn „cat“ Token 9246 ist, was ist das Embedding von „cat“?
+   **A:** Was auch immer in Zeile 9246 der Embedding-Matrix steht. Anfangs zufällig, nach dem Training ein 768-dimensionaler Vektor, der die „Bedeutung“ von „cat“ erfasst.
 
-2. **Q:** Why can't we use the raw token IDs (9246, 6734, etc.) directly?
-   **A:** Because 9246 and 6734 are just arbitrary numbers. The model would think 9246 > 6734 (false relationship). Embeddings let the model learn that "cat" (9246) is similar to "dog" (not a nearby ID, but a nearby vector).
+2. **F:** Warum können wir nicht direkt die rohen Token-IDs (9246, 6734 usw.) verwenden?
+   **A:** Weil 9246 und 6734 einfach willkürliche Zahlen sind. Das Modell würde denken, 9246 > 6734 (eine falsche Beziehung). Embeddings ermöglichen es dem Modell zu lernen, dass „cat“ (9246) „dog“ ähnlich ist (keine benachbarte ID, aber ein benachbarter Vektor).
 
-3. **Q:** Do embeddings capture meaning for punctuation too?
-   **A:** Yes! "." (period), "," (comma), "?" all have embeddings. The model learns that "." is followed by capitalized words, "?" is followed by answers, etc.
+3. **F:** Erfassen Embeddings auch die Bedeutung von Satzzeichen?
+   **A:** Ja! „.“ (Punkt), „,“ (Komma), „?“ — alle haben Embeddings. Das Modell lernt, dass auf „.“ großgeschriebene Wörter folgen, auf „?“ Antworten folgen usw.
 
 ---
 
-**Previous:** [Chapter 2 — Tokenization](02_tokenization.md)
-**Next:** [Chapter 4 — Positional Encoding](04_positional_encoding.md)
+**Zurück:** [Kapitel 2 — Tokenisierung](02_tokenization.md)
+**Weiter:** [Kapitel 4 — Positional Encoding](04_positional_encoding.md)

@@ -1,74 +1,81 @@
-# Grouped Query Attention and Multi-Query Attention
+# Grouped Query Attention und Multi-Query Attention
 
-## The short answer
+## Die kurze Antwort
 
-Standard multi-head attention gives every attention head its own Query
-Key and Value. Grouped Query Attention shares Key and Value heads
-across groups of Query heads. One Key and Value pair serves multiple
-Queries. This cuts the KV cache size dramatically during inference.
-The model quality barely drops. Multi-Query Attention takes this to
-the extreme by using a single Key and Value head for all Query heads.
+Standard-Multi-Head-Attention gibt jedem Attention Head seinen eigenen
+Query, Key und Value. Grouped Query Attention teilt Key- und
+Value-Heads über Gruppen von Query-Heads hinweg. Ein Key-Value-Paar
+bedient mehrere Queries. Das verkleinert die Größe des KV-Cache
+während der Inference drastisch. Die Modellqualität sinkt kaum.
+Multi-Query Attention treibt das auf die Spitze, indem ein einzelner
+Key- und Value-Head für alle Query-Heads verwendet wird.
 
-## Where this matters
+## Wo das eine Rolle spielt
 
-Every time the model generates a new token during inference it must
-store the Key and Value vectors for that token in the KV cache. With
-standard multi-head attention the cache stores one K and one V per
-head per layer per token.
+Jedes Mal, wenn das Modell während der Inference ein neues Token
+generiert, muss es die Key- und Value-Vektoren für dieses Token im
+KV-Cache speichern. Bei Standard-Multi-Head-Attention speichert der
+Cache ein K und ein V pro Head pro Layer pro Token.
 
 ```
-Standard MHA (12 heads):
-  Each new token adds: 12 K vectors + 12 V vectors
-  Cache size for 1000 tokens: 24 × 1000 × head_dim floats
+Standard-MHA (12 Heads):
+  Jedes neue Token fügt hinzu: 12 K-Vektoren + 12 V-Vektoren
+  Cache-Größe für 1000 Token: 24 × 1000 × head_dim Floats
 
-GQA (12 Q heads, 4 KV heads):
-  Each new token adds: 4 K vectors + 4 V vectors
-  Cache size for 1000 tokens: 8 × 1000 × head_dim floats
-  Memory savings: 3× smaller cache
+GQA (12 Q-Heads, 4 KV-Heads):
+  Jedes neue Token fügt hinzu: 4 K-Vektoren + 4 V-Vektoren
+  Cache-Größe für 1000 Token: 8 × 1000 × head_dim Floats
+  Speicherersparnis: 3× kleinerer Cache
 
-MQA (12 Q heads, 1 KV head):
-  Each new token adds: 1 K vector + 1 V vector
-  Cache size for 1000 tokens: 2 × 1000 × head_dim floats
-  Memory savings: 12× smaller cache
+MQA (12 Q-Heads, 1 KV-Head):
+  Jedes neue Token fügt hinzu: 1 K-Vektor + 1 V-Vektor
+  Cache-Größe für 1000 Token: 2 × 1000 × head_dim Floats
+  Speicherersparnis: 12× kleinerer Cache
 ```
 
-The memory savings are real. For a 70 billion parameter model generating
-4096 tokens the KV cache can be gigabytes. Cutting it by 4x or 8x means
-the difference between fitting in GPU memory and crashing.
+Die Speicherersparnis ist real. Bei einem Modell mit 70 Milliarden
+Parametern, das 4096 Token generiert, kann der KV-Cache mehrere
+Gigabyte groß werden. Ihn um das 4-fache oder 8-fache zu verkleinern,
+macht den Unterschied zwischen Hineinpassen in den GPU-Speicher und
+einem Absturz aus.
 
-## Why this works
+## Warum das funktioniert
 
-Do we really need twelve separate Key and Value heads. Each head in
-standard MHA has its own perspective on the input. The Query heads
-need this diversity. Different queries look for different patterns.
-Grammar heads look for subject verb agreement. Semantic heads look for
-meaning relationships. Position heads look for word order.
+Brauchen wir wirklich zwölf separate Key- und Value-Heads? Jeder Head
+in Standard-MHA hat seine eigene Perspektive auf die Eingabe. Die
+Query-Heads brauchen diese Vielfalt. Unterschiedliche Queries suchen
+nach unterschiedlichen Mustern. Grammatik-Heads achten auf
+Subjekt-Verb-Kongruenz. Semantische Heads achten auf
+Bedeutungsbeziehungen. Positions-Heads achten auf die Wortstellung.
 
-But the Keys and Values do not need as much diversity. They represent
-what each token has to offer. A token offers the same fundamental
-information regardless of which Query head is looking at it. The verb
-*sat* offers the same semantic content whether the grammar head or the
-semantic head is querying it. Sharing Keys and Values across heads
-loses little information.
+Aber die Keys und Values brauchen nicht so viel Vielfalt. Sie
+repräsentieren, was jedes Token zu bieten hat. Ein Token bietet
+dieselbe grundlegende Information, unabhängig davon, welcher
+Query-Head es betrachtet. Das Verb *sat* liefert denselben
+semantischen Gehalt, egal ob der Grammatik-Head oder der semantische
+Head danach fragt. Wenn Keys und Values über Heads hinweg geteilt
+werden, geht nur wenig Information verloren.
 
-GQA strikes a balance. A few KV heads provide enough diversity for the
-query heads to find what they need. The optimal ratio is about four to
-eight query heads per KV head. Beyond that the quality drops noticeably.
+GQA findet einen Mittelweg. Wenige KV-Heads liefern genug Vielfalt,
+damit die Query-Heads finden, was sie brauchen. Das optimale
+Verhältnis liegt bei etwa vier bis acht Query-Heads pro KV-Head.
+Darüber hinaus sinkt die Qualität spürbar.
 
-## The code change from standard MHA
+## Die Code-Änderung gegenüber Standard-MHA
 
-The difference is minimal. Standard MHA projects to 3 × d_model for
-Q K and V. GQA projects to d_model × d_model + 2 × kv_heads × head_dim.
+Der Unterschied ist minimal. Standard-MHA projiziert auf 3 × d_model
+für Q, K und V. GQA projiziert auf d_model × d_model + 2 × kv_heads ×
+head_dim.
 
 ```python
-# Standard Multi-Head Attention
+# Standard-Multi-Head-Attention
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads):
         self.num_heads = num_heads
         self.head_dim = d_model // num_heads
         self.qkv_proj = nn.Linear(d_model, 3 * d_model, bias=False)
-        # Projects to: Q (d_model) + K (d_model) + V (d_model)
-        # All heads get their own Q, K, V
+        # Projiziert auf: Q (d_model) + K (d_model) + V (d_model)
+        # Alle Heads bekommen ihre eigenen Q, K, V
 
 # Grouped Query Attention
 class GroupedQueryAttention(nn.Module):
@@ -77,10 +84,10 @@ class GroupedQueryAttention(nn.Module):
         self.num_kv_heads = num_kv_heads
         self.head_dim = d_model // num_heads
 
-        # Q projection: full size (1 per head)
+        # Q-Projektion: volle Größe (1 pro Head)
         self.q_proj = nn.Linear(d_model, num_heads * self.head_dim, bias=False)
 
-        # K and V projections: smaller (1 per KV head)
+        # K- und V-Projektionen: kleiner (1 pro KV-Head)
         kv_dim = num_kv_heads * self.head_dim
         self.k_proj = nn.Linear(d_model, kv_dim, bias=False)
         self.v_proj = nn.Linear(d_model, kv_dim, bias=False)
@@ -88,20 +95,21 @@ class GroupedQueryAttention(nn.Module):
         self.out_proj = nn.Linear(d_model, d_model, bias=False)
 ```
 
-The key difference: `k_proj` and `v_proj` project to `num_kv_heads × head_dim`
-instead of `num_heads × head_dim`. Fewer KV projections. Less memory.
-Faster inference.
+Der entscheidende Unterschied: `k_proj` und `v_proj` projizieren auf
+`num_kv_heads × head_dim` statt auf `num_heads × head_dim`. Weniger
+KV-Projektionen. Weniger Speicher. Schnellere Inference.
 
-### The forward pass
+### Der Forward Pass
 
-The forward pass needs one extra step. The KV heads must be repeated to
-match the number of query heads.
+Der Forward Pass braucht einen zusätzlichen Schritt. Die KV-Heads
+müssen wiederholt werden, damit sie der Anzahl der Query-Heads
+entsprechen.
 
 ```python
 def forward(self, x, mask=None):
     batch, seq, d_model = x.shape
 
-    # Project Q fully, K and V with fewer heads
+    # Q vollständig projizieren, K und V mit weniger Heads
     q = self.q_proj(x)
     q = q.reshape(batch, seq, self.num_heads, self.head_dim)
     q = q.permute(0, 2, 1, 3)
@@ -114,13 +122,13 @@ def forward(self, x, mask=None):
     v = v.reshape(batch, seq, self.num_kv_heads, self.head_dim)
     v = v.permute(0, 2, 1, 3)
 
-    # Repeat KV heads to match query heads
-    # Example: 12 Q heads, 4 KV heads → repeat each KV 3 times
+    # KV-Heads wiederholen, damit sie den Query-Heads entsprechen
+    # Beispiel: 12 Q-Heads, 4 KV-Heads → jeden KV-Head 3-mal wiederholen
     repeat_factor = self.num_heads // self.num_kv_heads
     k = k.repeat_interleave(repeat_factor, dim=1)
     v = v.repeat_interleave(repeat_factor, dim=1)
 
-    # Standard attention from here
+    # Ab hier Standard-Attention
     scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
     if mask is not None:
         scores = scores.masked_fill(mask == 0, float('-inf'))
@@ -132,68 +140,72 @@ def forward(self, x, mask=None):
     return self.out_proj(output)
 ```
 
-The `repeat_interleave` on line 25 is the only new operation. It takes
-the four KV heads and repeats each one three times to get twelve. The
-twelve query heads can then attend to these repeated KV heads.
+Das `repeat_interleave` in Zeile 25 ist die einzige neue Operation. Es
+nimmt die vier KV-Heads und wiederholt jeden davon dreimal, um auf
+zwölf zu kommen. Die zwölf Query-Heads können dann Attention auf diese
+wiederholten KV-Heads anwenden.
 
-During inference the KV cache stores only `num_kv_heads` Keys and Values
-per layer. The repeat happens on the fly. The computation is the same
-as standard attention. Only the memory footprint changes.
+Während der Inference speichert der KV-Cache nur `num_kv_heads` Keys
+und Values pro Layer. Die Wiederholung erfolgt zur Laufzeit. Die
+Berechnung ist dieselbe wie bei Standard-Attention. Nur der
+Speicherbedarf ändert sich.
 
-## Multi-Query Attention: the extreme case
+## Multi-Query Attention: der Extremfall
 
-MQA is GQA with `num_kv_heads` set to 1. One Key and one Value for all
-query heads. The repeat factor equals `num_heads`.
+MQA ist GQA mit `num_kv_heads` auf 1 gesetzt. Ein Key und ein Value
+für alle Query-Heads. Der Wiederholungsfaktor entspricht `num_heads`.
 
 ```python
 # MQA: num_kv_heads = 1
-# k_proj projects to just 1 × head_dim dimensions
-# v_proj projects to just 1 × head_dim dimensions
-# repeat_interleave(num_heads) duplicates to match query heads
+# k_proj projiziert auf nur 1 × head_dim Dimensionen
+# v_proj projiziert auf nur 1 × head_dim Dimensionen
+# repeat_interleave(num_heads) dupliziert, damit es den Query-Heads entspricht
 ```
 
-MQA was introduced by Google in 2019 for translation models. It saves
-the maximum memory but quality drops more than GQA. PaLM and Gemini
-use MQA successfully because their models are large enough that the
-quality loss from sharing is offset by the quality gain from scale.
+MQA wurde 2019 von Google für Übersetzungsmodelle eingeführt. Es spart
+das Maximum an Speicher, aber die Qualität sinkt stärker als bei GQA.
+PaLM und Gemini setzen MQA erfolgreich ein, weil ihre Modelle groß
+genug sind, dass der Qualitätsverlust durch das Teilen durch den
+Qualitätsgewinn aus der Skalierung ausgeglichen wird.
 
-## Which models use which
+## Welche Modelle was verwenden
 
-| Model | Architecture | Q Heads | KV Heads | Ratio |
+| Modell | Architektur | Q-Heads | KV-Heads | Verhältnis |
 |---|---|---|---|---|
 | GPT-2 | MHA | 12 | 12 | 1:1 |
 | GPT-3 | MHA | 96 | 96 | 1:1 |
-| LLaMA 1 | MHA | varies | varies | 1:1 |
+| LLaMA 1 | MHA | variiert | variiert | 1:1 |
 | LLaMA 2 7B/13B | MHA | 32 | 32 | 1:1 |
 | LLaMA 2 70B | GQA | 64 | 8 | 8:1 |
 | LLaMA 3 8B | GQA | 32 | 8 | 4:1 |
 | LLaMA 3 70B | GQA | 64 | 8 | 8:1 |
 | Mistral 7B | GQA | 32 | 8 | 4:1 |
 | Gemma 7B | MHA | 16 | 16 | 1:1 |
-| PaLM | MQA | varies | 1 | varies |
-| Gemini | MQA | varies | 1 | varies |
+| PaLM | MQA | variiert | 1 | variiert |
+| Gemini | MQA | variiert | 1 | variiert |
 
-The trend is clear. Smaller models keep MHA because the KV cache is
-small enough anyway. Larger models switch to GQA because the memory
-savings matter at scale. A few very large models push to MQA for
-maximum savings.
+Der Trend ist eindeutig. Kleinere Modelle behalten MHA bei, weil der
+KV-Cache ohnehin klein genug ist. Größere Modelle wechseln zu GQA,
+weil die Speicherersparnis bei dieser Größenordnung ins Gewicht fällt.
+Einige sehr große Modelle gehen für maximale Ersparnis bis zu MQA.
 
-## When to use GQA in your own model
+## Wann Sie GQA im eigenen Modell einsetzen sollten
 
-If your model is under about 13 billion parameters MHA is fine. The
-KV cache is small. The memory savings from GQA do not justify the
-engineering complexity.
+Wenn Ihr Modell unter etwa 13 Milliarden Parametern liegt, ist MHA
+völlig ausreichend. Der KV-Cache ist klein. Die Speicherersparnis
+durch GQA rechtfertigt nicht den zusätzlichen technischen Aufwand.
 
-If your model is between 13 billion and 70 billion parameters GQA is
-the sweet spot. Use a ratio of 4:1 or 8:1. The memory savings are
-significant. The quality loss is barely measurable.
+Liegt Ihr Modell zwischen 13 und 70 Milliarden Parametern, ist GQA der
+Sweet Spot. Verwenden Sie ein Verhältnis von 4:1 oder 8:1. Die
+Speicherersparnis ist erheblich. Der Qualitätsverlust ist kaum
+messbar.
 
-If your model is over 70 billion parameters and you are serving many
-concurrent users consider MQA. The extreme memory savings let you
-serve more users per GPU. The quality loss is noticeable but the
-economics often win.
+Hat Ihr Modell über 70 Milliarden Parameter und bedienen Sie viele
+gleichzeitige Nutzer, ziehen Sie MQA in Betracht. Die extreme
+Speicherersparnis erlaubt es, mehr Nutzer pro GPU zu bedienen. Der
+Qualitätsverlust ist spürbar, aber die Wirtschaftlichkeit gewinnt oft.
 
-## A complete GQA code example
+## Ein vollständiges GQA-Codebeispiel
 
 ```python
 import torch
@@ -243,7 +255,7 @@ class GroupedQueryAttention(nn.Module):
         return self.out_proj(output)
 
 
-# Memory comparison
+# Speichervergleich
 d_model = 4096
 num_heads = 32
 num_kv_heads = 8
@@ -257,28 +269,32 @@ print(f"MHA KV cache per layer: {mha_kv_size * 2 / 1e6:.1f} MB (bfloat16)")
 print(f"GQA KV cache per layer: {gqa_kv_size * 2 / 1e6:.1f} MB (bfloat16)")
 print(f"Memory savings: {mha_kv_size / gqa_kv_size:.1f}x")
 
-# For 80 layers:
+# Für 80 Layer:
 print(f"\nFor an 80 layer model:")
 print(f"MHA total KV cache: {mha_kv_size * 80 * 2 / 1e9:.2f} GB")
 print(f"GQA total KV cache: {gqa_kv_size * 80 * 2 / 1e9:.2f} GB")
 ```
 
-## What you need to remember
+## Was Sie sich merken sollten
 
-Grouped Query Attention shares Key and Value heads across groups of
-Query heads. This reduces the KV cache size during inference by the
-ratio of query heads to KV heads. A ratio of 4:1 or 8:1 is standard.
-The quality loss is minimal. The memory savings are dramatic at scale.
+Grouped Query Attention teilt Key- und Value-Heads über Gruppen von
+Query-Heads hinweg. Das reduziert die Größe des KV-Cache während der
+Inference um das Verhältnis von Query-Heads zu KV-Heads. Ein
+Verhältnis von 4:1 oder 8:1 ist Standard. Der Qualitätsverlust ist
+minimal. Die Speicherersparnis ist bei großem Maßstab enorm.
 
-Multi-Query Attention is the extreme case with a single KV head for
-all query heads. Maximum memory savings but noticeable quality loss.
-Used by PaLM and Gemini where the model is large enough to compensate.
+Multi-Query Attention ist der Extremfall mit einem einzigen KV-Head
+für alle Query-Heads. Maximale Speicherersparnis, aber spürbarer
+Qualitätsverlust. Eingesetzt von PaLM und Gemini, wo das Modell groß
+genug ist, um das auszugleichen.
 
-The code difference from standard attention is minimal. Separate Q K
-and V projections with different output sizes. One repeat interleave
-operation. The rest of the attention computation is identical.
+Der Code-Unterschied zur Standard-Attention ist minimal. Getrennte
+Q-, K- und V-Projektionen mit unterschiedlichen Ausgabegrößen. Eine
+repeat-interleave-Operation. Der Rest der Attention-Berechnung ist
+identisch.
 
-For models under 13 billion parameters use standard MHA. For larger
-models switch to GQA. The memory savings make the difference between
-a model that serves users and a model that runs out of GPU memory
-after a few hundred tokens.
+Für Modelle unter 13 Milliarden Parametern verwenden Sie Standard-MHA.
+Für größere Modelle wechseln Sie zu GQA. Die Speicherersparnis macht
+den Unterschied zwischen einem Modell, das Nutzer bedienen kann, und
+einem Modell, dem nach ein paar hundert Token der GPU-Speicher
+ausgeht.

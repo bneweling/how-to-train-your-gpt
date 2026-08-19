@@ -1,29 +1,33 @@
-# Cosine Warmup: The Learning Rate Schedule
+# Cosine Warmup: Der Learning-Rate-Schedule
 
-## What is it
+## Was ist das
 
-The cosine warmup schedule controls how the learning rate changes
-during training. It starts low and rises to a peak. Then it
-gradually falls following a cosine curve. By the end of training
-the learning rate is very small and the model settles into a fine
-minimum.
+Der Cosine-Warmup-Schedule steuert, wie sich die Learning Rate
+während des Trainings verändert. Sie beginnt niedrig und steigt
+bis zu einem Höchstwert an. Anschließend fällt sie allmählich
+entlang einer Kosinuskurve ab. Am Ende des Trainings ist die
+Learning Rate sehr klein, und das Modell pendelt sich in einem
+feinen Minimum ein.
 
-Think of it like learning to ride a bicycle. At first you go very
-slowly. You wobble. You get a feel for the balance. Once you have
-some stability you push harder and go faster. As you approach your
-destination you slow down again to make a precise stop. You do
-not sprint from the start and slam the brakes at the end.
+Man kann es sich wie das Fahrradfahrenlernen vorstellen. Zu
+Beginn fährt man sehr langsam. Man schwankt. Man bekommt ein
+Gefühl für das Gleichgewicht. Sobald man etwas stabiler ist,
+tritt man kräftiger in die Pedale und wird schneller. Kurz vor
+dem Ziel wird man wieder langsamer, um präzise anzuhalten. Man
+sprintet nicht von Anfang an los und tritt am Ende abrupt auf
+die Bremse.
 
-Cosine warmup does the same thing for neural network training. The
-model starts slow to find its balance. It accelerates to full
-speed once stable. It decelerates at the end to land softly on
-the best possible solution.
+Cosine Warmup macht beim Training neuronaler Netze genau
+dasselbe. Das Modell startet langsam, um sein Gleichgewicht zu
+finden. Sobald es stabil ist, beschleunigt es auf volle
+Geschwindigkeit. Am Ende verlangsamt es wieder, um sanft bei der
+bestmöglichen Lösung zu landen.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-The schedule controls the learning rate parameter inside the
-optimizer. Every training step the schedule computes a new
-learning rate and assigns it to the optimizer.
+Der Schedule steuert den Learning-Rate-Parameter innerhalb des
+Optimizers. Bei jedem Trainingsschritt berechnet der Schedule
+eine neue Learning Rate und weist sie dem Optimizer zu.
 
 ```python
 scheduler = CosineWarmupScheduler(optimizer, warmup=2000, max_steps=100000)
@@ -32,59 +36,65 @@ for step in range(max_steps):
     loss = model(batch)
     loss.backward()
     optimizer.step()
-    scheduler.step()  # Update learning rate every step
+    scheduler.step()  # Learning Rate bei jedem Schritt aktualisieren
     optimizer.zero_grad()
 ```
 
-## Why we need it
+## Warum wir es brauchen
 
-A constant learning rate seems simpler. Why not just pick one
-value and train the whole way. Two reasons.
+Eine konstante Learning Rate erscheint einfacher. Warum nicht
+einfach einen Wert wählen und den gesamten Weg damit trainieren?
+Zwei Gründe.
 
-First early training is chaotic. The model's weights are random.
-The gradients are large and noisy. Large learning rates at the
-start can send the model flying off in random directions. The
-warmup phase lets the model find its footing before taking large
-steps.
+Erstens: Das frühe Training ist chaotisch. Die Gewichte des
+Modells sind zufällig. Die Gradienten sind groß und verrauscht.
+Große Learning Rates zu Beginn können das Modell in zufällige
+Richtungen davonschießen lassen. Die Warmup-Phase gibt dem
+Modell die Möglichkeit, festen Boden unter die Füße zu bekommen,
+bevor es große Schritte macht.
 
-Second late training is about precision. After thousands of steps
-the model is close to a good solution. Large steps would overshoot
-the minimum and bounce around it forever. The decay phase lets
-the model take tiny careful steps to settle into the exact best
-position.
+Zweitens: Beim späten Training geht es um Präzision. Nach
+Tausenden von Schritten ist das Modell nahe an einer guten
+Lösung. Große Schritte würden über das Minimum hinausschießen
+und ewig darum herumspringen. Die Decay-Phase erlaubt es dem
+Modell, winzige, vorsichtige Schritte zu machen, um sich genau
+auf der besten Position einzupendeln.
 
-A constant learning rate would be either too large for the start
-or too small for the middle. Warmup plus decay is the only way to
-have both stability at the start and precision at the end.
+Eine konstante Learning Rate wäre entweder zu groß für den Start
+oder zu klein für die Mitte. Nur die Kombination aus Warmup und
+Decay ermöglicht sowohl Stabilität am Anfang als auch Präzision
+am Ende.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Learning rate warmup was used for the original transformer in
-2017. The authors noticed that training was unstable in the first
-few thousand steps without it. Cosine decay was introduced around
-the same time as an alternative to step decay schedules which
-drop the learning rate abruptly at predetermined intervals. Step
-decay works but the sudden drops can disturb the model. Cosine
-decay is smooth and continuous. GPT-3 used cosine warmup. LLaMA
-used cosine warmup. It is the standard for language model
-training.
+Learning-Rate-Warmup wurde bereits 2017 beim ursprünglichen
+Transformer eingesetzt. Die Autoren stellten fest, dass das
+Training in den ersten paar Tausend Schritten ohne Warmup
+instabil war. Cosine Decay wurde etwa zur gleichen Zeit
+eingeführt, als Alternative zu Step-Decay-Schedules, die die
+Learning Rate abrupt zu vorher festgelegten Zeitpunkten senken.
+Step Decay funktioniert, aber die plötzlichen Sprünge können das
+Modell stören. Cosine Decay verläuft dagegen weich und
+kontinuierlich. GPT-3 verwendete Cosine Warmup. LLaMA verwendete
+Cosine Warmup. Es ist der Standard für das Training von
+Sprachmodellen.
 
-## How it works
+## Wie es funktioniert
 
-The schedule has three phases. Each phase is a simple
-mathematical formula.
+Der Schedule besteht aus drei Phasen. Jede Phase ist eine
+einfache mathematische Formel.
 
-### Phase 1: Linear warmup
+### Phase 1: Linearer Warmup
 
-The learning rate starts at zero and increases linearly to the
-maximum value.
+Die Learning Rate startet bei null und steigt linear bis zum
+Maximalwert an.
 
 ```python
 if step < warmup_steps:
     lr = max_lr * step / warmup_steps
 ```
 
-Example with warmup_steps of 2000 and max_lr of 0.0003:
+Beispiel mit warmup_steps = 2000 und max_lr = 0.0003:
 
 ```
 Step 0:    lr = 0.0003 × (0 / 2000) = 0.0
@@ -93,14 +103,15 @@ Step 1000: lr = 0.0003 × (1000 / 2000) = 0.00015
 Step 2000: lr = 0.0003 × (2000 / 2000) = 0.0003
 ```
 
-Every step the learning rate grows by the same tiny amount. No
-sudden jumps. The model has two thousand steps to get stable
-before it reaches full speed.
+Bei jedem Schritt wächst die Learning Rate um denselben winzigen
+Betrag. Keine plötzlichen Sprünge. Das Modell hat zweitausend
+Schritte Zeit, um stabil zu werden, bevor es die volle
+Geschwindigkeit erreicht.
 
-### Phase 2: Cosine decay
+### Phase 2: Cosine Decay
 
-After warmup the learning rate follows a cosine curve from the
-maximum down to a minimum.
+Nach dem Warmup folgt die Learning Rate einer Kosinuskurve, die
+vom Maximum bis zu einem Minimum abfällt.
 
 ```python
 if step < max_steps:
@@ -109,8 +120,9 @@ if step < max_steps:
     lr = min_lr + (max_lr - min_lr) × cosine_decay
 ```
 
-The progress variable goes from zero to one over the remaining
-steps. The cosine function creates a smooth S shape curve.
+Die Variable progress läuft über die verbleibenden Schritte von
+null bis eins. Die Kosinusfunktion erzeugt eine weiche S-förmige
+Kurve.
 
 ```
 Step 2000:  progress = 0.0, cosine = 1.0, lr = 0.0003
@@ -119,25 +131,26 @@ Step 50000: progress = 0.49, cosine = 0.25, lr = 0.000075
 Step 100000: progress = 1.0, cosine = 0.0, lr = 0.00001
 ```
 
-The learning rate falls slowly at first then faster in the middle
-then slowly again at the end. The minimum is usually 0.00001
-which is thirty times smaller than the peak. This tiny rate at
-the end lets the model refine its weights with extreme precision.
+Die Learning Rate fällt zunächst langsam, dann schneller in der
+Mitte und gegen Ende wieder langsam. Das Minimum liegt
+üblicherweise bei 0.00001, was dreißigmal kleiner ist als der
+Höchstwert. Diese winzige Rate am Ende erlaubt es dem Modell,
+seine Gewichte mit extremer Präzision zu verfeinern.
 
 ### Phase 3: Minimum
 
-After max_steps the learning rate stays at the minimum forever.
+Nach max_steps bleibt die Learning Rate für immer beim Minimum.
 
 ```python
 lr = min_lr
 ```
 
-The model continues to learn but at a glacial pace. Each step
-makes almost no difference. This is intentional. The model has
-already learned everything it needs. The remaining steps just
-polish.
+Das Modell lernt weiterhin, aber im Schneckentempo. Jeder
+Schritt macht kaum noch einen Unterschied. Das ist beabsichtigt.
+Das Modell hat bereits alles gelernt, was es braucht. Die
+verbleibenden Schritte dienen nur noch dem Feinschliff.
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import math
@@ -173,10 +186,10 @@ print("then decays along a cosine curve for 98000 steps")
 print("and stays at the minimum from step 100000 onward")
 ```
 
-## The shape of the curve
+## Die Form der Kurve
 
 ```
-Learning rate
+Learning Rate
      ^
      |
 0.0003 +         ....----....
@@ -187,23 +200,25 @@ Learning rate
      |..                                            ...........
 0.0  +----+----+----+----+----+----+----+----+----+----+---->
      0   10k  20k  30k  40k  50k  60k  70k  80k  90k  100k
-                             Training steps
+                             Trainingsschritte
 ```
 
-The curve rises steeply during warmup. It stays near the peak for
-a while. Then it starts a gentle descent that accelerates in the
-middle and flattens at the end. The minimum is reached exactly at
-the final training step. Not before. Not after.
+Die Kurve steigt während des Warmups steil an. Sie bleibt eine
+Weile nahe am Höchstwert. Dann beginnt ein sanfter Abstieg, der
+sich in der Mitte beschleunigt und gegen Ende abflacht. Das
+Minimum wird exakt beim letzten Trainingsschritt erreicht. Nicht
+früher. Nicht später.
 
-## What you need to remember
+## Was man sich merken sollte
 
-Cosine warmup scheduling controls the learning rate across the
-entire training run. The rate starts at zero and warms up to a
-peak. Then it decays along a cosine curve to a minimum. The
-schedule is smooth and continuous with no sudden drops.
+Cosine-Warmup-Scheduling steuert die Learning Rate über den
+gesamten Trainingslauf hinweg. Die Rate startet bei null und
+wärmt sich bis zu einem Höchstwert auf. Anschließend fällt sie
+entlang einer Kosinuskurve bis zu einem Minimum ab. Der Schedule
+verläuft weich und kontinuierlich, ohne plötzliche Einbrüche.
 
-Warmup prevents instability at the start of training when
-gradients are chaotic. Decay allows precision at the end when the
-model is close to the solution. Together they make training both
-stable and precise. Every modern language model uses this
-schedule.
+Warmup verhindert Instabilität zu Beginn des Trainings, wenn die
+Gradienten chaotisch sind. Decay ermöglicht Präzision am Ende,
+wenn das Modell nahe an der Lösung ist. Zusammen machen sie das
+Training sowohl stabil als auch präzise. Jedes moderne
+Sprachmodell verwendet diesen Schedule.

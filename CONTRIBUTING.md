@@ -1,20 +1,20 @@
-# Contributing
+# Mitwirken
 
-This project is a personal learning exercise I'm sharing publicly. If you find a bug, a typo, or something unclear in the code or the chapters, I'd welcome your help.
+Dieses Projekt ist eine persönliche Lernübung, die ich öffentlich teile. Wenn du einen Bug, einen Tippfehler oder etwas Unklares im Code oder in den Kapiteln findest, freue ich mich über deine Hilfe.
 
-## Ways to contribute
+## Wege, um mitzuwirken
 
-- Fix typos or unclear explanations in the chapter files
-- Fix bugs in the notebook code
-- Add more worked examples or visualizations
-- Improve the README or documentation
-- Suggest a better analogy for a concept that feels confusing
+- Tippfehler oder unklare Erklärungen in den Kapiteldateien korrigieren
+- Bugs im Notebook-Code beheben
+- Weitere durchgerechnete Beispiele oder Visualisierungen hinzufügen
+- Das README oder die Dokumentation verbessern
+- Eine bessere Analogie für ein Konzept vorschlagen, das verwirrend wirkt
 
-## Before you open a PR
+## Bevor du einen PR öffnest
 
-- Keep the tone simple and human. No jargon. No buzzwords. Write like you're explaining to a friend.
-- Make sure any code you add runs without errors
-- Notebooks should stay self-contained. Each one should run top to bottom
-- If you're unsure about something, open an issue first and we can talk about it
+- Halte den Ton einfach und menschlich. Kein Fachjargon. Keine Buzzwords. Schreibe so, als würdest du es einem Freund erklären.
+- Stelle sicher, dass jeder hinzugefügte Code fehlerfrei läuft
+- Notebooks sollten in sich abgeschlossen bleiben. Jedes sollte von oben nach unten durchlaufen
+- Wenn du dir bei etwas unsicher bist, eröffne zuerst ein Issue, damit wir darüber sprechen können
 
-Thanks for reading this far. This project started because I wanted to understand attention. If it helps you understand it too, that's the whole point.
+Danke, dass du so weit gelesen hast. Dieses Projekt entstand, weil ich Attention verstehen wollte. Wenn es dir auch dabei hilft, es zu verstehen, dann hat es seinen Zweck erfüllt.

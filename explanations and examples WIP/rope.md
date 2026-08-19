@@ -1,71 +1,79 @@
 # RoPE — Rotary Position Embeddings
 
-## What is it
+## Was ist es
 
-RoPE is a way to tell a language model *where* each word sits in
-a sentence. Without it the model sees all words at once and has
-no idea which word came first. RoPE stamps every word with its
-position by giving it a tiny rotation. Words at the start get a
-small spin. Words later in the sentence get a bigger spin. The
-model can look at how much two words are rotated and figure out
-their distance.
+RoPE ist eine Möglichkeit, einem Sprachmodell mitzuteilen, *wo*
+sich jedes Wort in einem Satz befindet. Ohne RoPE sieht das Modell
+alle Wörter gleichzeitig und hat keine Ahnung, welches Wort zuerst
+kam. RoPE versieht jedes Wort mit seiner Position, indem es ihm
+eine winzige Rotation verpasst. Wörter am Anfang bekommen eine
+kleine Drehung. Wörter weiter hinten im Satz bekommen eine größere
+Drehung. Das Modell kann erkennen, wie stark zwei Wörter rotiert
+sind, und daraus ihre Distanz ableiten.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-RoPE lives inside the attention layer. Specifically it is applied
-to the query and key vectors right before the dot product that
-decides how much two words should pay attention to each other.
+RoPE befindet sich innerhalb des Attention-Layers. Genauer gesagt
+wird es auf die Query- und Key-Vektoren angewendet, unmittelbar vor
+dem Skalarprodukt, das bestimmt, wie viel Aufmerksamkeit zwei
+Wörter einander schenken sollen.
 
 ```
-Input tokens
-  → Embedding (word meanings)
-    → Attention (where RoPE happens)
-      → Transformer Block output
+Eingabe-Token
+  → Embedding (Wortbedeutungen)
+    → Attention (hier passiert RoPE)
+      → Ausgabe des Transformer-Blocks
 ```
 
-## Why use it
+## Warum wird es verwendet
 
-Before RoPE people used other tricks to mark word positions. Some
-added position numbers to the word vectors. Others let the model
-learn position from scratch. Both worked but had limits. Learned
-positions could not handle sentences longer than training. Added
-position numbers did not capture the relative distance between
-words well.
+Vor RoPE nutzte man andere Tricks, um Wortpositionen zu markieren.
+Manche addierten Positionsnummern zu den Wortvektoren. Andere
+ließen das Modell die Position von Grund auf lernen. Beides
+funktionierte, hatte aber Grenzen. Gelernte Positionen kamen mit
+Sätzen, die länger waren als die Trainingsdaten, nicht zurecht.
+Addierte Positionsnummern erfassten die relative Distanz zwischen
+Wörtern nicht gut.
 
-RoPE fixes both problems. It captures relative distance perfectly.
-Word five and word seven are always two steps apart no matter if
-they appear at the start or the middle of a long paragraph. And
-RoPE can handle any sentence length even if the model was trained
-on shorter ones. This is why LLaMA Mistral and Qwen all use RoPE.
+RoPE löst beide Probleme. Es erfasst die relative Distanz perfekt.
+Wort fünf und Wort sieben liegen immer zwei Schritte auseinander,
+egal ob sie am Anfang oder in der Mitte eines langen Absatzes
+stehen. Und RoPE kommt mit jeder Satzlänge zurecht, selbst wenn das
+Modell auf kürzeren Sätzen trainiert wurde. Deshalb setzen LLaMA,
+Mistral und Qwen alle auf RoPE.
 
-## When was it invented
+## Wann wurde es erfunden
 
-RoPE was published in 2021 by a team of researchers in a paper
-called RoFormer. It took a few years to catch on but by 2023
-every major open source language model had switched to RoPE.
+RoPE wurde 2021 von einem Forscherteam in einem Paper namens
+RoFormer veröffentlicht. Es dauerte ein paar Jahre, bis es sich
+durchsetzte, aber bis 2023 hatte jedes große Open-Source-
+Sprachmodell auf RoPE umgestellt.
 
-## How it works in simple terms
+## Wie es einfach erklärt funktioniert
 
-Imagine a clock with only one hand. At position zero the hand
-points straight up. At position one the hand rotates a little.
-At position two it rotates a little more. Each position gets a
-unique angle. The model stores these angles as cosine and sine
-values so it never has to compute them during training.
+Stell dir eine Uhr mit nur einem Zeiger vor. An Position null zeigt
+der Zeiger senkrecht nach oben. An Position eins dreht sich der
+Zeiger ein wenig. An Position zwei dreht er sich noch etwas weiter.
+Jede Position bekommt einen einzigartigen Winkel. Das Modell
+speichert diese Winkel als Kosinus- und Sinus-Werte, sodass es sie
+während des Trainings nie berechnen muss.
 
-Now every word has a secret pair of numbers. RoPE takes that pair
-and rotates it by the angle for that position. After rotation two
-words that are close together will have similar rotations. Two
-words far apart will have very different rotations. When attention
-looks at the dot product between a query and a key the result
-depends on how far apart they are. Not on their absolute position.
+Jedes Wort hat nun ein geheimes Zahlenpaar. RoPE nimmt dieses Paar
+und rotiert es um den Winkel der jeweiligen Position. Nach der
+Rotation haben zwei Wörter, die nah beieinanderstehen, ähnliche
+Rotationen. Zwei weit auseinanderliegende Wörter haben sehr
+unterschiedliche Rotationen. Wenn Attention das Skalarprodukt
+zwischen einer Query und einem Key betrachtet, hängt das Ergebnis
+davon ab, wie weit sie auseinanderliegen. Nicht von ihrer absoluten
+Position.
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import torch
 import math
 
-# Set up RoPE for a tiny model with 4 dimensions
+# RoPE für ein winziges Modell mit 4 Dimensionen einrichten
 d_model = 4
 max_seq_len = 16
 theta = 10000.0
@@ -79,18 +87,18 @@ emb = freqs.repeat_interleave(2, dim=-1)
 cos_cached = emb.cos()
 sin_cached = emb.sin()
 
-# Pretend we have a query vector for a word at position 0
+# Angenommen, wir haben einen Query-Vektor für ein Wort an Position 0
 q = torch.tensor([0.8, 0.3, -0.5, 0.2])
 
 seq_len = 4
 cos = cos_cached[:seq_len]
 sin = sin_cached[:seq_len]
 
-# Apply rotation for position 0
+# Rotation für Position 0 anwenden
 rotated = q * cos[0] + torch.tensor([-0.3, 0.8, -0.2, -0.5]) * sin[0]
 print(f"Position 0: {rotated.tolist()}")
 
-# Apply rotation for position 2
+# Rotation für Position 2 anwenden
 rotated = q * cos[2] + torch.tensor([-0.3, 0.8, -0.2, -0.5]) * sin[2]
 print(f"Position 2: {rotated.tolist()}")
 
@@ -99,13 +107,14 @@ print("Same word at different positions gets different rotations.")
 print("The model uses this difference to understand word order.")
 ```
 
-## What you need to remember
+## Was man sich merken sollte
 
-RoPE rotates vectors. The rotation angle depends on position. The
-dot product between two rotated vectors depends only on how far
-apart they are. This is what attention should care about. Not
-where the words are. But how far they are from each other.
+RoPE rotiert Vektoren. Der Rotationswinkel hängt von der Position
+ab. Das Skalarprodukt zwischen zwei rotierten Vektoren hängt nur
+davon ab, wie weit sie auseinanderliegen. Genau das sollte
+Attention interessieren. Nicht wo die Wörter stehen. Sondern wie
+weit sie voneinander entfernt sind.
 
-RoPE is free. No learned parameters. No extra memory. No speed
-penalty. It works for sequences of any length. Every modern
-language model uses it.
+RoPE ist kostenlos. Keine gelernten Parameter. Kein zusätzlicher
+Speicherbedarf. Kein Geschwindigkeitsverlust. Es funktioniert für
+Sequenzen jeder Länge. Jedes moderne Sprachmodell nutzt es.

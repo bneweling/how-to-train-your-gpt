@@ -1,13 +1,13 @@
-# Chapter 11 — Glossary of Modern Techniques
+# Kapitel 11 — Glossar moderner Techniken
 
-## Complete Architecture Diagram
+## Vollständiges Architekturdiagramm
 
 ```mermaid
 graph TD
-    T["Input Tokens"] --> E["Token Embedding"]
-    E --> L["x N Transformer Blocks"]
+    T["Eingabe-Tokens"] --> E["Token-Embedding"]
+    E --> L["x N Transformer-Blöcke"]
 
-    subgraph Block["One Transformer Block"]
+    subgraph Block["Ein Transformer-Block"]
         N1["RMSNorm"] --> A["Multi-Head Attention<br/>+ RoPE + Causal Mask"]
         A --> R1(("+"))
         N1 --> R1
@@ -17,107 +17,107 @@ graph TD
         R1 --> R2
     end
 
-    L --> FN["Final RMSNorm"]
+    L --> FN["Finale RMSNorm"]
     FN --> H["LM Head -> vocab_size"]
 ```
 
-## Techniques Summary
+## Zusammenfassung der Techniken
 
-| Technique | Old Way | Modern Way | Why Better |
+| Technik | Alte Methode | Moderne Methode | Warum besser |
 |---|---|---|---|
-| **Position Encoding** | Learned (GPT-2) or Sinusoidal | **RoPE** (LLaMA, Mistral) | Relative positions, any length |
-| **Normalization** | LayerNorm | **RMSNorm** (LLaMA) | ~15% faster, equally effective |
-| **Activation** | ReLU or GELU | **SwiGLU** (PaLM, LLaMA) | Better at scale |
-| **Norm Position** | Post-Norm (after sublayer) | **Pre-Norm** (GPT-3, LLaMA) | Much more stable training |
-| **Optimizer** | SGD or Adam | **AdamW** (decoupled decay) | Better generalization |
-| **LR Schedule** | Constant or step | **Cosine with warmup** | Smoother convergence |
-| **Precision** | Float32 | **bfloat16 mixed** | 2x faster, half memory |
-| **Gradient Clipping** | None or ad-hoc | **Max norm 1.0** | Prevents explosion |
-| **Weight Init** | Xavier uniform | **Normal(0, 0.02)** | GPT-family standard |
-| **Weight Tying** | Separate embed & output | **Shared weights** | Fewer params, more signal |
-| **Training Objective** | Masked LM (BERT) | **Next-token prediction** | Enables text generation |
+| **Positionscodierung** | Gelernt (GPT-2) oder sinusförmig | **RoPE** (LLaMA, Mistral) | Relative Positionen, beliebige Länge |
+| **Normalisierung** | LayerNorm | **RMSNorm** (LLaMA) | ~15 % schneller, gleich effektiv |
+| **Aktivierung** | ReLU oder GELU | **SwiGLU** (PaLM, LLaMA) | Skaliert besser |
+| **Norm-Position** | Post-Norm (nach dem Sublayer) | **Pre-Norm** (GPT-3, LLaMA) | Deutlich stabileres Training |
+| **Optimizer** | SGD oder Adam | **AdamW** (entkoppelter Weight Decay) | Bessere Generalisierung |
+| **LR-Schedule** | Konstant oder Step | **Cosinus mit Warmup** | Glattere Konvergenz |
+| **Präzision** | Float32 | **bfloat16 (Mixed Precision)** | 2x schneller, halber Speicherbedarf |
+| **Gradient Clipping** | Keine oder Ad-hoc | **Max-Norm 1.0** | Verhindert Gradientenexplosion |
+| **Weight-Initialisierung** | Xavier uniform | **Normal(0, 0.02)** | Standard der GPT-Familie |
+| **Weight Tying** | Separates Embedding & Output | **Shared Weights** | Weniger Parameter, mehr Signal |
+| **Trainingsziel** | Masked LM (BERT) | **Vorhersage des nächsten Tokens** | Ermöglicht Textgenerierung |
 
-## Parameter Count Breakdown
+## Aufschlüsselung der Parameteranzahl
 
-For our 151M model (LLaMA-style with SwiGLU):
+Für unser 151M-Modell (im LLaMA-Stil mit SwiGLU):
 
 ```
-Token Embedding:  vocab_size x d_model = 50,257 x 768 = 38,597,376
+Token-Embedding:  vocab_size x d_model = 50,257 x 768 = 38,597,376
 
-Per Transformer Block (12 total):
+Pro Transformer-Block (12 insgesamt):
   Attention QKV:   3 x 768 x 768 = 1,769,472
   Attention Out:   768 x 768     =   589,824
   SwiGLU w1:       768 x 3072    = 2,359,296
   SwiGLU w2:       768 x 3072    = 2,359,296
   SwiGLU w3:       3072 x 768    = 2,359,296
   RMSNorm x2:      768 + 768     =     1,536
-  Total/block:                  = 9,438,720
+  Gesamt/Block:                 = 9,438,720
 
-12 blocks:  12 x 9,438,720     = 113,264,640
+12 Blöcke:  12 x 9,438,720      = 113,264,640
 
-Final RMSNorm:                 =       768
-LM Head: shared with embedding =         0 (weight tying!)
+Finale RMSNorm:                =       768
+LM Head: geteilt mit Embedding =         0 (Weight Tying!)
 
-Grand Total: 38,597,376 + 113,264,640 + 768 = 151,862,784 parameters
+Gesamtsumme: 38,597,376 + 113,264,640 + 768 = 151,862,784 Parameter
 
-For comparison: a standard GPT-2 (without SwiGLU, using GELU FFN)
-would have ~124M parameters. SwiGLU adds about 28M extra parameters
-by replacing 2 FFN weight matrices with 3 gated ones.
+Zum Vergleich: Ein Standard-GPT-2 (ohne SwiGLU, mit GELU-FFN)
+hätte ~124M Parameter. SwiGLU fügt etwa 28M zusätzliche Parameter
+hinzu, indem es 2 FFN-Gewichtsmatrizen durch 3 gegatete ersetzt.
 ```
 
-## What You've Built
+## Was du gebaut hast
 
-By following this tutorial, you've built a **LLaMA-style decoder-only Transformer** using the best publicly-documented techniques:
+Indem du dieser Anleitung gefolgt bist, hast du einen **Decoder-only-Transformer im LLaMA-Stil** gebaut — unter Verwendung der besten öffentlich dokumentierten Techniken:
 
-- A **BPE tokenizer** (same algorithm as GPT-2/3/4)
-- A **Transformer** with modern improvements:
-  - Multi-Head Attention + **RoPE** position encoding (LLaMA, Mistral, Qwen)
-  - **RMSNorm** normalization (LLaMA, Mistral, Gemma)
-  - **SwiGLU** activation (PaLM, LLaMA, Gemini)
-  - **Pre-Norm** residual connections (GPT-3, all modern models)
-  - **Weight tying** between embedding and output (GPT-2/3)
-  - **Causal masking** for autoregressive training (all GPT-family models)
-- A **complete training pipeline**:
-  - AdamW + decoupled weight decay
-  - Cosine LR schedule with warmup
-  - Gradient accumulation
-  - Mixed precision (bfloat16)
-  - Gradient clipping
+- Einen **BPE-Tokenizer** (derselbe Algorithmus wie bei GPT-2/3/4)
+- Einen **Transformer** mit modernen Verbesserungen:
+  - Multi-Head Attention + **RoPE**-Positionscodierung (LLaMA, Mistral, Qwen)
+  - **RMSNorm**-Normalisierung (LLaMA, Mistral, Gemma)
+  - **SwiGLU**-Aktivierung (PaLM, LLaMA, Gemini)
+  - **Pre-Norm**-Residual-Connections (GPT-3, alle modernen Modelle)
+  - **Weight Tying** zwischen Embedding und Output (GPT-2/3)
+  - **Causal Masking** für autoregressives Training (alle Modelle der GPT-Familie)
+- Eine **vollständige Trainings-Pipeline**:
+  - AdamW + entkoppelter Weight Decay
+  - Cosinus-LR-Schedule mit Warmup
+  - Gradient Accumulation
+  - Mixed Precision (bfloat16)
+  - Gradient Clipping
   - Checkpointing
-- An **inference engine** with:
-  - Temperature scaling
-  - Top-K and Top-P sampling
+- Eine **Inference-Engine** mit:
+  - Temperature Scaling
+  - Top-K- und Top-P-Sampling
 
-## Next Steps
+## Nächste Schritte
 
-| Experiment | What to Change | What You'll Learn |
+| Experiment | Was zu ändern ist | Was du lernst |
 |---|---|---|
-| Bigger model | Increase layers, d_model | How scale improves quality |
-| More data | Full WikiText + BookCorpus | Impact of data quality |
-| Flash Attention | Replace with flash_attn | 2-5x faster, longer context |
-| Grouped Query Attention | Reduce KV heads | Efficient inference |
-| LoRA fine-tuning | Add low-rank adapters | Fine-tune without full training |
-| KV Cache | Cache key-value pairs | 100x faster generation |
-| Mixture of Experts | Route tokens through experts | How GPT-4 scales |
+| Größeres Modell | Layer, d_model erhöhen | Wie Skalierung die Qualität verbessert |
+| Mehr Daten | Vollständiges WikiText + BookCorpus | Einfluss der Datenqualität |
+| Flash Attention | Durch flash_attn ersetzen | 2-5x schneller, längerer Kontext |
+| Grouped Query Attention | KV-Heads reduzieren | Effiziente Inference |
+| LoRA-Fine-Tuning | Low-Rank-Adapter hinzufügen | Fine-Tuning ohne vollständiges Training |
+| KV-Cache | Key-Value-Paare cachen | 100x schnellere Generierung |
+| Mixture of Experts | Tokens durch Experts routen | Wie GPT-4 skaliert |
 
-## Architecture Provenance Table
+## Architektur-Herkunftstabelle
 
-| Technique | GPT-2 (2019) | GPT-3 (2020) | LLaMA (2023) | LLaMA 3 / Mistral / Qwen 2.5 (2024-25) | GPT-4 / Claude |
+| Technik | GPT-2 (2019) | GPT-3 (2020) | LLaMA (2023) | LLaMA 3 / Mistral / Qwen 2.5 (2024-25) | GPT-4 / Claude |
 |---|---|---|---|---|---|
-| Decoder-only | Yes | Yes | Yes | Yes | Likely |
-| Learned Position | Yes | Yes | No | No | Unknown |
-| **RoPE** | No | No | Yes | Yes | Unknown |
-| LayerNorm | Yes | Yes | No | No | Unknown |
-| **RMSNorm** | No | No | Yes | Yes | Unknown |
-| GELU | Yes | Yes | No | No | Unknown |
-| **SwiGLU** | No | No | Yes | Yes | Unknown |
-| Pre-Norm | No | Yes | Yes | Yes | Likely |
-| Weight Tying | Yes | Likely | Yes | Yes | Unknown |
-| AdamW | No | Yes | Yes | Yes | Likely |
+| Decoder-only | Ja | Ja | Ja | Ja | Wahrscheinlich |
+| Gelernte Position | Ja | Ja | Nein | Nein | Unbekannt |
+| **RoPE** | Nein | Nein | Ja | Ja | Unbekannt |
+| LayerNorm | Ja | Ja | Nein | Nein | Unbekannt |
+| **RMSNorm** | Nein | Nein | Ja | Ja | Unbekannt |
+| GELU | Ja | Ja | Nein | Nein | Unbekannt |
+| **SwiGLU** | Nein | Nein | Ja | Ja | Unbekannt |
+| Pre-Norm | Nein | Ja | Ja | Ja | Wahrscheinlich |
+| Weight Tying | Ja | Wahrscheinlich | Ja | Ja | Unbekannt |
+| AdamW | Nein | Ja | Ja | Ja | Wahrscheinlich |
 
-> **Bottom line:** This guide teaches the **LLaMA 3 / Mistral / Qwen 2.5 architecture** — the state of the art that is **publicly documented**. GPT-4 and Claude may use similar or different techniques; we simply don't know. But every model listed above is built on the same Transformer foundation, so by learning this architecture, you understand the core principles behind ALL modern LLMs.
+> **Fazit:** Diese Anleitung vermittelt die **LLaMA 3 / Mistral / Qwen 2.5-Architektur** — den Stand der Technik, der **öffentlich dokumentiert** ist. GPT-4 und Claude verwenden möglicherweise ähnliche oder andere Techniken; wir wissen es schlicht nicht. Aber jedes oben aufgeführte Modell baut auf demselben Transformer-Fundament auf — wer diese Architektur versteht, versteht damit die Kernprinzipien hinter ALLEN modernen LLMs.
 
 ---
 
-**Previous:** [Chapter 10 — Full Script](10_full_script.md)
-**Start over:** [Chapter 0 — Overview](00_overview.md)
+**Zurück:** [Kapitel 10 — Vollständiges Skript](10_full_script.md)
+**Von vorn beginnen:** [Kapitel 0 — Überblick](00_overview.md)

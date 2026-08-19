@@ -1,141 +1,141 @@
-# Chapter 6 — The Transformer Block
+# Kapitel 6 — Der Transformer-Block
 
-## The 5-Year-Old Analogy
+## Die Analogie für Fünfjährige
 
-A Transformer block is like a **sandwich**:
-
-```
-RMSNorm         (prepares the input — makes it "clean" and well-scaled)
-  Attention     (the meat — "talk to all other words and gather context")
-  + Residual    (skip connection — "keep the original meaning too")
-RMSNorm         (prepares again)
-  SwiGLU FFN    (the cheese — "think about what you just heard, alone")
-  + Residual    (skip connection — "keep what you had, add new insight")
-```
-
-Every modern LLM stacks 12-96 of these sandwiches on top of each other.
-
-## The Two Sub-Layers, Explained
-
-### Sub-Layer 1: Attention — "Talk to Everyone"
+Ein Transformer-Block ist wie ein **Sandwich**:
 
 ```
-Input:  "The cat sat on the mat"
-                            ^
-For token "mat": look at "The", "cat", "sat", "on", "the", "mat"
-                 Decide: "sat" is most relevant (verb-subject)
-                         "the" is second most (article-noun)
-                 Mix their meanings into a new "mat" representation
+RMSNorm         (bereitet die Eingabe vor — macht sie "sauber" und gut skaliert)
+  Attention     (das Fleisch — "sprich mit allen anderen Wörtern und sammle Kontext")
+  + Residual    (Skip-Connection — "behalte auch die ursprüngliche Bedeutung")
+RMSNorm         (bereitet erneut vor)
+  SwiGLU FFN    (der Käse — "denke allein über das nach, was du gerade gehört hast")
+  + Residual    (Skip-Connection — "behalte, was du hattest, füge neue Erkenntnis hinzu")
 ```
 
-### Sub-Layer 2: Feed-Forward — "Think in Private"
+Jedes moderne LLM stapelt 12-96 dieser Sandwiches übereinander.
+
+## Die beiden Sub-Layer erklärt
+
+### Sub-Layer 1: Attention — „Sprich mit allen“
 
 ```
-After attention: each token has a context-aware representation
-Now FFN: process EACH token independently with the same weights
-         (like studying your notes alone after a group discussion)
-
-Why needed? Attention mixes information BETWEEN tokens.
-            FFN processes information WITHIN each token.
-            Both are necessary for deep understanding.
+Eingabe:  "The cat sat on the mat"
+                              ^
+Für Token "mat": schaue auf "The", "cat", "sat", "on", "the", "mat"
+                 Entscheide: "sat" ist am relevantesten (Verb-Subjekt)
+                             "the" ist am zweitrelevantesten (Artikel-Nomen)
+                 Mische ihre Bedeutungen zu einer neuen "mat"-Repräsentation
 ```
 
-### Why Can't Attention Do Everything?
-
-A common question: if attention can look at all tokens, why do we need the FFN?
-
-**Answer:** Attention is a LINEAR operation (weighted sum of values). The FFN is NON-LINEAR (has activation functions). Without the FFN, stacking more attention layers would just be more linear combinations — no more powerful than a single attention layer. The FFN's non-linearity (SiLU activation) is what gives the Transformer its universal function approximation power.
+### Sub-Layer 2: Feed-Forward — „Denke für dich allein“
 
 ```
-Attention:  output = Σ(attention_weights × values)    ← linear combination
-FFN:        output = W3(SiLU(W1 × x) × (W2 × x))     ← non-linear transform
+Nach Attention: jedes Token hat eine kontextbewusste Repräsentation
+Jetzt FFN: verarbeite JEDES Token unabhängig mit denselben Gewichten
+         (wie das alleinige Durcharbeiten deiner Notizen nach einer Gruppendiskussion)
+
+Warum nötig? Attention mischt Informationen ZWISCHEN Tokens.
+            FFN verarbeitet Informationen INNERHALB jedes Tokens.
+            Beide sind für tiefes Verständnis notwendig.
 ```
 
-## The Residual Connection — The "Gradient Highway"
+### Warum kann Attention nicht alles erledigen?
 
-### What It Does
+Eine häufige Frage: Wenn Attention alle Tokens betrachten kann, wozu brauchen wir dann das FFN?
+
+**Antwort:** Attention ist eine LINEARE Operation (gewichtete Summe von Values). Das FFN ist NICHT-LINEAR (besitzt Aktivierungsfunktionen). Ohne das FFN wären zusätzlich gestapelte Attention-Layer nur weitere lineare Kombinationen — nicht leistungsfähiger als ein einzelner Attention-Layer. Die Nicht-Linearität des FFN (SiLU-Aktivierung) verleiht dem Transformer seine Fähigkeit zur universellen Funktionsapproximation.
 
 ```
-Without residual:  output = SubLayer(input)
-With residual:     output = input + SubLayer(Norm(input))
+Attention:  output = Σ(attention_weights × values)    ← lineare Kombination
+FFN:        output = W3(SiLU(W1 × x) × (W2 × x))     ← nicht-lineare Transformation
 ```
 
-### Why It's Critical: The Vanishing Gradient Problem
+## Die Residual Connection — der „Gradient-Highway“
 
-In a 12-layer network without residuals, the gradient signal at layer 1 is:
+### Was sie bewirkt
+
+```
+Ohne Residual:  output = SubLayer(input)
+Mit Residual:   output = input + SubLayer(Norm(input))
+```
+
+### Warum sie entscheidend ist: das Vanishing-Gradient-Problem
+
+In einem 12-Layer-Netzwerk ohne Residuals ist das Gradientensignal in Layer 1:
 
 ```
 gradient_at_layer_1 = gradient_at_layer_12 × (weight_12 × weight_11 × ... × weight_2)
 ```
 
-If each weight is 0.5 (reasonable for initial training), then:
+Wenn jedes Gewicht 0.5 beträgt (realistisch für den Trainingsbeginn), dann:
 ```
 gradient_at_layer_1 = gradient_at_layer_12 × 0.5^11
-                    = gradient_at_layer_12 × 0.0005  ← nearly ZERO!
+                    = gradient_at_layer_12 × 0.0005  ← fast NULL!
 ```
 
-This means early layers get almost no learning signal — they stay random, the model never learns.
+Das bedeutet, dass frühe Layer fast kein Lernsignal erhalten — sie bleiben zufällig, das Modell lernt nie.
 
-**With residuals:**
+**Mit Residuals:**
 
 ```
-With residual:  output = input + SubLayer(input)
+Mit Residual:  output = input + SubLayer(input)
 ```
 
-The gradient now has TWO paths:
-1. Through the sublayer: `∂(SubLayer) / ∂(input)` — may be small
-2. Through the skip: `∂(input) / ∂(input) = 1.0` — always exactly 1.0!
+Der Gradient hat nun ZWEI Pfade:
+1. Durch den Sublayer: `∂(SubLayer) / ∂(input)` — kann klein sein
+2. Durch den Skip: `∂(input) / ∂(input) = 1.0` — immer exakt 1.0!
 
-The overall gradient is `1.0 + small_number` — never vanishing.
+Der Gesamtgradient ist `1.0 + small_number` — verschwindet nie.
 
-**Analogy:** Think of driving from the 12th floor to the 1st floor. Without residuals, you must take 11 staircases (each staircase = weight multiplication). With residuals, there's a fireman's pole (skip connection) that goes straight down — gradient flows instantly, regardless of what the sublayers do.
+**Analogie:** Stell dir vor, du fährst vom 12. Stock in den 1. Stock. Ohne Residuals musst du 11 Treppen nehmen (jede Treppe = eine Gewichtsmultiplikation). Mit Residuals gibt es eine Feuerwehrstange (Skip-Connection), die direkt nach unten führt — der Gradient fließt sofort, unabhängig davon, was die Sublayer tun.
 
-## Pre-Norm vs Post-Norm: A Critical Design Choice
+## Pre-Norm vs. Post-Norm: eine entscheidende Design-Entscheidung
 
-| Aspect | Post-Norm (Original Paper) | Pre-Norm (Modern) |
+| Aspekt | Post-Norm (Original-Paper) | Pre-Norm (modern) |
 |---|---|---|
-| Formula | `Norm(x + SubLayer(x))` | `x + SubLayer(Norm(x))` |
-| Training stability | Unstable early, needs careful LR | Stable from step 1 |
-| Gradient flow | Normalized AFTER addition | Unnormalized residual path |
-| Used by | Original Transformer (2017) | GPT-3, LLaMA, PaLM, all modern |
-| Deep networks | Fails > 12 layers | Works at 100+ layers |
+| Formel | `Norm(x + SubLayer(x))` | `x + SubLayer(Norm(x))` |
+| Trainingsstabilität | Anfangs instabil, benötigt sorgfältige LR | Stabil ab Schritt 1 |
+| Gradientenfluss | Normalisiert NACH der Addition | Unnormalisierter Residual-Pfad |
+| Verwendet von | Original-Transformer (2017) | GPT-3, LLaMA, PaLM, alle modernen |
+| Tiefe Netzwerke | Scheitert bei > 12 Layern | Funktioniert bei 100+ Layern |
 
-**Why Pre-Norm works better:** The residual path (`+ x`) stays un-normalized, giving clean gradient flow. Post-Norm normalizes the output, which can squash gradients in deep networks.
+**Warum Pre-Norm besser funktioniert:** Der Residual-Pfad (`+ x`) bleibt unnormalisiert, was für einen sauberen Gradientenfluss sorgt. Post-Norm normalisiert die Ausgabe, was in tiefen Netzwerken Gradienten stauchen kann.
 
-## Modern Improvements
+## Moderne Verbesserungen
 
-| Component | Old Way | Modern Way | Why Better |
+| Komponente | Alter Ansatz | Moderner Ansatz | Warum besser |
 |---|---|---|---|
-| Normalization | LayerNorm | **RMSNorm** | 15% faster, equally effective, no centering needed |
-| Activation | ReLU/GELU | **SwiGLU** | Gated mechanism learns what info to keep/discard |
-| Norm Position | Post-Norm | **Pre-Norm** | Stable training at any depth |
+| Normalisierung | LayerNorm | **RMSNorm** | 15% schneller, gleich effektiv, kein Zentrieren nötig |
+| Aktivierung | ReLU/GELU | **SwiGLU** | Gate-Mechanismus lernt, welche Infos behalten/verworfen werden |
+| Norm-Position | Post-Norm | **Pre-Norm** | Stabiles Training bei jeder Tiefe |
 
-## RMSNorm — Deeper Explanation
+## RMSNorm — genauere Erklärung
 
-### LayerNorm vs RMSNorm
+### LayerNorm vs. RMSNorm
 
 ```
 LayerNorm(x) = ((x - mean(x)) / std(x)) * γ + β
                ^^^^^^^^^^^^^^^^^^^^^^^^^^    ^^^^
-               center AND scale             learnable shift and scale
+               zentrieren UND skalieren      lernbare Verschiebung und Skalierung
 
 RMSNorm(x)  = (x / rms(x)) * γ
                ^^^^^^^^^^^^    ^^
-               only scale      learnable scale only (no shift, no divide by std)
+               nur skalieren   nur lernbare Skalierung (keine Verschiebung, keine Division durch std)
 ```
 
-RMSNorm drops:
-1. **Mean subtraction** (centering) — found unnecessary, adds compute
-2. **Bias parameter β** — found unnecessary, the residual connection handles it
-3. **Standard deviation** — uses RMS instead (sqrt of mean of squares, simpler to compute)
+RMSNorm verzichtet auf:
+1. **Mittelwertsubtraktion** (Zentrierung) — als unnötig erkannt, kostet zusätzliche Rechenzeit
+2. **Bias-Parameter β** — als unnötig erkannt, die Residual Connection übernimmt diese Funktion
+3. **Standardabweichung** — verwendet stattdessen RMS (Wurzel aus dem Mittel der Quadrate, einfacher zu berechnen)
 
-Result: mathematically simpler, ~15% faster, same performance in practice.
+Ergebnis: mathematisch einfacher, ~15% schneller, in der Praxis gleiche Leistung.
 
-### Why Normalize at All?
+### Warum überhaupt normalisieren?
 
-Without normalization, the outputs of attention and FFN can grow unbounded. After 12 layers, values might be 100x or 0.01x their original magnitude — causing numerical instability. Normalization keeps every layer's output at a consistent scale.
+Ohne Normalisierung können die Ausgaben von Attention und FFN unbegrenzt wachsen. Nach 12 Layern könnten Werte das 100x oder 0.01x ihrer ursprünglichen Größenordnung betragen — was zu numerischer Instabilität führt. Normalisierung hält die Ausgabe jedes Layers auf einer konsistenten Skala.
 
-## RMSNorm Code
+## RMSNorm-Code
 
 ```python
 import torch
@@ -144,34 +144,35 @@ import torch.nn as nn
 
 class RMSNorm(nn.Module):
     """
-    WHAT: Root Mean Square Layer Normalization.
-    WHY: Normalizes each token's representation so its magnitude is ~1.0.
-         Prevents values from growing/shrinking across deep networks.
+    WAS: Root Mean Square Layer Normalization.
+    WARUM: Normalisiert die Repräsentation jedes Tokens, sodass ihre Magnitude ~1.0 beträgt.
+           Verhindert, dass Werte über tiefe Netzwerke hinweg wachsen/schrumpfen.
 
-         Used in: LLaMA 1/2/3, Mistral, Gemma, Qwen
+           Verwendet in: LLaMA 1/2/3, Mistral, Gemma, Qwen
     """
 
     def __init__(self, d_model: int, eps: float = 1e-6):
         super().__init__()
-        # WHAT: Learnable scale per dimension
-        # WHY: After forcing RMS=1, the model can learn to amplify
-        #      important dimensions and dampen unimportant ones.
-        #      Starts at 1.0 (no change initially).
+        # WAS: Lernbare Skalierung pro Dimension
+        # WARUM: Nachdem RMS=1 erzwungen wurde, kann das Modell lernen,
+        #        wichtige Dimensionen zu verstärken und unwichtige zu dämpfen.
+        #        Startet bei 1.0 (anfangs keine Veränderung).
         self.weight = nn.Parameter(torch.ones(d_model))
-        self.eps = eps  # WHY: prevents division by zero
+        self.eps = eps  # WARUM: verhindert Division durch Null
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # WHAT: Compute 1/sqrt(mean(x²))
-        # WHY: rsqrt is 1/sqrt — computed as a single CUDA kernel
-        #      for speed. The mean is over the last dimension (d_model).
-        #      keepdim=True preserves the dimension for broadcasting.
+        # WAS: Berechnet 1/sqrt(mean(x²))
+        # WARUM: rsqrt ist 1/sqrt — wird als einzelner CUDA-Kernel
+        #        berechnet, für Geschwindigkeit. Der Mittelwert wird über
+        #        die letzte Dimension (d_model) gebildet.
+        #        keepdim=True erhält die Dimension für Broadcasting.
         rms = torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-        # WHAT: Normalize then learnable-scale
+        # WAS: Normalisieren, dann lernbar skalieren
         return x * rms * self.weight
 ```
 
-## SwiGLU Code
+## SwiGLU-Code
 
 ```python
 import torch
@@ -181,48 +182,48 @@ import torch.nn.functional as F
 
 class SwiGLU(nn.Module):
     """
-    WHAT: SwiGLU — gated version of Swish activation.
-    WHY: The "gate" (right side of multiplication) learns to
-         selectively pass or block information — like a faucet.
+    WAS: SwiGLU — gegatete Version der Swish-Aktivierung.
+    WARUM: Das "Gate" (rechte Seite der Multiplikation) lernt,
+           Informationen selektiv durchzulassen oder zu blockieren — wie ein Wasserhahn.
 
-         Standard FFN:  output = W2(ReLU(W1(x)))
-         SwiGLU FFN:    output = W3(SiLU(W1(x)) * (W2(x)))
-                                   ^^^^^^^^      ^^^^^^
-                                   values        gate
+           Standard-FFN:  output = W2(ReLU(W1(x)))
+           SwiGLU-FFN:    output = W3(SiLU(W1(x)) * (W2(x)))
+                                     ^^^^^^^^      ^^^^^^
+                                     Values        Gate
 
-         The gate multiplies values: if gate ≈ 0, block info.
-                                     if gate ≈ 1, pass info.
-                                     if gate ≈ 0.5, partial pass.
+           Das Gate multipliziert die Values: wenn Gate ≈ 0, blockiere Info.
+                                        wenn Gate ≈ 1, lasse Info durch.
+                                        wenn Gate ≈ 0.5, teilweiser Durchlass.
 
-         This gating mechanism is what makes SwiGLU outperform
-         ReLU and GELU — the model learns WHERE to apply non-linearity.
+           Dieser Gating-Mechanismus ist es, der SwiGLU besser als
+           ReLU und GELU macht — das Modell lernt, WO es Nicht-Linearität anwendet.
 
-         Paper: "GLU Variants Improve Transformer" (Shazeer, 2020)
-         Used in: LLaMA 1/2/3, PaLM, Gemini
+           Paper: "GLU Variants Improve Transformer" (Shazeer, 2020)
+           Verwendet in: LLaMA 1/2/3, PaLM, Gemini
     """
 
     def __init__(self, d_model: int, expansion_factor: int = 4):
         super().__init__()
 
-        # WHAT: Hidden dim is 4x input/output — the "expansion" bottleneck
-        # WHY: Expand→process→contract is more expressive than same-size.
-        #      784 → 3072 → 784 lets the FFN learn ~4x more complex patterns.
+        # WAS: Hidden-Dim ist 4x Input/Output — der "Expansion"-Engpass
+        # WARUM: Expandieren→Verarbeiten→Komprimieren ist ausdrucksstärker als gleiche Größe.
+        #        784 → 3072 → 784 lässt das FFN ~4x komplexere Muster lernen.
         hidden_dim = expansion_factor * d_model
 
-        self.w1 = nn.Linear(d_model, hidden_dim, bias=False)   # Projects to values
-        self.w2 = nn.Linear(d_model, hidden_dim, bias=False)   # Projects to gates
-        self.w3 = nn.Linear(hidden_dim, d_model, bias=False)   # Projects back
+        self.w1 = nn.Linear(d_model, hidden_dim, bias=False)   # Projiziert auf Values
+        self.w2 = nn.Linear(d_model, hidden_dim, bias=False)   # Projiziert auf Gates
+        self.w3 = nn.Linear(hidden_dim, d_model, bias=False)   # Projiziert zurück
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # WHAT: SiLU(w1(x)) are the values, w2(x) are the gates
-        # WHY: SiLU (also called Swish) = x * sigmoid(x)
-        #      It's smooth (unlike ReLU which has a sharp corner at 0),
-        #      which makes gradients flow better during training.
-        #      Gate multiplies values element-wise, selectively passing info.
+        # WAS: SiLU(w1(x)) sind die Values, w2(x) sind die Gates
+        # WARUM: SiLU (auch Swish genannt) = x * sigmoid(x)
+        #        Es ist glatt (im Gegensatz zu ReLU, das bei 0 eine scharfe Ecke hat),
+        #        was Gradienten während des Trainings besser fließen lässt.
+        #        Das Gate multipliziert die Values elementweise und lässt Info selektiv durch.
         return self.w3(F.silu(self.w1(x)) * self.w2(x))
 ```
 
-## Complete Transformer Block Code
+## Vollständiger Transformer-Block-Code
 
 ```python
 import torch
@@ -231,81 +232,81 @@ import torch.nn as nn
 
 class TransformerBlock(nn.Module):
     """
-    WHAT: One complete Transformer layer (attention + FFN with residuals).
-    WHY: Stack N of these to build a deep language model.
+    WAS: Ein vollständiger Transformer-Layer (Attention + FFN mit Residuals).
+    WARUM: Stapel N davon, um ein tiefes Sprachmodell zu bauen.
 
-         Architecture (Pre-Norm):
-         ┌─────────────────────────────────────┐
-         │ x = x + Attention(RMSNorm(x), mask) │  ← Mix information BETWEEN tokens
-         │ x = x + SwiGLU(RMSNorm(x))          │  ← Process information WITHIN tokens
-         └─────────────────────────────────────┘
+           Architektur (Pre-Norm):
+           ┌─────────────────────────────────────┐
+           │ x = x + Attention(RMSNorm(x), mask) │  ← Mischt Informationen ZWISCHEN Tokens
+           │ x = x + SwiGLU(RMSNorm(x))          │  ← Verarbeitet Informationen INNERHALB von Tokens
+           └─────────────────────────────────────┘
 
-         Each sublayer: normalize FIRST (pre-norm), then compute,
-         then ADD back the original (residual connection).
+           Jeder Sublayer: zuerst normalisieren (Pre-Norm), dann berechnen,
+           dann das Original zurück ADDIEREN (Residual Connection).
 
-         Without residuals: deep networks can't train (vanishing gradients)
-         Without pre-norm: training is unstable at large depths
-         Without FFN: no non-linear processing per token
-         Without attention: no information mixing between tokens
+           Ohne Residuals: tiefe Netzwerke lassen sich nicht trainieren (Vanishing Gradients)
+           Ohne Pre-Norm: das Training ist bei großer Tiefe instabil
+           Ohne FFN: keine nicht-lineare Verarbeitung pro Token
+           Ohne Attention: keine Informationsmischung zwischen Tokens
     """
 
     def __init__(self, d_model: int, num_heads: int, dropout: float = 0.1):
         super().__init__()
 
-        # WHAT: First normalization — before attention
-        # WHY: Pre-norm: clean, well-scaled input → stable attention computation
+        # WAS: Erste Normalisierung — vor der Attention
+        # WARUM: Pre-Norm: saubere, gut skalierte Eingabe → stabile Attention-Berechnung
         self.norm1 = RMSNorm(d_model)
 
-        # WHAT: Multi-head self-attention with RoPE and causal masking
-        # WHY: The core mechanism that lets tokens "talk to" each other
+        # WAS: Multi-Head-Self-Attention mit RoPE und Causal Masking
+        # WARUM: Der zentrale Mechanismus, der Tokens erlaubt, "miteinander zu sprechen"
         self.attention = MultiHeadAttention(d_model, num_heads, dropout)
 
-        # WHAT: Second normalization — before FFN
-        # WHY: FFN expects normalized input for consistent behavior across layers
+        # WAS: Zweite Normalisierung — vor dem FFN
+        # WARUM: Das FFN erwartet normalisierte Eingaben für konsistentes Verhalten über alle Layer
         self.norm2 = RMSNorm(d_model)
 
-        # WHAT: SwiGLU feed-forward network
-        # WHY: Non-linear processing per token. Without this, stacking more
-        #      attention layers would be no more powerful than one layer.
+        # WAS: SwiGLU-Feed-Forward-Netzwerk
+        # WARUM: Nicht-lineare Verarbeitung pro Token. Ohne dies wären zusätzlich
+        #        gestapelte Attention-Layer nicht leistungsfähiger als ein einzelner Layer.
         self.ffn = SwiGLU(d_model)
 
     def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
         """
-        Forward pass: norm → sublayer → add residual.
-        Executed twice: once for attention, once for FFN.
+        Forward Pass: Norm → Sublayer → Residual addieren.
+        Wird zweimal ausgeführt: einmal für Attention, einmal für FFN.
         """
 
-        # ===== SUB-LAYER 1: Self-Attention with residual =====
-        # WHAT: x = x + Attention(Norm(x))
-        # WHY: The model learns what CHANGES (the delta) to make to x,
-        #      not what to replace x with entirely. This is easier to learn.
-        #      If attention can't improve things, it can output near-zero.
+        # ===== SUB-LAYER 1: Self-Attention mit Residual =====
+        # WAS: x = x + Attention(Norm(x))
+        # WARUM: Das Modell lernt, welche ÄNDERUNGEN (das Delta) an x vorzunehmen sind,
+        #        nicht, wodurch x vollständig ersetzt werden soll. Das ist leichter zu lernen.
+        #        Wenn Attention nichts verbessern kann, kann sie nahezu Null ausgeben.
         x = x + self.attention(self.norm1(x), mask)
 
-        # ===== SUB-LAYER 2: Feed-Forward with residual =====
-        # WHAT: x = x + FFN(Norm(x))
-        # WHY: Same residual pattern. After mixing information via attention,
-        #      each token "thinks" independently via the FFN.
-        #      Attention = group discussion. FFN = private reflection.
+        # ===== SUB-LAYER 2: Feed-Forward mit Residual =====
+        # WAS: x = x + FFN(Norm(x))
+        # WARUM: Gleiches Residual-Muster. Nach dem Mischen von Informationen via Attention
+        #        "denkt" jedes Token unabhängig über das FFN nach.
+        #        Attention = Gruppendiskussion. FFN = private Reflexion.
         x = x + self.ffn(self.norm2(x))
 
         return x
 ```
 
-## Architecture Diagram
+## Architektur-Diagramm
 
 ```mermaid
 graph TD
-    IN["Input: batch x seq x 768"] --> N1["RMSNorm<br/>(make input well-scaled)"]
-    N1 --> ATT["Multi-Head Attention<br/>+ RoPE + Causal Mask<br/>('talk to other tokens')"]
+    IN["Eingabe: batch x seq x 768"] --> N1["RMSNorm<br/>(skaliert die Eingabe gut)"]
+    N1 --> ATT["Multi-Head Attention<br/>+ RoPE + Causal Mask<br/>('sprich mit anderen Tokens')"]
     ATT --> PLUS1(("+"))
     IN --> PLUS1
-    PLUS1 --> MID["Output: context-aware<br/>(each token now 'knows' about others)"]
-    MID --> N2["RMSNorm<br/>(prepare for FFN)"]
-    N2 --> FFN["SwiGLU FFN<br/>768 → 3072 → 768<br/>('think about what you heard')"]
+    PLUS1 --> MID["Ausgabe: kontextbewusst<br/>(jedes Token 'kennt' nun die anderen)"]
+    MID --> N2["RMSNorm<br/>(bereitet auf FFN vor)"]
+    N2 --> FFN["SwiGLU FFN<br/>768 → 3072 → 768<br/>('denke über das Gehörte nach')"]
     FFN --> PLUS2(("+"))
     MID --> PLUS2
-    PLUS2 --> OUT["Output: batch x seq x 768<br/>(context-aware + processed)"]
+    PLUS2 --> OUT["Ausgabe: batch x seq x 768<br/>(kontextbewusst + verarbeitet)"]
 
     style IN fill:#1565c0,stroke:#0d47a1,color:#ffffff
     style OUT fill:#2e7d32,stroke:#1b5e20,color:#ffffff
@@ -317,5 +318,5 @@ graph TD
 
 ---
 
-**Previous:** [Chapter 5 — Attention](05_attention.md)
-**Next:** [Chapter 7 — The Complete GPT](07_gpt_model.md)
+**Vorheriges Kapitel:** [Kapitel 5 — Attention](05_attention.md)
+**Nächstes Kapitel:** [Kapitel 7 — Das vollständige GPT](07_gpt_model.md)

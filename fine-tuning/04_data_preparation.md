@@ -1,172 +1,188 @@
-# Data Preparation for Fine-Tuning
+# Datenaufbereitung für das Fine-Tuning
 
-## The short answer
+## Die kurze Antwort
 
-Fine-tuning data is a collection of examples. Each example shows the
-model what to do. Give it an input and the desired output. After seeing
-thousands of examples the model learns the pattern and can produce
-correct outputs for new inputs. The quality of the data matters more
-than the quantity. Cleaning the data and formatting it consistently is
-most of the work.
+Fine-Tuning-Daten sind eine Sammlung von Beispielen. Jedes Beispiel
+zeigt dem Modell, was zu tun ist. Man gibt ihm eine Eingabe und die
+gewünschte Ausgabe. Nachdem das Modell tausende Beispiele gesehen hat,
+lernt es das Muster und kann für neue Eingaben korrekte Ausgaben
+erzeugen. Die Qualität der Daten ist wichtiger als die Menge. Das
+Bereinigen der Daten und ihre konsistente Formatierung machen den
+Großteil der Arbeit aus.
 
-## The basic format
+## Das Grundformat
 
-Every example has at least an instruction and a response. Some examples
-also have a system prompt or context.
+Jedes Beispiel besteht mindestens aus einer Anweisung und einer
+Antwort. Manche Beispiele enthalten außerdem einen System-Prompt oder
+Kontext.
 
 ```json
 {
-  "instruction": "Summarize this paragraph in one sentence.",
-  "input": "The cat sat on the mat for three hours...",
-  "response": "A cat stayed on a mat for an extended period."
+  "instruction": "Fasse diesen Absatz in einem Satz zusammen.",
+  "input": "Die Katze saß drei Stunden lang auf der Matte...",
+  "response": "Eine Katze blieb längere Zeit auf einer Matte."
 }
 ```
 
-The input field is optional. Many tasks only need an instruction. The
-model learns from the pattern of instruction followed by response.
+Das Feld `input` ist optional. Viele Aufgaben benötigen nur eine
+Anweisung. Das Modell lernt aus dem Muster Anweisung gefolgt von
+Antwort.
 
-## Chat templates
+## Chat-Templates
 
-Most fine-tuned models use a chat format. The instruction and response
-are wrapped in special tokens that tell the model where the user
-message ends and the assistant response begins.
+Die meisten Modelle, die per Fine-Tuning angepasst wurden, verwenden
+ein Chat-Format. Anweisung und Antwort werden in spezielle Token
+eingebettet, die dem Modell mitteilen, wo die Nutzernachricht endet und
+die Antwort des Assistenten beginnt.
 
 ```
 <|user|>
-What is the capital of France?
+Was ist die Hauptstadt von Frankreich?
 <|assistant|>
-The capital of France is Paris.
+Die Hauptstadt von Frankreich ist Paris.
 <|endoftext|>
 ```
 
-The exact tokens depend on the base model. LLaMA uses `[INST]` and
-`[/INST]`. Mistral uses `<s>[INST]` and `[/INST]`. Open source chat
-models often use `<|user|>` and `<|assistant|>` markers. Using the
-wrong tokens means the model does not recognize the format and
-produces garbage.
+Die genauen Token hängen vom Basismodell ab. LLaMA verwendet `[INST]`
+und `[/INST]`. Mistral verwendet `<s>[INST]` und `[/INST]`.
+Open-Source-Chat-Modelle nutzen häufig die Marker `<|user|>` und
+`<|assistant|>`. Werden die falschen Token verwendet, erkennt das
+Modell das Format nicht und erzeugt sinnlosen Text.
 
-## How much data you need
+## Wie viele Daten man braucht
 
-The minimum is around one hundred examples. Below that the model cannot
-generalize. It memorizes the examples and fails on new inputs. A
-thousand examples is solid for most tasks. Ten thousand is good for
-complex tasks like multi-turn conversation or code generation. Beyond
-ten thousand the returns diminish quickly.
-
-```
-100 examples:   Bare minimum. Model might not generalize.
-1,000 examples: Good for most classification and simple QA tasks.
-5,000 examples: Good for instruction following and summarization.
-10,000+ examples: Complex tasks. Diminishing returns after this.
-```
-
-The quality of each example matters more than the total count. A
-thousand carefully written examples beat ten thousand sloppy ones.
-Every mistake in the training data teaches the model to make that
-mistake. The model learns to replicate patterns. Not to judge them.
-
-## Cleaning the data
-
-Before training go through your data and remove anything that would
-teach the model bad habits.
-
-Examples of what to remove. Responses that are cut off or incomplete.
-Responses that contradict the instruction. Instructions that are
-ambiguous or impossible to follow. Repeated examples. Examples where
-the response is in the wrong language or format. Examples with
-offensive or harmful content.
+Das Minimum liegt bei etwa einhundert Beispielen. Darunter kann das
+Modell nicht generalisieren. Es merkt sich die Beispiele auswendig und
+versagt bei neuen Eingaben. Tausend Beispiele sind für die meisten
+Aufgaben solide. Zehntausend sind gut für komplexe Aufgaben wie
+mehrstufige Konversationen oder Codegenerierung. Über zehntausend
+hinaus nimmt der Nutzen schnell ab.
 
 ```
-Good example:
-  Instruction: "What is 2 + 2?"
-  Response: "2 + 2 equals 4."
-
-Bad example (vague):
-  Instruction: "Tell me about math."
-  Response: "It's cool."
-
-Bad example (contradicts):
-  Instruction: "Give a short answer."
-  Response: "Let me explain this in great detail over several paragraphs..."
+100 Beispiele:     Absolutes Minimum. Modell generalisiert womöglich nicht.
+1.000 Beispiele:   Gut für die meisten Klassifikations- und einfachen QA-Aufgaben.
+5.000 Beispiele:   Gut für Instruction Following und Zusammenfassung.
+10.000+ Beispiele: Komplexe Aufgaben. Danach nimmt der Nutzen ab.
 ```
 
-## Balancing the data
+Die Qualität jedes einzelnen Beispiels ist wichtiger als die
+Gesamtzahl. Tausend sorgfältig geschriebene Beispiele schlagen
+zehntausend schlampige. Jeder Fehler in den Trainingsdaten bringt dem
+Modell bei, genau diesen Fehler zu machen. Das Modell lernt, Muster zu
+replizieren. Nicht, sie zu bewerten.
 
-Fine-tuning can unbalance the model. If you train only on one task the
-model gets worse at everything else. This is called catastrophic
-forgetting. The model forgets how to have a normal conversation because
-every training example is a specific task.
+## Die Daten bereinigen
 
-Mix in some general conversation examples. About ten percent of your
-data should be normal chat. This keeps the model from losing its
-general abilities while learning the new task.
+Geh deine Daten vor dem Training durch und entferne alles, was dem
+Modell schlechte Angewohnheiten beibringen würde.
 
-## The prompt matters
-
-The instruction text affects the results. Different phrasings produce
-different behaviors. If you train with instructions like *Summarize
-this* the model learns to summarize when it sees those words. If
-someone asks *Give me a short version* instead the model might not
-recognize it as a summarization request.
-
-Write instructions in multiple ways. For each task provide three or
-four different phrasings of the same instruction. This teaches the
-model the intent behind the words rather than the exact wording.
+Beispiele für das, was entfernt werden sollte: Antworten, die
+abgeschnitten oder unvollständig sind. Antworten, die der Anweisung
+widersprechen. Anweisungen, die mehrdeutig oder unmöglich zu befolgen
+sind. Doppelte Beispiele. Beispiele, bei denen die Antwort in der
+falschen Sprache oder im falschen Format vorliegt. Beispiele mit
+anstößigen oder schädlichen Inhalten.
 
 ```
-"Summarize this paragraph."
-"Can you summarize this?"
-"Give me a summary of the following text."
-"Briefly summarize what this says."
+Gutes Beispiel:
+  Anweisung: "Was ist 2 + 2?"
+  Antwort: "2 + 2 ergibt 4."
+
+Schlechtes Beispiel (vage):
+  Anweisung: "Erzähl mir etwas über Mathematik."
+  Antwort: "Ist cool."
+
+Schlechtes Beispiel (widersprüchlich):
+  Anweisung: "Gib eine kurze Antwort."
+  Antwort: "Lass mich das über mehrere Absätze hinweg ganz genau erklären..."
 ```
 
-All four mean the same thing. Training on all four variants makes the
-model robust to different phrasings.
+## Die Daten ausbalancieren
 
-## Splitting the data
+Fine-Tuning kann das Modell aus dem Gleichgewicht bringen. Trainierst
+du nur auf eine Aufgabe, wird das Modell bei allem anderen schlechter.
+Das nennt man katastrophales Vergessen (catastrophic forgetting). Das
+Modell verlernt, ein normales Gespräch zu führen, weil jedes
+Trainingsbeispiel eine bestimmte Aufgabe ist.
 
-Divide your data into training and validation sets. Train on ninety
-percent. Evaluate on ten percent. The validation set tells you if the
-model is learning the task or just memorizing the examples.
+Mische einige allgemeine Konversationsbeispiele unter die Daten. Etwa
+zehn Prozent deiner Daten sollten normaler Chat sein. Das bewahrt das
+Modell davor, seine allgemeinen Fähigkeiten zu verlieren, während es
+die neue Aufgabe lernt.
 
-If the training loss goes down but the validation loss goes up the
-model is memorizing. Stop training. Reduce the number of steps or
-increase dropout. If both go down you are on the right track.
+## Der Prompt ist entscheidend
 
-## A real example
+Der Wortlaut der Anweisung beeinflusst die Ergebnisse. Unterschiedliche
+Formulierungen führen zu unterschiedlichem Verhalten. Trainierst du mit
+Anweisungen wie *Fasse das zusammen*, lernt das Modell, bei diesen
+Worten zusammenzufassen. Fragt jemand stattdessen *Gib mir eine
+Kurzfassung*, erkennt das Modell die Anfrage womöglich nicht als
+Zusammenfassungsauftrag.
 
-Here is a small instruction tuning dataset in the format used by Alpaca.
+Formuliere Anweisungen auf mehrere Arten. Gib für jede Aufgabe drei
+oder vier unterschiedliche Formulierungen derselben Anweisung an. Das
+bringt dem Modell die Absicht hinter den Worten bei, statt nur den
+genauen Wortlaut.
+
+```
+"Fasse diesen Absatz zusammen."
+"Kannst du das zusammenfassen?"
+"Gib mir eine Zusammenfassung des folgenden Texts."
+"Fasse kurz zusammen, was hier steht."
+```
+
+Alle vier bedeuten dasselbe. Das Training mit allen vier Varianten
+macht das Modell robust gegenüber unterschiedlichen Formulierungen.
+
+## Die Daten aufteilen
+
+Teile deine Daten in Trainings- und Validierungsmengen auf. Trainiere
+auf neunzig Prozent. Evaluiere auf zehn Prozent. Die Validierungsmenge
+zeigt dir, ob das Modell die Aufgabe lernt oder die Beispiele nur
+auswendig lernt.
+
+Sinkt der Trainings-Loss, während der Validierungs-Loss steigt, lernt
+das Modell auswendig. Beende das Training. Reduziere die Anzahl der
+Schritte oder erhöhe den Dropout. Sinken beide, bist du auf dem
+richtigen Weg.
+
+## Ein reales Beispiel
+
+Hier ist ein kleines Instruction-Tuning-Dataset im Format, das Alpaca
+verwendet.
 
 ```json
 [
   {
-    "instruction": "Give three tips for staying healthy.",
+    "instruction": "Nenne drei Tipps, um gesund zu bleiben.",
     "input": "",
-    "output": "1. Eat a balanced diet with plenty of vegetables..."
+    "output": "1. Iss eine ausgewogene Ernährung mit reichlich Gemüse..."
   },
   {
-    "instruction": "What are the three primary colors?",
+    "instruction": "Was sind die drei Primärfarben?",
     "input": "",
-    "output": "The three primary colors are red blue and yellow."
+    "output": "Die drei Primärfarben sind Rot, Blau und Gelb."
   },
   {
-    "instruction": "Describe the following city in three sentences.",
-    "input": "Tokyo",
-    "output": "Tokyo is the capital of Japan and one of the most..."
+    "instruction": "Beschreibe die folgende Stadt in drei Sätzen.",
+    "input": "Tokio",
+    "output": "Tokio ist die Hauptstadt Japans und eine der..."
   }
 ]
 ```
 
-Each example is a self-contained lesson. The model sees the instruction
-and learns to produce the output. After thousands of examples it can
-handle variations of instructions it has never seen before.
+Jedes Beispiel ist eine in sich geschlossene Lektion. Das Modell sieht
+die Anweisung und lernt, die Ausgabe zu erzeugen. Nach tausenden
+Beispielen kann es Variationen von Anweisungen bewältigen, die es noch
+nie zuvor gesehen hat.
 
-## What you need to remember
+## Was du dir merken solltest
 
-Fine-tuning data is instruction response pairs. The format uses special
-tokens specific to each base model. A thousand good examples beats ten
-thousand bad ones. Clean the data carefully. The model learns to
-replicate patterns not to judge their quality. Mix in general
-conversation to prevent catastrophic forgetting. Vary the phrasing of
-instructions to build robustness. Split into training and validation
-sets to monitor for memorization.
+Fine-Tuning-Daten sind Anweisung-Antwort-Paare. Das Format nutzt
+spezielle Token, die vom jeweiligen Basismodell abhängen. Tausend gute
+Beispiele schlagen zehntausend schlechte. Bereinige die Daten
+sorgfältig. Das Modell lernt, Muster zu replizieren, nicht ihre
+Qualität zu beurteilen. Mische allgemeine Konversation unter, um
+katastrophales Vergessen zu verhindern. Variiere die Formulierung von
+Anweisungen, um Robustheit aufzubauen. Teile die Daten in Trainings-
+und Validierungsmengen auf, um auf Auswendiglernen zu prüfen.

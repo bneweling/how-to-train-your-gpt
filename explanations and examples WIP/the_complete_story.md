@@ -1,56 +1,56 @@
-# How a GPT Really Works: The Complete Story
+# Wie ein GPT wirklich funktioniert: Die vollständige Geschichte
 
-This is the story of a language model. Not just one part. Not just one
-step. The whole thing. From a text file on a hard drive to a machine
-that can write poetry and answer questions and generate code. Every
-single piece. Every single decision. Every single number.
+Dies ist die Geschichte eines Sprachmodells. Nicht nur eines Teils. Nicht nur eines
+Schritts. Das Ganze. Von einer Textdatei auf einer Festplatte bis zu einer Maschine,
+die Gedichte schreiben und Fragen beantworten und Code generieren kann. Jedes
+einzelne Teil. Jede einzelne Entscheidung. Jede einzelne Zahl.
 
-We will build a GPT from scratch. We will train it. We will watch it
-learn. We will run it. By the end you will understand every line of
-code in every file. This story assumes you know Python. Nothing else.
-
----
-
-## Part 1: What Are We Building
-
-A GPT is a next word predictor. That is it. That is the whole thing.
-You give it some words. It guesses what word comes next. Then it takes
-that guess and guesses the next word. Then the next. Eventually it has
-written a paragraph or a poem or a legal document or a recipe for
-chocolate cake. But underneath it is always just guessing one word at
-a time.
-
-The model has about 150 million knobs. Each knob is a number. Training
-means finding the right numbers for all 150 million knobs so that the
-model's guesses match what a human would write. Once those numbers are
-found the model can write text that is sometimes indistinguishable from
-human writing.
-
-How do we find those numbers. We show the model sentences from the
-internet. Billions of sentences. For each sentence we hide the last word
-and ask the model to guess it. When it guesses wrong we figure out which
-knobs to turn and in which direction to make the guess better next time.
-We repeat this billions of times. The knobs slowly converge to values
-that capture the patterns of human language.
-
-The architecture of the model determines which patterns it can capture.
-A bigger model can capture more patterns. A better architecture can
-capture more patterns with the same number of knobs. Our architecture
-is the same one used by LLaMA 3 and Mistral and Qwen. It represents the
-best publicly documented design for language models as of 2025.
+Wir werden ein GPT von Grund auf bauen. Wir werden es trainieren. Wir werden zusehen, wie es
+lernt. Wir werden es laufen lassen. Am Ende werden Sie jede Zeile
+Code in jeder Datei verstehen. Diese Geschichte setzt voraus, dass Sie Python kennen. Sonst nichts.
 
 ---
 
-## Part 2: The Data
+## Teil 1: Was wir bauen
 
-Before we can train a model we need text. Lots of text. Billions of
-words. For this project we will use Wikipedia because it is freely
-available and well written and covers almost every topic humans have
-thought about.
+Ein GPT ist ein Vorhersager des nächsten Wortes. Das ist alles. Das ist die ganze Sache.
+Man gibt ihm ein paar Wörter. Es rät, welches Wort als Nächstes kommt. Dann nimmt es
+diese Vermutung und rät das nächste Wort. Dann das nächste. Irgendwann hat es
+einen Absatz oder ein Gedicht oder ein juristisches Dokument oder ein Rezept für
+Schokoladenkuchen geschrieben. Aber darunter rät es immer nur ein Wort auf
+einmal.
 
-Wikipedia can be downloaded as a single XML file or accessed through the
-HuggingFace datasets library. The datasets library handles downloading
-and caching so we do not have to manage the raw files ourselves.
+Das Modell hat etwa 150 Millionen Stellschrauben. Jede Stellschraube ist eine Zahl. Training
+bedeutet, die richtigen Zahlen für alle 150 Millionen Stellschrauben zu finden, sodass die
+Vermutungen des Modells dem entsprechen, was ein Mensch schreiben würde. Sobald diese Zahlen
+gefunden sind, kann das Modell Text schreiben, der manchmal nicht von
+menschlichem Schreiben zu unterscheiden ist.
+
+Wie finden wir diese Zahlen? Wir zeigen dem Modell Sätze aus dem
+Internet. Milliarden von Sätzen. Für jeden Satz verbergen wir das letzte Wort
+und bitten das Modell, es zu erraten. Wenn es falsch rät, ermitteln wir, an welchen
+Stellschrauben wir drehen müssen und in welche Richtung, damit die Vermutung beim nächsten Mal besser wird.
+Das wiederholen wir Milliarden Mal. Die Stellschrauben konvergieren langsam zu Werten,
+die die Muster menschlicher Sprache erfassen.
+
+Die Architektur des Modells bestimmt, welche Muster es erfassen kann.
+Ein größeres Modell kann mehr Muster erfassen. Eine bessere Architektur kann
+mit derselben Anzahl an Stellschrauben mehr Muster erfassen. Unsere Architektur
+ist dieselbe, die auch LLaMA 3 und Mistral und Qwen verwenden. Sie stellt das
+beste öffentlich dokumentierte Design für Sprachmodelle Stand 2025 dar.
+
+---
+
+## Teil 2: Die Daten
+
+Bevor wir ein Modell trainieren können, brauchen wir Text. Viel Text. Milliarden
+Wörter. Für dieses Projekt verwenden wir Wikipedia, weil es frei
+verfügbar und gut geschrieben ist und fast jedes Thema abdeckt, über das Menschen
+je nachgedacht haben.
+
+Wikipedia kann als einzelne XML-Datei heruntergeladen oder über die
+HuggingFace-datasets-Bibliothek abgerufen werden. Die datasets-Bibliothek übernimmt das Herunterladen
+und Zwischenspeichern, sodass wir die Rohdateien nicht selbst verwalten müssen.
 
 ```python
 from datasets import load_dataset
@@ -59,27 +59,27 @@ dataset = load_dataset("wikitext", "wikitext-103-raw-v1", split="train")
 texts = [item["text"] for item in dataset if item["text"].strip()]
 ```
 
-The WikiText-103 dataset contains about 29000 Wikipedia articles. They
-have been lightly processed to remove markup and metadata. What remains
-is clean flowing English text. Exactly what we need.
+Der WikiText-103-Datensatz enthält etwa 29000 Wikipedia-Artikel. Sie
+wurden leicht bearbeitet, um Markup und Metadaten zu entfernen. Was übrig bleibt,
+ist sauberer, flüssiger englischer Text. Genau das, was wir brauchen.
 
-But we cannot feed raw text to a neural network. Neural networks eat
-numbers. We need to convert our text into numbers first.
+Aber wir können einem neuronalen Netz keinen Rohtext füttern. Neuronale Netze fressen
+Zahlen. Wir müssen unseren Text zuerst in Zahlen umwandeln.
 
 ---
 
-## Part 3: Tokenization . Text Becomes Numbers
+## Teil 3: Tokenisierung – Text wird zu Zahlen
 
-The conversion from text to numbers is called tokenization. The
-algorithm we use is Byte Pair Encoding. BPE for short. It was invented
-in 1994 for data compression and repurposed for language models in 2016.
+Die Umwandlung von Text in Zahlen nennt man Tokenisierung. Der
+Algorithmus, den wir verwenden, ist Byte Pair Encoding. Kurz BPE. Er wurde
+1994 zur Datenkompression erfunden und 2016 für Sprachmodelle wiederverwendet.
 
-The idea is simple in concept. Start with every character as its own
-token. Find the most common pair of adjacent tokens in the training
-data. Merge them into a new token. Repeat until you have 50000 tokens.
+Die Idee ist konzeptionell einfach. Beginne mit jedem Zeichen als eigenem
+Token. Finde das häufigste Paar benachbarter Token in den Trainingsdaten.
+Verschmelze sie zu einem neuen Token. Wiederhole das, bis du 50000 Token hast.
 
-Let us see how this works on a tiny example. Imagine our training data
-contains only four words with spaces marked as unders.
+Schauen wir uns an, wie das an einem winzigen Beispiel funktioniert. Stellen wir uns vor, unsere Trainingsdaten
+enthalten nur vier Wörter, wobei Leerzeichen als Unterstriche markiert sind.
 
 ```
 l o w _
@@ -88,12 +88,12 @@ l o w e s t _
 l o w e s t _
 ```
 
-Each letter and underscore is a separate token. We have nine tokens
-total. The alphabet is small. The model would need many tokens to
-represent even a short sentence. So we merge.
+Jeder Buchstabe und Unterstrich ist ein eigenes Token. Wir haben neun Token
+insgesamt. Das Alphabet ist klein. Das Modell würde viele Token benötigen, um
+selbst einen kurzen Satz darzustellen. Also verschmelzen wir.
 
-The most common pair is l and o. They appear together four times in the
-word low. We create a new token lo. Now our text is shorter.
+Das häufigste Paar ist l und o. Sie treten im Wort low viermal
+gemeinsam auf. Wir erzeugen ein neues Token lo. Jetzt ist unser Text kürzer.
 
 ```
 lo w _
@@ -102,9 +102,9 @@ lo w e s t _
 lo w e s t _
 ```
 
-We have ten tokens. We keep merging. The next most common pair is lo and
-w. They appear together four times. We create low. Now our text is even
-shorter.
+Wir haben zehn Token. Wir verschmelzen weiter. Das nächsthäufigste Paar ist lo und
+w. Sie treten viermal gemeinsam auf. Wir erzeugen low. Jetzt ist unser Text noch
+kürzer.
 
 ```
 low _
@@ -113,19 +113,19 @@ low e s t _
 low e s t _
 ```
 
-We continue. After many rounds of merging our vocabulary contains useful
-pieces like low and er and est and the space marker. Now the word lowest
-which is not in our original training data can still be represented as
-low plus est. Two tokens instead of six characters. Compression and
-generalization in one step.
+Wir machen weiter. Nach vielen Verschmelzungsrunden enthält unser Vokabular nützliche
+Bausteine wie low und er und est und den Leerzeichen-Marker. Jetzt kann das Wort lowest,
+das nicht in unseren ursprünglichen Trainingsdaten vorkommt, trotzdem dargestellt werden als
+low plus est. Zwei Token statt sechs Zeichen. Kompression und
+Generalisierung in einem Schritt.
 
-Real BPE tokenizers like GPT-2 use 50000 merges. They start from all
-256 possible byte values as the base alphabet. This means they can
-tokenize any text in any language that can be represented as bytes which
-is all text. The 50000 merges capture the most common patterns across
-billions of words. The result is a vocabulary that can represent common
-words as single tokens and rare words as sequences of a few tokens and
-completely unseen words as sequences of individual byte tokens.
+Echte BPE-Tokenizer wie der von GPT-2 verwenden 50000 Verschmelzungen. Sie
+starten mit allen 256 möglichen Byte-Werten als Basisalphabet. Das bedeutet, sie können
+jeden Text in jeder Sprache tokenisieren, der als Bytes dargestellt werden kann, was
+auf jeden Text zutrifft. Die 50000 Verschmelzungen erfassen die häufigsten Muster über
+Milliarden von Wörtern hinweg. Das Ergebnis ist ein Vokabular, das häufige
+Wörter als einzelne Token und seltene Wörter als Sequenzen weniger Token und
+völlig unbekannte Wörter als Sequenzen einzelner Byte-Token darstellen kann.
 
 ```python
 import tiktoken
@@ -136,124 +136,124 @@ tokens = tokenizer.encode(text)
 print(tokens)  # [464, 3797, 3332, 319, 262, 2603, 13]
 ```
 
-Seven tokens. Each token is an integer between 0 and 50256. These
-integers are the only thing the model ever sees. The raw text is gone.
-The model lives in a world of integers.
+Sieben Token. Jedes Token ist eine Ganzzahl zwischen 0 und 50256. Diese
+Ganzzahlen sind das Einzige, was das Modell je sieht. Der Rohtext ist verschwunden.
+Das Modell lebt in einer Welt aus Ganzzahlen.
 
-The tokenizer has one special token that deserves attention. Token
-50256 is the end of text marker. It is placed between every document
-in the training data. Without it the model would think that the last
-sentence of one Wikipedia article flows naturally into the first
-sentence of the next. The end of text token is the model's signal that
-one thought has ended and a new unrelated thought has begun.
+Der Tokenizer hat ein besonderes Token, das Aufmerksamkeit verdient. Token
+50256 ist der Ende-des-Texts-Marker. Er wird zwischen jedem Dokument
+in den Trainingsdaten platziert. Ohne ihn würde das Modell denken, dass der letzte
+Satz eines Wikipedia-Artikels nahtlos in den ersten
+Satz des nächsten übergeht. Das Ende-des-Texts-Token ist das Signal für das Modell, dass
+ein Gedanke geendet hat und ein neuer, unabhängiger Gedanke begonnen hat.
 
-Every token has a unique ID. Token 464 is always The with a capital T.
-Token 3797 is always cat. Token 13 is always a period. These mappings
-are fixed. They never change during training. The tokenizer is not
-part of the neural network. It is a preprocessing step with its own
-separate algorithm.
+Jedes Token hat eine eindeutige ID. Token 464 ist immer The mit großem T.
+Token 3797 ist immer cat. Token 13 ist immer ein Punkt. Diese Zuordnungen
+sind fest. Sie ändern sich während des Trainings nie. Der Tokenizer ist nicht
+Teil des neuronalen Netzes. Er ist ein Vorverarbeitungsschritt mit einem eigenen,
+separaten Algorithmus.
 
-But these integer IDs are just labels. The number 3797 has no
-mathematical relationship to the number 2603. The model cannot learn
-meaningful patterns from these raw integers. We need to give each
-token a richer representation. We need embeddings.
+Aber diese Integer-IDs sind nur Bezeichnungen. Die Zahl 3797 hat keine
+mathematische Beziehung zur Zahl 2603. Das Modell kann aus diesen rohen
+Ganzzahlen keine sinnvollen Muster lernen. Wir müssen jedem
+Token eine reichhaltigere Darstellung geben. Wir brauchen Embeddings.
 
 ---
 
-## Part 4: Embeddings . Numbers Become Meaning
+## Teil 4: Embeddings – Zahlen werden zu Bedeutung
 
-An embedding is a vector of floating point numbers that captures the
-meaning of a token. For our model each token gets a vector of 768
-numbers. Token 3797 gets 768 numbers. Token 2603 gets 768 numbers.
-Every one of the 50257 tokens gets its own row in a giant lookup table
-of shape 50257 by 768.
+Ein Embedding ist ein Vektor aus Fließkommazahlen, der die Bedeutung eines Tokens
+erfasst. In unserem Modell erhält jedes Token einen Vektor mit 768
+Zahlen. Token 3797 bekommt 768 Zahlen. Token 2603 bekommt 768 Zahlen.
+Jedes der 50257 Token bekommt seine eigene Zeile in einer riesigen Nachschlagetabelle
+mit der Form 50257 mal 768.
 
 ```python
 embedding_table = torch.nn.Embedding(50257, 768)
 ```
 
-This table is just a matrix. Row 3797 is the embedding for cat. Row 2603
-is the embedding for mat. When the model needs the vector for token 3797
-it just reads row 3797 from the table. No multiplication. No activation
-function. Just a memory lookup.
+Diese Tabelle ist einfach eine Matrix. Zeile 3797 ist das Embedding für cat. Zeile 2603
+ist das Embedding für mat. Wenn das Modell den Vektor für Token 3797 braucht,
+liest es einfach Zeile 3797 aus der Tabelle. Keine Multiplikation. Keine Aktivierungsfunktion.
+Nur ein Speicherzugriff.
 
-At initialization every row is filled with random numbers drawn from a
-normal distribution with mean 0 and standard deviation 0.02. This means
-most values are between -0.04 and 0.04. At this moment cat and dog have
-no special relationship. They are just two random rows in a random
-table. Every token is equally random.
+Bei der Initialisierung wird jede Zeile mit Zufallszahlen gefüllt, die aus einer
+Normalverteilung mit Mittelwert 0 und Standardabweichung 0,02 gezogen werden. Das bedeutet,
+die meisten Werte liegen zwischen -0,04 und 0,04. In diesem Moment haben cat und dog
+keine besondere Beziehung zueinander. Sie sind nur zwei zufällige Zeilen in einer zufälligen
+Tabelle. Jedes Token ist gleichermaßen zufällig.
 
-Training changes this. Over billions of training steps the rows are
-updated. Tokens that appear in similar contexts get pushed toward
-similar values. Tokens that appear in different contexts get pushed
-apart. After training the embedding for cat will be very close to the
-embedding for dog. Both will be far from the embedding for democracy.
-The space organizes itself into neighborhoods of meaning.
+Das Training ändert das. Über Milliarden von Trainingsschritten hinweg werden die Zeilen
+aktualisiert. Token, die in ähnlichen Kontexten auftreten, werden zu
+ähnlichen Werten hin verschoben. Token, die in unterschiedlichen Kontexten auftreten, werden
+auseinandergetrieben. Nach dem Training liegt das Embedding für cat sehr nah am
+Embedding für dog. Beide liegen weit entfernt vom Embedding für democracy.
+Der Raum organisiert sich selbst in Nachbarschaften der Bedeutung.
 
 ```
-cat    = [ 0.34, -0.12,  0.78, -0.56, ...]  (768 numbers)
-dog    = [ 0.31, -0.15,  0.81, -0.52, ...]  (very similar to cat)
-democracy = [ 0.89, 0.67, -0.23,  0.91, ...]  (completely different)
+cat    = [ 0.34, -0.12,  0.78, -0.56, ...]  (768 Zahlen)
+dog    = [ 0.31, -0.15,  0.81, -0.52, ...]  (sehr ähnlich zu cat)
+democracy = [ 0.89, 0.67, -0.23,  0.91, ...]  (völlig anders)
 ```
 
-The embedding table is the largest single component in the model. It has
-50257 rows times 768 columns equals about 38.6 million numbers. That is
-roughly a quarter of all the parameters in our model. Those 38.6
-million numbers encode everything the model knows about what words mean.
+Die Embedding-Tabelle ist die größte einzelne Komponente im Modell. Sie hat
+50257 Zeilen mal 768 Spalten, also etwa 38,6 Millionen Zahlen. Das ist
+ungefähr ein Viertel aller Parameter in unserem Modell. Diese 38,6
+Millionen Zahlen kodieren alles, was das Modell darüber weiß, was Wörter bedeuten.
 
 ---
 
-## Part 5: Positional Encoding . The Model Learns Order
+## Teil 5: Positional Encoding – Das Modell lernt Reihenfolge
 
-The transformer reads all tokens at once. There is no left to right
-processing. No step by step recurrence. Every token is processed
-simultaneously. This is a strength because it is fast and parallelizable.
-But it is also a problem because the model has no way to know which
-token came first and which came last.
+Der Transformer liest alle Token gleichzeitig. Es gibt keine Verarbeitung von links nach rechts.
+Keine schrittweise Rekurrenz. Jedes Token wird gleichzeitig
+verarbeitet. Das ist eine Stärke, weil es schnell und parallelisierbar ist.
+Aber es ist auch ein Problem, weil das Modell keine Möglichkeit hat zu wissen, welches
+Token zuerst und welches zuletzt kam.
 
-Consider two sentences. The dog bit the man. The man bit the dog. Same
-words. Different order. Completely different meaning. If the model
-treated every token independently it could not distinguish these
-sentences. The meaning would be scrambled.
+Betrachten wir zwei Sätze. The dog bit the man. The man bit the dog. Dieselben
+Wörter. Andere Reihenfolge. Völlig andere Bedeutung. Würde das Modell
+jedes Token unabhängig behandeln, könnte es diese
+Sätze nicht unterscheiden. Die Bedeutung wäre durcheinandergewürfelt.
 
-We need to stamp each token with its position. Tell the model where in
-the sentence this token sits. The modern way to do this is called Rotary
-Position Embeddings. RoPE for short. It was introduced in 2021 and
-adopted by LLaMA in 2023. Every major model since uses it.
+Wir müssen jedem Token seine Position aufprägen. Dem Modell mitteilen, wo im
+Satz dieses Token sitzt. Der moderne Weg, das zu tun, heißt Rotary
+Position Embeddings. Kurz RoPE. Es wurde 2021 eingeführt und
+2023 von LLaMA übernommen. Jedes größere Modell seitdem verwendet es.
 
-Instead of ADDING a position number to the embedding RoPE ROTATES the
-query and key vectors by an angle that depends on the position. The
-rotation preserves the vector's magnitude so it does not change the
-meaning of the word. But the rotation changes the direction so the
-attention dot product between two words becomes a function of their
-distance apart.
+Statt eine Positionszahl zum Embedding zu ADDIEREN, ROTIERT RoPE die
+Query- und Key-Vektoren um einen Winkel, der von der Position abhängt. Die
+Rotation erhält die Länge des Vektors, verändert also nicht die
+Bedeutung des Wortes. Aber die Rotation verändert die Richtung, sodass das
+Attention-Skalarprodukt zwischen zwei Wörtern zu einer Funktion ihres
+Abstands wird.
 
 ```
-Word at position 1: rotated by angle θ₁
-Word at position 4: rotated by angle θ₄
+Wort an Position 1: rotiert um Winkel θ₁
+Wort an Position 4: rotiert um Winkel θ₄
 
-Attention score between them:
+Attention-Score zwischen ihnen:
 Q₁ · K₄ = original_dot × cos(θ₁ - θ₄) + cross_term × sin(θ₁ - θ₄)
 
-The result depends on (θ₁ - θ₄) which is a function of (4 - 1) = 3
-steps apart. Not on positions 1 and 4 themselves. Only on the distance.
+Das Ergebnis hängt von (θ₁ - θ₄) ab, was eine Funktion von (4 - 1) = 3
+Schritten Abstand ist. Nicht von den Positionen 1 und 4 selbst. Nur vom Abstand.
 ```
 
-This is the key insight. RoPE makes attention depend on relative
-position. Words three steps apart always get the same rotational
-relationship regardless of whether they appear at positions 0 and 3 or
-positions 497 and 500. The transformer cares about how far apart two
-words are not about where they sit in absolute terms.
+Das ist die zentrale Einsicht. RoPE macht Attention abhängig von der relativen
+Position. Wörter, die drei Schritte voneinander entfernt sind, bekommen immer dieselbe rotatorische
+Beziehung, unabhängig davon, ob sie an den Positionen 0 und 3 oder
+497 und 500 auftreten. Der Transformer interessiert sich dafür, wie weit zwei
+Wörter voneinander entfernt sind, nicht wo sie in absoluten Zahlen stehen.
 
-The angles are precomputed and stored. Each pair of dimensions rotates
-at a different speed. The first pair of dimensions rotates fastest and
-captures local word order. The last pair rotates slowest and captures
-long range position. This multi scale approach means the model has both
-fine grained local position information and coarse grained global
-position information.
+Die Winkel werden vorab berechnet und gespeichert. Jedes Dimensionspaar rotiert
+mit unterschiedlicher Geschwindigkeit. Das erste Dimensionspaar rotiert am schnellsten und
+erfasst die lokale Wortreihenfolge. Das letzte Paar rotiert am langsamsten und
+erfasst weitreichende Position. Dieser Multi-Skalen-Ansatz bedeutet, dass das Modell sowohl
+feingranulare lokale Positionsinformation als auch grobkörnige globale
+Positionsinformation besitzt.
 
 ```python
-# Precompute rotation angles for every position
+# Rotationswinkel für jede Position vorberechnen
 dim_indices = torch.arange(0, d_model, 2).float()
 inv_freq = 1.0 / (10000.0 ** (dim_indices / d_model))
 positions = torch.arange(max_seq_len).float()
@@ -263,55 +263,55 @@ cos_cached = emb.cos()
 sin_cached = emb.sin()
 ```
 
-During the forward pass we look up the precomputed cosine and sine
-values for each position and apply the rotation. The rotation formula
-for each pair of dimensions (x₀, x₁) at position p is:
+Während des Forward-Pass schlagen wir die vorberechneten Cosinus- und Sinus-
+Werte für jede Position nach und wenden die Rotation an. Die Rotationsformel
+für jedes Dimensionspaar (x₀, x₁) an Position p lautet:
 
 ```
 x₀' = x₀ × cos(θ_p) - x₁ × sin(θ_p)
 x₁' = x₀ × sin(θ_p) + x₁ × cos(θ_p)
 ```
 
-This is a standard 2D rotation. Applied to every pair of dimensions in
-the query and key vectors. The values are not rotated because position
-information is only needed for deciding WHICH tokens to attend to not
-for the content of the tokens themselves.
+Das ist eine standardmäßige 2D-Rotation. Angewendet auf jedes Paar von Dimensionen in
+den Query- und Key-Vektoren. Die Values werden nicht rotiert, weil Positions-
+information nur gebraucht wird, um zu entscheiden, WELCHE Token beachtet werden sollen, nicht
+für den Inhalt der Token selbst.
 
 ---
 
-## Part 6: Attention . The Core Mechanism
+## Teil 6: Attention – Der zentrale Mechanismus
 
-Attention is the heart of the transformer. Everything else is support
-infrastructure. The embedding layer feeds attention. The feed forward
-network refines attention's output. The normalization layers keep
-attention stable. But attention is where the model actually understands
-relationships between words.
+Attention ist das Herzstück des Transformers. Alles andere ist unterstützende
+Infrastruktur. Die Embedding-Schicht speist Attention. Das Feed-Forward-
+Netz verfeinert die Ausgabe der Attention. Die Normalisierungsschichten halten
+Attention stabil. Aber in Attention versteht das Modell tatsächlich
+Beziehungen zwischen Wörtern.
 
-### The intuition
+### Die Intuition
 
-Imagine you are reading a long sentence. Some words are more important
-than others for understanding what is happening. If the sentence is The
+Stellen Sie sich vor, Sie lesen einen langen Satz. Manche Wörter sind wichtiger
+als andere, um zu verstehen, was passiert. Wenn der Satz lautet The
 cat that had been sitting on the mat for three hours finally stretched
-and yawned you need to connect stretched and yawned with cat across
-twelve intervening words. Your brain does this automatically. Attention
-does it mathematically.
+and yawned, müssen Sie stretched und yawned mit cat über
+zwölf dazwischenliegende Wörter hinweg verbinden. Ihr Gehirn macht das automatisch. Attention
+macht das mathematisch.
 
-For every word in the sentence the model creates three vectors. A Query
-vector that asks what am I looking for. A Key vector that says what do
-I have to offer. A Value vector that holds my actual content. Every word
-compares its Query against every other word's Key. Words with high match
-scores get more attention. Their Values are weighted more heavily in the
-output.
+Für jedes Wort im Satz erzeugt das Modell drei Vektoren. Einen Query-
+Vektor, der fragt: Wonach suche ich? Einen Key-Vektor, der sagt: Was habe
+ich anzubieten? Einen Value-Vektor, der meinen tatsächlichen Inhalt enthält. Jedes Wort
+vergleicht seine Query mit dem Key jedes anderen Wortes. Wörter mit hohen Übereinstimmungs-
+werten bekommen mehr Aufmerksamkeit. Ihre Values werden im
+Output stärker gewichtet.
 
-### The computation step by step
+### Die Berechnung Schritt für Schritt
 
-Let us trace through attention for a concrete sentence. Our sentence is
-The cat sat on the mat. Seven tokens. We will look at one attention head
-with a head dimension of 64.
+Verfolgen wir Attention für einen konkreten Satz. Unser Satz ist
+The cat sat on the mat. Sieben Token. Wir betrachten einen Attention-Head
+mit einer Head-Dimension von 64.
 
-The input to attention is a matrix of shape 7 by 768. Seven tokens each
-represented by 768 numbers. We project this matrix into three new
-matrices of shape 7 by 64. One for Query. One for Key. One for Value.
+Der Input für Attention ist eine Matrix der Form 7 mal 768. Sieben Token, jedes
+dargestellt durch 768 Zahlen. Wir projizieren diese Matrix in drei neue
+Matrizen der Form 7 mal 64. Eine für Query. Eine für Key. Eine für Value.
 
 ```
 Q = input @ W_q  (7 × 768 @ 768 × 64 = 7 × 64)
@@ -319,31 +319,31 @@ K = input @ W_k  (7 × 768 @ 768 × 64 = 7 × 64)
 V = input @ W_v  (7 × 768 @ 768 × 64 = 7 × 64)
 ```
 
-The weight matrices W_q W_k and W_v are learned during training. They
-are what make each attention head different. Different heads learn
-different projections that capture different linguistic patterns.
+Die Gewichtsmatrizen W_q, W_k und W_v werden während des Trainings gelernt. Sie
+sind es, was jeden Attention-Head unterschiedlich macht. Verschiedene Heads lernen
+unterschiedliche Projektionen, die unterschiedliche sprachliche Muster erfassen.
 
-Next we apply RoPE to the Query and Key vectors. This stamps each
-query and key with its position information.
+Als Nächstes wenden wir RoPE auf die Query- und Key-Vektoren an. Das prägt jeder
+Query und jedem Key seine Positionsinformation auf.
 
 ```
 Q = RoPE(Q, seq_len=7)
 K = RoPE(K, seq_len=7)
 ```
 
-Now we compute the attention scores. The score between token i and
-token j is the dot product of Query i with Key j.
+Jetzt berechnen wir die Attention-Scores. Der Score zwischen Token i und
+Token j ist das Skalarprodukt von Query i mit Key j.
 
 ```
 scores = Q @ K^T / sqrt(64)
 ```
 
-The result is a 7 by 7 matrix. Each row is a token acting as query. Each
-column is a token acting as key. The value at row i column j is how much
-token i wants to attend to token j.
+Das Ergebnis ist eine 7-mal-7-Matrix. Jede Zeile ist ein Token in der Rolle der Query. Jede
+Spalte ist ein Token in der Rolle des Keys. Der Wert in Zeile i, Spalte j ist, wie stark
+Token i Token j beachten möchte.
 
 ```
-scores matrix (before mask):
+scores-Matrix (vor der Maskierung):
 
          The    cat    sat    on     the    mat    .
 The      0.42   0.15   0.08  -0.03  -0.11   0.02  -0.18
@@ -355,17 +355,17 @@ mat     -0.12  -0.01   0.15   0.41   0.52   0.58   0.11
 .       -0.22  -0.15  -0.08   0.12   0.18   0.22   0.48
 ```
 
-Look at the row for sat (row index 2). It has a high score for cat
-(0.78) and moderate scores for on (0.31) and mat (0.28). Sat wants to
-pay attention to its subject and its prepositional phrase. It cares
-less about itself (0.15) and the period (0.05). This pattern emerged
-from the learned weights W_q and W_k and from the positional rotation.
+Schauen wir uns die Zeile für sat an (Zeilenindex 2). Sie hat einen hohen Score für cat
+(0,78) und moderate Scores für on (0,31) und mat (0,28). Sat möchte
+sein Subjekt und seine Präpositionalphrase beachten. Es kümmert sich
+weniger um sich selbst (0,15) und den Punkt (0,05). Dieses Muster entstand
+aus den gelernten Gewichten W_q und W_k und aus der positionalen Rotation.
 
-Now we apply the causal mask. Tokens cannot see the future. The upper
-right triangle of the matrix is set to negative infinity.
+Jetzt wenden wir die kausale Maske an. Token können die Zukunft nicht sehen. Das
+obere rechte Dreieck der Matrix wird auf minus unendlich gesetzt.
 
 ```
-scores matrix (after mask):
+scores-Matrix (nach der Maskierung):
 
          The    cat    sat    on     the    mat    .
 The      0.42  -inf   -inf   -inf   -inf   -inf   -inf
@@ -377,11 +377,11 @@ mat     -0.12  -0.01   0.15   0.41   0.52   0.58  -inf
 .       -0.22  -0.15  -0.08   0.12   0.18   0.22   0.48
 ```
 
-After softmax negative infinity becomes zero. The scores become
-attention weights that sum to one for each row.
+Nach Softmax wird minus unendlich zu null. Die Scores werden zu
+Attention-Gewichten, die sich für jede Zeile zu eins summieren.
 
 ```
-attention weights matrix (after softmax):
+Attention-Gewichte-Matrix (nach Softmax):
 
          The    cat    sat    on     the    mat    .
 The      1.00   0.00   0.00   0.00   0.00   0.00   0.00
@@ -393,365 +393,365 @@ mat      0.04   0.05   0.08   0.17   0.24   0.30   0.00
 .        0.03   0.04   0.05   0.08   0.11   0.14   0.28
 ```
 
-Look at the row for on (row index 3). It attends 25 percent to itself
-and 22 percent to sat and 20 percent to the and 15 percent to mat. A
-balanced distribution across the preceding tokens. The word on is a
-preposition that connects everything around it. It needs context from
-every nearby word.
+Schauen wir uns die Zeile für on an (Zeilenindex 3). Sie beachtet sich zu 25 Prozent
+selbst, zu 22 Prozent sat, zu 20 Prozent the und zu 15 Prozent mat. Eine
+ausgewogene Verteilung über die vorangehenden Token. Das Wort on ist eine
+Präposition, die alles um sich herum verbindet. Es braucht Kontext von
+jedem nahegelegenen Wort.
 
-Look at the row for The (row index 0). It attends 100 percent to itself.
-There is nothing before it. The word The has no context. It must rely
-entirely on its own meaning. This is always true for the first token in
-every sequence.
+Schauen wir uns die Zeile für The an (Zeilenindex 0). Sie beachtet sich zu 100 Prozent selbst.
+Davor gibt es nichts. Das Wort The hat keinen Kontext. Es muss sich vollständig
+auf seine eigene Bedeutung verlassen. Das gilt immer für das erste Token in
+jeder Sequenz.
 
-Finally we use these weights to mix the Value vectors.
+Schließlich nutzen wir diese Gewichte, um die Value-Vektoren zu mischen.
 
 ```
 output = attention_weights @ V
 
-For token sat (row 2):
+Für Token sat (Zeile 2):
 new_sat = 0.18 × V_The + 0.35 × V_cat + 0.10 × V_sat
 ```
 
-The new vector for sat now contains information from The and cat
-weighted by how much sat cares about them. The original meaning of sat
-is still there via self attention (10 percent) but it has been enriched
-with context from the subject of the sentence.
+Der neue Vektor für sat enthält jetzt Informationen von The und cat,
+gewichtet danach, wie sehr sat sich um sie kümmert. Die ursprüngliche Bedeutung von sat
+ist über die Self-Attention (10 Prozent) noch vorhanden, aber sie wurde
+mit Kontext aus dem Subjekt des Satzes angereichert.
 
-This entire computation happens 12 times in parallel for 12 heads. Each
-head has its own W_q W_k and W_v matrices. Each head learns different
-attention patterns. After all heads have computed their outputs we
-concatenate them back together into a single 768 dimensional vector and
-project through a final linear layer.
+Diese gesamte Berechnung findet 12-mal parallel für 12 Heads statt. Jeder
+Head hat seine eigenen W_q-, W_k- und W_v-Matrizen. Jeder Head lernt andere
+Attention-Muster. Nachdem alle Heads ihre Outputs berechnet haben,
+verketten wir sie wieder zu einem einzigen 768-dimensionalen Vektor und
+projizieren durch eine finale lineare Schicht.
 
 ```
 all_heads = torch.cat([head_0, head_1, ..., head_11], dim=-1)  # 12 × 64 = 768
 output = all_heads @ W_o  # 768 @ 768 = 768
 ```
 
-The output projection W_o mixes information between heads. Each head
-operated independently. Now they share their discoveries. The grammar
-head tells the pronoun resolution head what it found. The position head
-tells the semantic head about word distances. The mixed output is richer
-than any single head's contribution.
+Die Output-Projektion W_o mischt Informationen zwischen den Heads. Jeder Head
+arbeitete unabhängig. Jetzt teilen sie ihre Erkenntnisse. Der Grammatik-
+Head teilt dem Pronomen-Auflösungs-Head mit, was er gefunden hat. Der Positions-Head
+teilt dem semantischen Head Wortabstände mit. Der gemischte Output ist reicher
+als der Beitrag jedes einzelnen Heads.
 
 ---
 
-## Part 7: RMSNorm . Keeping Numbers Under Control
+## Teil 7: RMSNorm – Zahlen unter Kontrolle halten
 
-Before attention and before the feed forward network we normalize the
-input. Normalization keeps the numbers at a consistent scale as they
-flow through dozens of layers.
+Vor Attention und vor dem Feed-Forward-Netz normalisieren wir den
+Input. Normalisierung hält die Zahlen auf einer konsistenten Skala, während sie
+durch Dutzende Schichten fließen.
 
-We use RMSNorm. It is simpler and faster than the older LayerNorm. It
-computes the root mean square of a vector and divides every element by
-it. The result always has RMS equal to 1.0.
+Wir verwenden RMSNorm. Es ist einfacher und schneller als das ältere LayerNorm. Es
+berechnet den quadratischen Mittelwert (Root Mean Square) eines Vektors und teilt jedes Element durch
+ihn. Das Ergebnis hat immer einen RMS-Wert von 1,0.
 
 ```
 rms = sqrt(mean(x²))
 output = x / rms × weight
 ```
 
-The weight is a learned parameter. One weight per dimension. It starts
-at 1.0 and learns during training. It lets the model amplify important
-dimensions and suppress unimportant ones while keeping the overall
-magnitude stable.
+Das Gewicht ist ein gelernter Parameter. Ein Gewicht pro Dimension. Es beginnt
+bei 1,0 und lernt während des Trainings. Es erlaubt dem Modell, wichtige
+Dimensionen zu verstärken und unwichtige zu unterdrücken, während die Gesamt-
+größenordnung stabil bleibt.
 
-Without normalization the outputs of attention and feed forward layers
-would grow without bound. After twelve layers some values might be a
-thousand times larger than others. The softmax in the next attention
-layer would become a one hot vector. Gradients would vanish. Training
-would fail.
+Ohne Normalisierung würden die Outputs der Attention- und Feed-Forward-Schichten
+unbegrenzt wachsen. Nach zwölf Schichten könnten manche Werte
+tausendmal größer sein als andere. Der Softmax in der nächsten Attention-
+Schicht würde zu einem One-Hot-Vektor werden. Gradienten würden verschwinden. Training
+würde scheitern.
 
-With normalization every layer gets clean well scaled inputs. The tower
-of twelve blocks stays straight. The model trains smoothly.
-
----
-
-## Part 8: SwiGLU . The Gated Feed Forward Network
-
-After attention every token has mixed information from all other tokens.
-But the mixing was linear. Attention is just a weighted sum. Weighted
-sums are not enough to capture the complexity of language. We need non
-linear processing.
-
-The feed forward network provides this non linearity. It processes each
-token independently with the same learned weights. Each token gets the
-same transformation applied to its unique vector.
-
-Our feed forward network uses SwiGLU. SwiGLU is a gated activation. It
-splits the computation into two paths. One path produces values. The
-other path produces gates. The gates control how much of each value
-passes through.
-
-```
-h = input @ W₁  (768 → 3072)  # value path
-g = input @ W₂  (768 → 3072)  # gate path
-output = (SiLU(h) × g) @ W₃  (3072 → 768)  # combine and project
-```
-
-The expansion from 768 to 3072 gives the network room to transform
-information. In the wider middle layer the network can represent more
-complex patterns. The contraction back to 768 forces it to compress
-those patterns into a dense representation.
-
-The SiLU activation on the value path provides smooth non linearity.
-Unlike ReLU which has a sharp corner at zero SiLU is smooth everywhere.
-This makes gradients flow better during training. The gate path has no
-activation. It can output any real number. A gate of zero blocks the
-information. A gate of one passes it through unchanged. A gate of two
-amplifies it. The model learns which inputs should be amplified and
-which should be suppressed.
-
-The gate learns context dependent filtering. When the token is a verb
-the gate might amplify dimensions related to action and suppress
-dimensions related to objects. When the token is a noun it might do the
-opposite. The same network weights apply to every token but the behavior
-differs because each token's vector leads to different gate values.
-
-SwiGLU has three weight matrices instead of the two that a standard
-feed forward network would have. The extra matrix is for the gate. This
-adds about 28 million parameters to our model compared to a standard
-FFN. Every one of those parameters contributes to better performance.
-The gating mechanism is why SwiGLU outperforms ReLU and GELU at scale.
+Mit Normalisierung erhält jede Schicht saubere, gut skalierte Inputs. Der Turm
+aus zwölf Blöcken bleibt gerade. Das Modell trainiert reibungslos.
 
 ---
 
-## Part 9: The Residual Connection . The Gradient Highway
+## Teil 8: SwiGLU – Das gegatete Feed-Forward-Netz
 
-Every sublayer has a residual connection. The attention output is added
-to the attention input. The feed forward output is added to the feed
-forward input.
+Nach Attention hat jedes Token Informationen von allen anderen Token vermischt.
+Aber das Mischen war linear. Attention ist nur eine gewichtete Summe. Gewichtete
+Summen reichen nicht aus, um die Komplexität von Sprache zu erfassen. Wir brauchen nicht-
+lineare Verarbeitung.
+
+Das Feed-Forward-Netz liefert diese Nichtlinearität. Es verarbeitet jedes
+Token unabhängig mit denselben gelernten Gewichten. Jedes Token erhält
+dieselbe Transformation, angewendet auf seinen eigenen Vektor.
+
+Unser Feed-Forward-Netz verwendet SwiGLU. SwiGLU ist eine gegatete Aktivierung. Es
+teilt die Berechnung in zwei Pfade auf. Ein Pfad erzeugt Werte. Der
+andere Pfad erzeugt Gates. Die Gates steuern, wie viel von jedem Wert
+durchgelassen wird.
+
+```
+h = input @ W₁  (768 → 3072)  # Werte-Pfad
+g = input @ W₂  (768 → 3072)  # Gate-Pfad
+output = (SiLU(h) × g) @ W₃  (3072 → 768)  # kombinieren und projizieren
+```
+
+Die Erweiterung von 768 auf 3072 gibt dem Netz Raum, Informationen zu
+transformieren. In der breiteren mittleren Schicht kann das Netz komplexere
+Muster darstellen. Die Kontraktion zurück auf 768 zwingt es, diese
+Muster in eine dichte Darstellung zu komprimieren.
+
+Die SiLU-Aktivierung auf dem Werte-Pfad liefert glatte Nichtlinearität.
+Anders als ReLU, das bei null eine scharfe Kante hat, ist SiLU überall glatt.
+Das lässt Gradienten während des Trainings besser fließen. Der Gate-Pfad hat keine
+Aktivierung. Er kann jede beliebige reelle Zahl ausgeben. Ein Gate von null blockiert die
+Information. Ein Gate von eins lässt sie unverändert durch. Ein Gate von zwei
+verstärkt sie. Das Modell lernt, welche Inputs verstärkt und
+welche unterdrückt werden sollen.
+
+Das Gate lernt kontextabhängige Filterung. Wenn das Token ein Verb ist,
+verstärkt das Gate vielleicht Dimensionen, die mit Handlung zusammenhängen, und unterdrückt
+Dimensionen, die mit Objekten zusammenhängen. Wenn das Token ein Nomen ist, macht es vielleicht
+das Gegenteil. Dieselben Netzgewichte gelten für jedes Token, aber das Verhalten
+unterscheidet sich, weil der Vektor jedes Tokens zu unterschiedlichen Gate-Werten führt.
+
+SwiGLU hat drei Gewichtsmatrizen statt der zwei, die ein Standard-
+Feed-Forward-Netz hätte. Die zusätzliche Matrix ist für das Gate. Das
+fügt unserem Modell etwa 28 Millionen Parameter hinzu, verglichen mit einem Standard-
+FFN. Jeder dieser Parameter trägt zu besserer Leistung bei.
+Der Gating-Mechanismus ist der Grund, warum SwiGLU ReLU und GELU im großen Maßstab übertrifft.
+
+---
+
+## Teil 9: Die Residual Connection – Die Gradienten-Autobahn
+
+Jede Teilschicht hat eine Residual Connection. Der Attention-Output wird zum
+Attention-Input addiert. Der Feed-Forward-Output wird zum Feed-
+Forward-Input addiert.
 
 ```
 x = x + attention(norm(x))
 x = x + ffn(norm(x))
 ```
 
-These plus signs are the most important operators in the entire model.
-Without them deep transformers cannot be trained. The gradients would
-vanish. The early layers would never learn.
+Diese Pluszeichen sind die wichtigsten Operatoren im gesamten Modell.
+Ohne sie können tiefe Transformer nicht trainiert werden. Die Gradienten würden
+verschwinden. Die frühen Schichten würden nie lernen.
 
-Here is why. When the model makes a prediction and computes the loss it
-sends a gradient backward through the network. This gradient tells each
-weight how to change to reduce the loss. The gradient flows backward
-through each layer in reverse order. At each layer it is multiplied by
-the derivative of that layer's function. If the derivative is smaller
-than one the gradient shrinks. After propagating backward through twelve
-layers the gradient at the first layer is the product of eleven numbers
-that are each less than one.
+Hier ist der Grund. Wenn das Modell eine Vorhersage trifft und den Loss berechnet, sendet es
+einen Gradienten rückwärts durch das Netz. Dieser Gradient sagt jedem
+Gewicht, wie es sich ändern soll, um den Loss zu verringern. Der Gradient fließt rückwärts
+durch jede Schicht in umgekehrter Reihenfolge. Bei jeder Schicht wird er mit
+der Ableitung der Funktion dieser Schicht multipliziert. Ist die Ableitung kleiner
+als eins, schrumpft der Gradient. Nach der Rückpropagierung durch zwölf
+Schichten ist der Gradient in der ersten Schicht das Produkt aus elf Zahlen,
+die jeweils kleiner als eins sind.
 
 ```
 gradient_at_layer_1 = gradient_at_layer_12 × d₁ × d₂ × ... × d₁₁
 
-If each derivative is 0.5:
+Wenn jede Ableitung 0,5 ist:
 gradient_at_layer_1 = gradient_at_layer_12 × 0.5¹¹
                     = gradient_at_layer_12 × 0.0005
 ```
 
-The gradient at layer one is two thousand times smaller than the
-gradient at layer twelve. The first layer receives almost no learning
-signal. Its weights stay random. The model cannot train.
+Der Gradient in Schicht eins ist zweitausendmal kleiner als der
+Gradient in Schicht zwölf. Die erste Schicht erhält fast kein Lernsignal.
+Ihre Gewichte bleiben zufällig. Das Modell kann nicht trainieren.
 
-Residual connections fix this by providing a second path. The gradient
-can flow backward through the sublayer like before. Or it can bypass the
-sublayer entirely and flow straight to the input. The bypass path has a
-derivative of exactly 1.0. Always. The gradient does not shrink.
+Residual Connections beheben das, indem sie einen zweiten Pfad bereitstellen. Der Gradient
+kann wie zuvor rückwärts durch die Teilschicht fließen. Oder er kann die
+Teilschicht komplett umgehen und direkt zum Input fließen. Der Umgehungspfad hat eine
+Ableitung von exakt 1,0. Immer. Der Gradient schrumpft nicht.
 
 ```
-With residual: output = input + sublayer(norm(input))
-Derivative:    d(output)/d(input) = 1 + d(sublayer)/d(input)
+Mit Residual: output = input + sublayer(norm(input))
+Ableitung:    d(output)/d(input) = 1 + d(sublayer)/d(input)
 ```
 
-The total derivative is 1 plus something. Even if the something is small
-the 1 ensures the gradient never vanishes. After twelve layers the
-gradient at layer one is at least as large as the gradient at layer
-twelve. Every layer can learn.
+Die Gesamtableitung ist 1 plus etwas. Selbst wenn dieses Etwas klein ist,
+sorgt die 1 dafür, dass der Gradient nie verschwindet. Nach zwölf Schichten ist der
+Gradient in Schicht eins mindestens so groß wie der Gradient in Schicht
+zwölf. Jede Schicht kann lernen.
 
-This is why we can stack twelve blocks. Or twenty four. Or ninety six.
-The gradient highway stays open regardless of depth. The only limit is
-computational cost not trainability.
+Das ist der Grund, warum wir zwölf Blöcke stapeln können. Oder vierundzwanzig. Oder sechsundneunzig.
+Die Gradienten-Autobahn bleibt unabhängig von der Tiefe offen. Die einzige Grenze ist der
+Rechenaufwand, nicht die Trainierbarkeit.
 
 ---
 
-## Part 10: The Full Model . Putting It All Together
+## Teil 10: Das vollständige Modell – Alles zusammensetzen
 
-Let us assemble every piece into the complete model.
+Setzen wir jedes Teil zum vollständigen Modell zusammen.
 
 ```python
 class GPT(nn.Module):
     def __init__(self, config):
-        self.token_embedding = nn.Embedding(vocab_size, d_model)  # Part 4
+        self.token_embedding = nn.Embedding(vocab_size, d_model)  # Teil 4
         self.layers = nn.ModuleList([
-            TransformerBlock(d_model, num_heads)  # Parts 6-9
+            TransformerBlock(d_model, num_heads)  # Teile 6-9
             for _ in range(num_layers)
         ])
-        self.final_norm = RMSNorm(d_model)  # Part 7
-        self.lm_head = nn.Linear(d_model, vocab_size)  # Output projection
+        self.final_norm = RMSNorm(d_model)  # Teil 7
+        self.lm_head = nn.Linear(d_model, vocab_size)  # Output-Projektion
 
     def forward(self, input_ids):
-        # Part 4: Embed tokens
+        # Teil 4: Token einbetten
         x = self.token_embedding(input_ids)  # [batch, seq, 768]
 
-        # Parts 6-9: Process through transformer blocks
+        # Teile 6-9: Durch die Transformer-Blöcke verarbeiten
         for layer in self.layers:
-            x = layer(x)  # Each block contains attention + FFN + residuals
+            x = layer(x)  # Jeder Block enthält Attention + FFN + Residuals
 
-        # Part 7: Final normalization
+        # Teil 7: Finale Normalisierung
         x = self.final_norm(x)
 
-        # Output: Project to vocabulary
+        # Output: Auf das Vokabular projizieren
         logits = self.lm_head(x)  # [batch, seq, 50257]
         return logits
 ```
 
-That is the entire model. About fifty lines of code. Every component we
-discussed is inside those fifty lines. The embedding table from Part 4.
-The stacked transformer blocks from Parts 6 through 9. The final
-normalization from Part 7. The output projection that converts hidden
-states back to vocabulary predictions.
+Das ist das gesamte Modell. Etwa fünfzig Zeilen Code. Jede Komponente, die wir
+besprochen haben, steckt in diesen fünfzig Zeilen. Die Embedding-Tabelle aus Teil 4.
+Die gestapelten Transformer-Blöcke aus den Teilen 6 bis 9. Die finale
+Normalisierung aus Teil 7. Die Output-Projektion, die Hidden States
+zurück in Vokabular-Vorhersagen umwandelt.
 
-The model takes a batch of token sequences as input. For each position
-in each sequence it produces 50257 scores. One score for each possible
-next token. The highest scoring token is the model's prediction for what
-word comes next.
+Das Modell nimmt einen Batch von Token-Sequenzen als Input. Für jede Position
+in jeder Sequenz erzeugt es 50257 Scores. Einen Score für jedes mögliche
+nächste Token. Das Token mit dem höchsten Score ist die Vorhersage des Modells dafür, welches
+Wort als Nächstes kommt.
 
 ---
 
-## Part 11: The Output . From Vectors to Words
+## Teil 11: Der Output – Von Vektoren zu Wörtern
 
-The final layer of the model projects from 768 dimensions to 50257
-dimensions. This is a simple linear transformation. Multiply by a weight
-matrix of shape 768 by 50257.
+Die finale Schicht des Modells projiziert von 768 Dimensionen auf 50257
+Dimensionen. Das ist eine einfache lineare Transformation. Multiplikation mit einer Gewichts-
+matrix der Form 768 mal 50257.
 
 ```python
 logits = x @ W_lm_head  # [batch, seq, 768] @ [768, 50257] = [batch, seq, 50257]
 ```
 
-These 50257 numbers are called logits. They are unnormalized scores.
-Higher means the model thinks that token is more likely. They are not
-probabilities yet because they do not sum to one and some may be
-negative.
+Diese 50257 Zahlen heißen Logits. Sie sind unnormalisierte Scores.
+Höher bedeutet, das Modell hält dieses Token für wahrscheinlicher. Es sind noch keine
+Wahrscheinlichkeiten, weil sie sich nicht zu eins summieren und manche
+negativ sein können.
 
-To convert logits to probabilities we apply softmax.
+Um Logits in Wahrscheinlichkeiten umzuwandeln, wenden wir Softmax an.
 
 ```python
-probs = softmax(logits)  # Each row now sums to 1.0
+probs = softmax(logits)  # Jede Zeile summiert sich jetzt zu 1.0
 ```
 
-Each row of the probability matrix sums to one. Row i column j is the
-model's estimated probability that token j comes next given the first
-i plus 1 tokens of the input.
+Jede Zeile der Wahrscheinlichkeitsmatrix summiert sich zu eins. Zeile i, Spalte j ist die
+vom Modell geschätzte Wahrscheinlichkeit, dass Token j als Nächstes kommt, gegeben die ersten
+i plus 1 Token des Inputs.
 
-The model does not output just one token. It outputs a probability
-distribution over all 50257 tokens. During training we compare this
-distribution to the actual next token. During generation we sample from
-this distribution to pick the next word.
+Das Modell gibt nicht nur ein Token aus. Es gibt eine Wahrscheinlichkeits-
+verteilung über alle 50257 Token aus. Während des Trainings vergleichen wir diese
+Verteilung mit dem tatsächlichen nächsten Token. Während der Generierung ziehen wir eine Stichprobe aus
+dieser Verteilung, um das nächste Wort auszuwählen.
 
 ---
 
-## Part 12: The Loss . Measuring Wrongness
+## Teil 12: Der Loss – Falschheit messen
 
-Training needs a number that tells us how good the model's predictions
-are. Lower is better. The number is called the loss.
+Training braucht eine Zahl, die uns sagt, wie gut die Vorhersagen des Modells
+sind. Niedriger ist besser. Diese Zahl nennt man den Loss.
 
-We use cross entropy loss. It measures the difference between the
-model's predicted probabilities and the actual next tokens.
+Wir verwenden Cross-Entropy-Loss. Er misst den Unterschied zwischen den
+vom Modell vorhergesagten Wahrscheinlichkeiten und den tatsächlichen nächsten Token.
 
-For a single prediction where the true next token is j:
+Für eine einzelne Vorhersage, bei der das wahre nächste Token j ist:
 
 ```
 loss = -log(probs[j])
 ```
 
-If the model assigns probability 0.9 to the correct token the loss is
-negative log of 0.9 which is 0.105. Good. The model was confident and
-right.
+Weist das Modell dem richtigen Token eine Wahrscheinlichkeit von 0,9 zu, ist der Loss
+der negative Logarithmus von 0,9, also 0,105. Gut. Das Modell war sich sicher und
+hatte recht.
 
-If the model assigns probability 0.1 to the correct token the loss is
-negative log of 0.1 which is 2.303. Bad. The model was confident about
-the wrong things.
+Weist das Modell dem richtigen Token eine Wahrscheinlichkeit von 0,1 zu, ist der Loss
+der negative Logarithmus von 0,1, also 2,303. Schlecht. Das Modell war sich sicher über
+die falschen Dinge.
 
-If the model assigns probability 0.01 to the correct token the loss is
-negative log of 0.01 which is 4.605. Terrible. The model barely
-considered the correct answer.
+Weist das Modell dem richtigen Token eine Wahrscheinlichkeit von 0,01 zu, ist der Loss
+der negative Logarithmus von 0,01, also 4,605. Furchtbar. Das Modell hat die
+richtige Antwort kaum in Betracht gezogen.
 
-The loss is always positive. It approaches zero as the model becomes
-perfect. It approaches infinity as the model becomes completely wrong.
-A random model that assigns equal probability to all 50257 tokens would
-have a loss of negative log of one over 50257 which is about 10.8. This
-is the baseline. Any loss above 10.8 means the model is worse than
-random. Any loss below 10.8 means the model has learned something.
+Der Loss ist immer positiv. Er nähert sich null, wenn das Modell perfekt wird.
+Er nähert sich unendlich, wenn das Modell völlig falsch liegt.
+Ein zufälliges Modell, das allen 50257 Token gleiche Wahrscheinlichkeit zuweist, hätte
+einen Loss von negativem Logarithmus von eins durch 50257, also etwa 10,8. Das
+ist die Baseline. Jeder Loss über 10,8 bedeutet, das Modell ist schlechter als
+Zufall. Jeder Loss unter 10,8 bedeutet, das Modell hat etwas gelernt.
 
 ```python
 def compute_loss(logits, targets):
     # logits:   [batch, seq, 50257]
-    # targets:  [batch, seq]  (shifted by 1 from input)
+    # targets:  [batch, seq]  (um 1 gegenüber dem Input verschoben)
     logits_flat = logits.view(-1, 50257)
     targets_flat = targets.view(-1)
     return F.cross_entropy(logits_flat, targets_flat)
 ```
 
-We compute the loss over all positions in all sequences in the batch.
-The average loss across millions of predictions gives us a single number
-that measures the model's performance. Every training step we try to
-make this number smaller.
+Wir berechnen den Loss über alle Positionen in allen Sequenzen im Batch.
+Der durchschnittliche Loss über Millionen von Vorhersagen liefert uns eine einzige Zahl,
+die die Leistung des Modells misst. Bei jedem Trainingsschritt versuchen wir,
+diese Zahl kleiner zu machen.
 
 ---
 
-## Part 13: Backpropagation . Figuring Out What to Change
+## Teil 13: Backpropagation – Herausfinden, was zu ändern ist
 
-We have a loss. The loss tells us how wrong the model was. But it does
-not tell us which of the 150 million weights to change or in which
-direction. Backpropagation answers this question.
+Wir haben einen Loss. Der Loss sagt uns, wie falsch das Modell lag. Aber er sagt
+uns nicht, welches der 150 Millionen Gewichte wir ändern sollen oder in welche
+Richtung. Backpropagation beantwortet diese Frage.
 
-Backpropagation applies the chain rule from calculus. For every weight
-in the model it computes the partial derivative of the loss with respect
-to that weight. This derivative tells us: if I increase this weight by
-a tiny amount how much will the loss change.
+Backpropagation wendet die Kettenregel aus der Analysis an. Für jedes Gewicht
+im Modell berechnet sie die partielle Ableitung des Loss nach
+diesem Gewicht. Diese Ableitung sagt uns: Wenn ich dieses Gewicht um eine winzige
+Menge erhöhe, wie stark ändert sich der Loss?
 
 ```python
-loss.backward()  # PyTorch does all the calculus automatically
+loss.backward()  # PyTorch übernimmt die gesamte Rechnerei automatisch
 ```
 
-After this call every weight in the model has a .grad attribute. The
-gradient is a tensor of the same shape as the weight. Each element in
-the gradient is the direction and magnitude to change that weight to
-reduce the loss.
+Nach diesem Aufruf hat jedes Gewicht im Modell ein .grad-Attribut. Der
+Gradient ist ein Tensor derselben Form wie das Gewicht. Jedes Element im
+Gradienten ist die Richtung und Größe, in die dieses Gewicht geändert werden sollte, um
+den Loss zu verringern.
 
 ```
-If weight[i,j].grad = 0.003:
-  Increasing weight[i,j] makes the loss go up.
-  We should decrease it.
+Wenn weight[i,j].grad = 0.003:
+  Eine Erhöhung von weight[i,j] lässt den Loss steigen.
+  Wir sollten es verringern.
 
-If weight[i,j].grad = -0.005:
-  Increasing weight[i,j] makes the loss go down.
-  We should increase it.
+Wenn weight[i,j].grad = -0.005:
+  Eine Erhöhung von weight[i,j] lässt den Loss sinken.
+  Wir sollten es erhöhen.
 
-If weight[i,j].grad = 0.000:
-  Changing this weight does not affect the loss.
-  We can leave it alone or change it without consequence.
+Wenn weight[i,j].grad = 0.000:
+  Eine Änderung dieses Gewichts wirkt sich nicht auf den Loss aus.
+  Wir können es unverändert lassen oder ohne Konsequenz ändern.
 ```
 
-The gradients flow backward from the loss through the output projection
-through the final normalization through each transformer block in
-reverse order through the embedding table and back to the input. At
-each step the chain rule multiplies local derivatives. The residual
-connections ensure that gradients survive the journey.
+Die Gradienten fließen rückwärts vom Loss durch die Output-Projektion,
+durch die finale Normalisierung, durch jeden Transformer-Block in
+umgekehrter Reihenfolge, durch die Embedding-Tabelle und zurück zum Input. Bei
+jedem Schritt multipliziert die Kettenregel lokale Ableitungen. Die Residual-
+Connections sorgen dafür, dass Gradienten diese Reise überstehen.
 
 ---
 
-## Part 14: Gradient Clipping . Preventing Wild Jumps
+## Teil 14: Gradient Clipping – Wilde Sprünge verhindern
 
-Sometimes a batch of text produces very large gradients. A rare word
-pattern or an unusual sentence structure sends a shockwave through the
-gradients. If we applied these large gradients directly the model's
-weights would jump to a completely different configuration. Training
-would be destroyed.
+Manchmal erzeugt ein Batch Text sehr große Gradienten. Ein seltenes Wort-
+muster oder eine ungewöhnliche Satzstruktur schickt eine Schockwelle durch die
+Gradienten. Würden wir diese großen Gradienten direkt anwenden, würden die Gewichte
+des Modells zu einer völlig anderen Konfiguration springen. Das Training
+wäre zerstört.
 
-Gradient clipping prevents this. After the backward pass we check the
-total magnitude of all gradients. If it exceeds a threshold we shrink
-all gradients proportionally to fit under the threshold.
+Gradient Clipping verhindert das. Nach dem Backward-Pass prüfen wir die
+Gesamtgröße aller Gradienten. Überschreitet sie einen Schwellenwert, verkleinern wir
+alle Gradienten proportional, damit sie unter den Schwellenwert passen.
 
 ```python
 total_norm = sqrt(sum(g.norm(2)² for g in gradients))
@@ -761,229 +761,229 @@ if total_norm > 1.0:
         g *= scale
 ```
 
-The direction of the update is preserved. Only the step size is limited.
-The model takes small safe steps instead of wild leaps. The threshold
-of 1.0 is standard for transformer training. It was found empirically.
-It catches dangerous spikes without interfering with normal updates.
+Die Richtung des Updates bleibt erhalten. Nur die Schrittgröße wird begrenzt.
+Das Modell macht kleine, sichere Schritte statt wilder Sprünge. Der Schwellenwert
+von 1,0 ist Standard beim Training von Transformern. Er wurde empirisch
+ermittelt. Er fängt gefährliche Spitzen ab, ohne normale Updates zu stören.
 
 ---
 
-## Part 15: AdamW . Updating the Weights
+## Teil 15: AdamW – Die Gewichte aktualisieren
 
-We have gradients for every weight. Now we need to apply them. The
-simplest approach is to move each weight a tiny bit in the opposite
-direction of its gradient.
+Wir haben Gradienten für jedes Gewicht. Jetzt müssen wir sie anwenden. Der
+einfachste Ansatz ist, jedes Gewicht ein kleines Stück in die entgegengesetzte
+Richtung seines Gradienten zu bewegen.
 
 ```
 weight = weight - learning_rate × gradient
 ```
 
-This is stochastic gradient descent. It works but it is slow and
-unstable. The learning rate is the same for every weight regardless of
-how much each weight needs to change. Noisy gradients cause zigzagging.
-Large weights receive no regularization.
+Das ist stochastischer Gradientenabstieg (Stochastic Gradient Descent). Er funktioniert, ist aber langsam und
+instabil. Die Learning Rate ist für jedes Gewicht gleich, unabhängig davon,
+wie stark jedes Gewicht sich ändern muss. Verrauschte Gradienten verursachen Zickzack-
+Bewegungen. Große Gewichte erhalten keine Regularisierung.
 
-AdamW improves on all three fronts. It maintains running averages of
-past gradients and their magnitudes. It uses these averages to adjust
-the step size for each weight independently. It applies weight decay
-separately from the gradient update.
+AdamW verbessert alle drei Punkte. Es hält laufende Durchschnitte
+vergangener Gradienten und ihrer Größen. Es nutzt diese Durchschnitte, um die
+Schrittgröße für jedes Gewicht unabhängig anzupassen. Es wendet Weight Decay
+getrennt vom Gradienten-Update an.
 
 ```python
-# AdamW for a single weight
-momentum = β₁ × momentum + (1 - β₁) × gradient      # Running average of gradients
-velocity = β₂ × velocity + (1 - β₂) × gradient²      # Running average of squared gradients
+# AdamW für ein einzelnes Gewicht
+momentum = β₁ × momentum + (1 - β₁) × gradient      # Laufender Durchschnitt der Gradienten
+velocity = β₂ × velocity + (1 - β₂) × gradient²      # Laufender Durchschnitt der quadrierten Gradienten
 
-# Bias correction for early steps
+# Bias-Korrektur für frühe Schritte
 mom_corrected = momentum / (1 - β₁^step)
 vel_corrected = velocity / (1 - β₂^step)
 
-# Decoupled weight decay
+# Entkoppelter Weight Decay
 weight = weight × (1 - lr × weight_decay)
 
-# Gradient update
+# Gradienten-Update
 weight = weight - lr × mom_corrected / (sqrt(vel_corrected) + ε)
 ```
 
-The momentum term acts like inertia. It smooths out noise by
-maintaining a running average of past gradients. If the gradient
-points in the same direction for many steps momentum builds up and the
-step size increases. If the gradient oscillates momentum cancels out
-and the step size decreases.
+Der Momentum-Term wirkt wie Trägheit. Er glättet Rauschen, indem er einen
+laufenden Durchschnitt vergangener Gradienten hält. Zeigt der Gradient
+viele Schritte lang in dieselbe Richtung, baut sich Momentum auf und die
+Schrittgröße nimmt zu. Oszilliert der Gradient, hebt sich Momentum
+auf und die Schrittgröße nimmt ab.
 
-The velocity term adjusts per weight learning rates. Weights that have
-been making large moves get smaller steps. Weights that have been still
-get larger steps. This adaptive behavior means we do not need to tune
-the learning rate for every weight individually.
+Der Velocity-Term passt die Learning Rate pro Gewicht an. Gewichte, die
+große Bewegungen gemacht haben, bekommen kleinere Schritte. Gewichte, die stillgestanden
+haben, bekommen größere Schritte. Dieses adaptive Verhalten bedeutet, dass wir
+die Learning Rate nicht für jedes Gewicht einzeln anpassen müssen.
 
-The weight decay term pushes all weights toward zero by a tiny fraction
-each step. This prevents weights from growing without bound. Large
-weights are a sign of overfitting. The model has become too confident
-about a few patterns and ignores everything else. Weight decay forces it
-to stay humble.
+Der Weight-Decay-Term schiebt alle Gewichte bei jedem Schritt um einen winzigen Bruchteil
+in Richtung null. Das verhindert, dass Gewichte unbegrenzt wachsen. Große
+Gewichte sind ein Zeichen von Overfitting. Das Modell ist zu selbstsicher
+bezüglich weniger Muster geworden und ignoriert alles andere. Weight Decay zwingt es
+dazu, bescheiden zu bleiben.
 
-The epsilon term prevents division by zero. It is tiny and never needs
-tuning.
+Der Epsilon-Term verhindert die Division durch null. Er ist winzig und muss nie
+angepasst werden.
 
-AdamW is the standard optimizer for language model training. GPT-3
-trained with it. LLaMA trained with it. Every model in this guide
-trains with it. The specific hyperparameters β₁ of 0.9 β₂ of 0.95 and
-weight decay of 0.1 are the LLaMA defaults. They have been validated
-on models from one billion to seventy billion parameters.
+AdamW ist der Standard-Optimizer für das Training von Sprachmodellen. GPT-3
+wurde damit trainiert. LLaMA wurde damit trainiert. Jedes Modell in diesem Leitfaden
+trainiert damit. Die konkreten Hyperparameter β₁ von 0,9, β₂ von 0,95 und
+Weight Decay von 0,1 sind die LLaMA-Standardwerte. Sie wurden
+an Modellen von einer Milliarde bis siebzig Milliarden Parametern validiert.
 
 ---
 
-## Part 16: Cosine Warmup . The Learning Rate Schedule
+## Teil 16: Cosine Warmup – Der Learning-Rate-Zeitplan
 
-The learning rate is not constant throughout training. It follows a
-schedule that warms up then decays.
+Die Learning Rate bleibt während des Trainings nicht konstant. Sie folgt einem
+Zeitplan, der zunächst aufwärmt und dann abfällt (Decay).
 
-At the very start of training the model's weights are random. The
-gradients are large and noisy. A large learning rate would send the
-model flying off in random directions. We start with a learning rate
-of zero and linearly increase it to the maximum over several thousand
-steps. This is the warmup phase.
+Ganz zu Beginn des Trainings sind die Gewichte des Modells zufällig. Die
+Gradienten sind groß und verrauscht. Eine hohe Learning Rate würde das
+Modell in zufällige Richtungen davonfliegen lassen. Wir starten mit einer Learning Rate
+von null und erhöhen sie über mehrere tausend Schritte hinweg linear bis zum
+Maximum. Das ist die Warmup-Phase.
 
 ```python
 if step < warmup_steps:
     lr = max_lr × step / warmup_steps
 ```
 
-Once the model is stable we can train at full speed. But as training
-progresses and the model gets closer to a good solution we need to be
-more careful. Large steps would overshoot the minimum. We gradually
-reduce the learning rate following a cosine curve.
+Sobald das Modell stabil ist, können wir mit voller Geschwindigkeit trainieren. Aber je weiter das Training
+fortschreitet und das Modell einer guten Lösung näherkommt, müssen wir
+vorsichtiger werden. Große Schritte würden über das Minimum hinausschießen. Wir
+reduzieren die Learning Rate schrittweise entlang einer Kosinuskurve.
 
 ```python
 progress = (step - warmup_steps) / (total_steps - warmup_steps)
 lr = min_lr + (max_lr - min_lr) × 0.5 × (1 + cos(π × progress))
 ```
 
-The cosine curve starts falling slowly then faster in the middle then
-slowly again at the end. This smooth decay is gentler than step decay
-which drops the learning rate abruptly at fixed intervals. Abrupt drops
-can disturb the model. Cosine decay is continuous.
+Die Kosinuskurve fällt zunächst langsam, dann schneller in der Mitte, dann
+wieder langsam am Ende. Dieser sanfte Abfall ist milder als Step-Decay,
+bei dem die Learning Rate in festen Intervallen abrupt abfällt. Abrupte Sprünge
+können das Modell stören. Cosine Decay ist kontinuierlich.
 
-At the very end of training the learning rate reaches a small minimum.
-The model takes tiny steps that refine its weights with precision. The
-trusty phase.
+Ganz am Ende des Trainings erreicht die Learning Rate ein kleines Minimum.
+Das Modell macht winzige Schritte, die seine Gewichte mit Präzision verfeinern. Die
+Feinabstimmungsphase.
 
-All three phases together make training both stable at the start and
-precise at the end. Every modern language model uses this schedule.
+Alle drei Phasen zusammen machen das Training am Anfang stabil und
+am Ende präzise. Jedes moderne Sprachmodell verwendet diesen Zeitplan.
 
 ---
 
-## Part 17: Mixed Precision . Faster Training
+## Teil 17: Mixed Precision – Schnelleres Training
 
-The model's weights are stored as 32 bit floating point numbers. This
-is the standard for scientific computing. Good precision and good range.
+Die Gewichte des Modells werden als 32-Bit-Fließkommazahlen gespeichert. Das
+ist der Standard für wissenschaftliches Rechnen. Gute Präzision und guter Wertebereich.
 
-But most operations inside the forward pass do not need 32 bits of
-precision. The matrix multiplications in attention and the feed forward
-network work almost as well with 16 bits. Using 16 bits instead of 32
-cuts memory usage in half and nearly doubles speed on modern GPUs.
+Aber die meisten Operationen im Forward-Pass brauchen nicht 32 Bit
+Präzision. Die Matrixmultiplikationen in Attention und im Feed-Forward-
+Netz funktionieren fast genauso gut mit 16 Bit. 16 Bit statt 32 zu
+verwenden, halbiert den Speicherverbrauch und verdoppelt fast die Geschwindigkeit auf modernen GPUs.
 
-We use a format called bfloat16. It has the same range as float32 but
-less precision. The maximum representable number is the same in both
-formats. So bfloat16 never overflows even during the largest matrix
-multiplications. The only difference is that bfloat16 can only represent
-about two decimal digits of precision instead of seven.
+Wir verwenden ein Format namens bfloat16. Es hat denselben Wertebereich wie float32, aber
+weniger Präzision. Die größte darstellbare Zahl ist in beiden
+Formaten gleich. bfloat16 läuft also selbst bei den größten Matrix-
+multiplikationen nie über. Der einzige Unterschied ist, dass bfloat16 nur
+etwa zwei Dezimalstellen Präzision darstellen kann statt sieben.
 
-This tradeoff is perfect for neural networks. We need the range to
-prevent overflow during intermediate computations. But we do not need
-seven digits of precision for every activation. Two digits is enough
-for the model to learn effectively.
+Dieser Kompromiss ist perfekt für neuronale Netze. Wir brauchen den Wertebereich, um
+Überlauf während Zwischenberechnungen zu verhindern. Aber wir brauchen nicht
+sieben Stellen Präzision für jede Aktivierung. Zwei Stellen reichen aus,
+damit das Modell effektiv lernt.
 
 ```python
 with torch.amp.autocast('cuda', dtype=torch.bfloat16):
-    # Every operation here uses bfloat16 where safe
+    # Jede Operation hier verwendet bfloat16, wo es sicher ist
     logits = model(input_ids)
     loss = compute_loss(logits, targets)
 ```
 
-The master weights are always stored in float32. Only the forward and
-backward passes use bfloat16. The weight updates are applied in float32
-to preserve precision over thousands of training steps.
+Die Master-Gewichte werden immer in float32 gespeichert. Nur die Forward- und
+Backward-Pässe verwenden bfloat16. Die Gewichts-Updates werden in float32 angewendet,
+um die Präzision über tausende Trainingsschritte hinweg zu bewahren.
 
-Some operations stay in float32 because they need more precision.
-Normalization layers need full precision to keep activations properly
-scaled. The softmax in attention needs full precision for numerical
-stability. Autocast handles these exceptions automatically. We do not
-need to specify which operations to convert.
+Manche Operationen bleiben in float32, weil sie mehr Präzision brauchen.
+Normalisierungsschichten brauchen volle Präzision, um Aktivierungen richtig
+skaliert zu halten. Der Softmax in Attention braucht volle Präzision für numerische
+Stabilität. Autocast handhabt diese Ausnahmen automatisch. Wir müssen
+nicht angeben, welche Operationen umgewandelt werden sollen.
 
 ---
 
-## Part 18: The Training Loop . Putting It All Together
+## Teil 18: Die Trainingsschleife – Alles zusammensetzen
 
-We have every piece. The model. The data. The tokenizer. The optimizer.
-The scheduler. The loss function. Now we assemble them into a training
-loop.
+Wir haben jedes Teil. Das Modell. Die Daten. Den Tokenizer. Den Optimizer.
+Den Scheduler. Die Loss-Funktion. Jetzt setzen wir sie zu einer Trainingsschleife
+zusammen.
 
 ```python
 for step in range(max_steps):
-    # 1. Get a batch of text
+    # 1. Einen Batch Text holen
     batch = next(dataloader)
     input_ids, target_ids = batch
 
-    # 2. Forward pass
+    # 2. Forward-Pass
     with autocast(use_amp):
         logits = model(input_ids)
         loss = cross_entropy(logits, target_ids)
 
-    # 3. Backward pass
+    # 3. Backward-Pass
     loss.backward()
 
-    # 4. Clip gradients
+    # 4. Gradienten clippen
     clip_grad_norm(model.parameters(), max_norm=1.0)
 
-    # 5. Update weights
+    # 5. Gewichte aktualisieren
     optimizer.step()
     optimizer.zero_grad()
 
-    # 6. Update learning rate
+    # 6. Learning Rate aktualisieren
     scheduler.step()
 
-    # 7. Log progress
+    # 7. Fortschritt protokollieren
     if step % 100 == 0:
         print(f"Step {step}: loss = {loss.item():.4f}")
 ```
 
-Seven steps. Repeated thousands or millions of times. Each repetition
-the loss gets slightly smaller. The model gets slightly better. After
-enough repetitions the model can generate coherent text.
+Sieben Schritte. Tausend- oder millionenfach wiederholt. Bei jeder Wiederholung
+wird der Loss etwas kleiner. Das Modell wird etwas besser. Nach
+genügend Wiederholungen kann das Modell zusammenhängenden Text generieren.
 
-The first few hundred steps are chaotic. The loss bounces around. The
-gradients are large. The model is searching. Around step one thousand
-the loss starts a steady decline. The model has found a good direction.
-From then on progress is slow but consistent. Each step shaves a tiny
-fraction off the loss. After fifty thousand steps the loss has dropped
-from around 10.8 to somewhere between 2 and 3. The model can write
-sentences that are sometimes grammatical and sometimes nonsensical. It
-knows that periods end sentences and that capital letters start them.
-It knows that the is often followed by a noun. It knows that cat and dog
-can both sit and run and sleep.
+Die ersten paar hundert Schritte sind chaotisch. Der Loss springt hin und her. Die
+Gradienten sind groß. Das Modell sucht. Um Schritt eintausend herum
+beginnt der Loss stetig zu sinken. Das Modell hat eine gute Richtung gefunden.
+Von da an ist der Fortschritt langsam, aber beständig. Jeder Schritt kratzt einen winzigen
+Bruchteil vom Loss ab. Nach fünfzigtausend Schritten ist der Loss von
+rund 10,8 auf irgendwo zwischen 2 und 3 gefallen. Das Modell kann
+Sätze schreiben, die manchmal grammatikalisch korrekt und manchmal unsinnig sind. Es
+weiß, dass Punkte Sätze beenden und dass Großbuchstaben sie beginnen.
+Es weiß, dass auf the oft ein Nomen folgt. Es weiß, dass cat und dog
+beide sitzen und laufen und schlafen können.
 
-After five hundred thousand steps the model writes paragraphs that are
-mostly coherent. It still makes mistakes. It invents facts. It repeats
-itself. But it has captured a remarkable amount of the structure of
-English. All from predicting the next word billions of times.
+Nach fünfhunderttausend Schritten schreibt das Modell Absätze, die
+größtenteils zusammenhängend sind. Es macht immer noch Fehler. Es erfindet Fakten. Es wiederholt
+sich. Aber es hat einen bemerkenswerten Teil der Struktur des
+Englischen erfasst. Alles durch das milliardenfache Vorhersagen des nächsten Worts.
 
 ---
 
-## Part 19: Text Generation . The Model Speaks
+## Teil 19: Textgenerierung – Das Modell spricht
 
-Once the model is trained we want it to write something. We give it a
-starting phrase called a prompt. The model reads the prompt and predicts
-the first word after it. Then it takes the prompt plus that predicted
-word and predicts the second word. It repeats until it has generated
-enough text or until it predicts an end of text token.
+Sobald das Modell trainiert ist, wollen wir es etwas schreiben lassen. Wir geben ihm eine
+Startphrase, einen sogenannten Prompt. Das Modell liest den Prompt und sagt
+das erste Wort danach voraus. Dann nimmt es den Prompt plus das vorhergesagte
+Wort und sagt das zweite Wort voraus. Das wiederholt es, bis es genug
+Text generiert hat oder ein Ende-des-Texts-Token vorhersagt.
 
 ```python
 prompt = "The cat sat on the"
 input_ids = tokenizer.encode(prompt)  # [464, 3797, 3332, 319, 262]
 
 for _ in range(50):
-    logits = model(input_ids)          # Predict next token
-    logits = logits[:, -1, :]          # Only the last position
+    logits = model(input_ids)          # Nächstes Token vorhersagen
+    logits = logits[:, -1, :]          # Nur die letzte Position
 
     probs = softmax(logits / temperature)
     next_token = sample(probs, top_k=50)
@@ -991,17 +991,17 @@ for _ in range(50):
     input_ids = append(input_ids, next_token)
 ```
 
-The sampling parameters control how the model picks the next token.
-Without any parameters the model would always pick the single most
-likely token. The output would be deterministic and often repetitive.
-The same prompt would always produce the same completion. The model
-would loop on common phrases.
+Die Sampling-Parameter steuern, wie das Modell das nächste Token auswählt.
+Ohne jegliche Parameter würde das Modell immer das eine wahrscheinlichste
+Token wählen. Der Output wäre deterministisch und oft repetitiv.
+Derselbe Prompt würde immer dieselbe Vervollständigung erzeugen. Das Modell
+würde sich in gängigen Phrasen wiederholen.
 
-Temperature adds randomness. It divides the logits by a number before
-softmax. Low temperature makes the distribution sharper. The top token
-gets even more probability. The output is focused and predictable. High
-temperature flattens the distribution. Less likely tokens get more
-chance. The output is creative and unpredictable.
+Temperature fügt Zufälligkeit hinzu. Sie teilt die Logits vor dem
+Softmax durch eine Zahl. Niedrige Temperature macht die Verteilung schärfer. Das
+oberste Token bekommt noch mehr Wahrscheinlichkeit. Der Output ist fokussiert und
+vorhersagbar. Hohe Temperature flacht die Verteilung ab. Weniger wahrscheinliche
+Token bekommen mehr Chancen. Der Output ist kreativ und unvorhersagbar.
 
 ```
 Temperature 0.3: "The cat sat on the windowsill gazing at the birds outside."
@@ -1009,158 +1009,158 @@ Temperature 0.8: "The cat sat on the edge of the couch watching me with sleepy e
 Temperature 1.5: "The cat sat on the piano keys and composed a midnight melody."
 ```
 
-Top-k limits the choices to the k most likely tokens. Everything else
-gets zero probability. This prevents the model from ever picking a
-completely nonsensical token. A value of 50 is common. It eliminates the
-bottom 50207 tokens while keeping enough variety for interesting output.
+Top-k begrenzt die Auswahl auf die k wahrscheinlichsten Token. Alles andere
+bekommt die Wahrscheinlichkeit null. Das verhindert, dass das Modell jemals ein
+völlig unsinniges Token wählt. Ein Wert von 50 ist üblich. Er eliminiert die
+unteren 50207 Token und behält gleichzeitig genug Vielfalt für interessanten Output.
 
-Top-p is an adaptive version of top-k. Instead of always keeping k
-tokens it keeps the smallest set of tokens whose cumulative probability
-exceeds p. If the model is very confident it might keep only three
-tokens. If the model is uncertain it might keep five hundred. This
-adapts to the model's confidence at each step.
+Top-p ist eine adaptive Version von Top-k. Statt immer k
+Token zu behalten, behält es die kleinste Menge an Token, deren kumulative Wahrscheinlichkeit
+p übersteigt. Ist sich das Modell sehr sicher, behält es vielleicht nur drei
+Token. Ist das Modell unsicher, behält es vielleicht fünfhundert. Das
+passt sich an die Konfidenz des Modells bei jedem Schritt an.
 
-Together these three parameters give us fine control over the model's
-output. They are the reason the same model can write both technical
-documentation and poetry. The model provides the probabilities. The
-parameters control how we sample from them.
+Zusammen geben uns diese drei Parameter feine Kontrolle über den Output des
+Modells. Sie sind der Grund, warum dasselbe Modell sowohl technische
+Dokumentation als auch Lyrik schreiben kann. Das Modell liefert die Wahrscheinlichkeiten. Die
+Parameter steuern, wie wir aus ihnen samplen.
 
 ---
 
-## Part 20: KV Cache . Making Generation Fast
+## Teil 20: KV-Cache – Generierung schnell machen
 
-The naive generation loop is slow. Every time we append a new token we
-recompute the entire sequence from scratch. Token 500 has already been
-processed 499 times by the time we add token 501. Most of the
-computation is redundant. The Key and Value vectors for the first 500
-tokens do not change when we add token 501.
+Die naive Generierungsschleife ist langsam. Jedes Mal, wenn wir ein neues Token anhängen,
+berechnen wir die gesamte Sequenz von Grund auf neu. Token 500 wurde bereits
+499 Mal verarbeitet, bevor wir Token 501 hinzufügen. Der Großteil der
+Berechnung ist redundant. Die Key- und Value-Vektoren für die ersten 500
+Token ändern sich nicht, wenn wir Token 501 hinzufügen.
 
-The KV cache eliminates this redundancy. We store the Key and Value
-vectors for every token we have already processed. When a new token
-arrives we compute its Key and Value and append them to the cache. We
-do not recompute anything for the old tokens.
+Der KV-Cache eliminiert diese Redundanz. Wir speichern die Key- und Value-
+Vektoren für jedes Token, das wir bereits verarbeitet haben. Wenn ein neues Token
+ankommt, berechnen wir seinen Key und Value und hängen sie an den Cache an. Wir
+berechnen nichts für die alten Token neu.
 
 ```
-Without cache:  Step 1 computes K and V for 1 token.
-                Step 2 computes K and V for 2 tokens.
-                Step 3 computes K and V for 3 tokens.
-                Total work: 1 + 2 + 3 + ... + N ≈ N²/2
+Ohne Cache:  Schritt 1 berechnet K und V für 1 Token.
+                Schritt 2 berechnet K und V für 2 Token.
+                Schritt 3 berechnet K und V für 3 Token.
+                Gesamtaufwand: 1 + 2 + 3 + ... + N ≈ N²/2
 
-With cache:     Step 1 computes K and V for 1 token.
-                Step 2 computes K and V for 1 new token. Reuses old.
-                Step 3 computes K and V for 1 new token. Reuses old.
-                Total work: N
+Mit Cache:     Schritt 1 berechnet K und V für 1 Token.
+                Schritt 2 berechnet K und V für 1 neues Token. Nutzt Altes wieder.
+                Schritt 3 berechnet K und V für 1 neues Token. Nutzt Altes wieder.
+                Gesamtaufwand: N
 ```
 
-For a thousand token generation the KV cache is roughly a thousand times
-faster. The memory cost is manageable for small models. For GPT-2 Small
-the cache for a thousand tokens is about 35 megabytes. For GPT-3 Large
-it would be about 4 gigabytes. For very large models at very long
-context lengths the cache can become the dominant memory consumer.
+Für eine Generierung von tausend Token ist der KV-Cache etwa tausendmal
+schneller. Die Speicherkosten sind für kleine Modelle beherrschbar. Für GPT-2 Small
+sind es für den Cache von tausend Token etwa 35 Megabyte. Für GPT-3 Large
+wären es etwa 4 Gigabyte. Bei sehr großen Modellen und sehr langen
+Kontextlängen kann der Cache zum dominierenden Speicherverbraucher werden.
 
 ---
 
-## Part 21: What the Model Actually Learned
+## Teil 21: Was das Modell tatsächlich gelernt hat
 
-After training on billions of words the model has learned patterns that
-are invisible to the untrained eye. It has not learned facts in the way
-a database stores facts. It has learned statistical regularities. The
-word sequence the cat sat on the is almost always followed by mat or
-floor or chair or bed. The sequence the capital of France is almost
-always followed by Paris. The model does not know what France or Paris
-or capital mean. It only knows the probability distribution over next
-words given all previous words.
+Nach dem Training an Milliarden von Wörtern hat das Modell Muster gelernt, die
+für das ungeübte Auge unsichtbar sind. Es hat keine Fakten gelernt in der Art, wie
+eine Datenbank Fakten speichert. Es hat statistische Regelmäßigkeiten gelernt. Auf die
+Wortfolge the cat sat on the folgt fast immer mat oder
+floor oder chair oder bed. Auf die Folge the capital of France folgt fast
+immer Paris. Das Modell weiß nicht, was France oder Paris
+oder capital bedeuten. Es kennt nur die Wahrscheinlichkeitsverteilung über die nächsten
+Wörter gegeben alle vorangehenden Wörter.
 
-The embeddings have organized themselves into a space with structure.
-The vector for king minus the vector for man plus the vector for woman
-is very close to the vector for queen. This was not programmed. It
-emerged from training data where king and queen appeared in similar
-contexts but with different gendered pronouns.
+Die Embeddings haben sich selbst zu einem Raum mit Struktur organisiert.
+Der Vektor für king minus der Vektor für man plus der Vektor für woman
+liegt sehr nah am Vektor für queen. Das wurde nicht programmiert. Es
+ist aus Trainingsdaten entstanden, in denen king und queen in ähnlichen
+Kontexten auftraten, aber mit unterschiedlichen geschlechtsspezifischen Pronomen.
 
-The attention heads have specialized. Some heads consistently attend to
-the subject of the current verb. Others attend to recent nouns mentioned
-in the sentence. Others attend to punctuation to understand sentence
-boundaries. These specializations were not designed. They emerged from
-the training objective of predicting the next word.
+Die Attention-Heads haben sich spezialisiert. Manche Heads beachten konsequent
+das Subjekt des aktuellen Verbs. Andere beachten kürzlich erwähnte Nomen
+im Satz. Andere beachten Interpunktion, um Satzgrenzen zu
+verstehen. Diese Spezialisierungen wurden nicht entworfen. Sie sind aus
+dem Trainingsziel entstanden, das nächste Wort vorherzusagen.
 
-The feed forward networks have become pattern recognizers. One part of
-the network might activate strongly when it sees a list of items because
-commas between items predict more items. Another part might activate for
-dates because the word in followed by a year predicts a specific
-temporal pattern. These patterns are distributed across thousands of
-neurons in ways that are difficult to interpret but mathematically
-optimal for prediction.
-
----
-
-## Part 22: Why This Matters
-
-A machine that can predict the next word with high accuracy is a machine
-that has implicitly learned the rules of language. Grammar. Syntax.
-Semantics. Discourse structure. World knowledge. All of it is necessary
-to make accurate predictions. The model must know that verbs agree with
-their subjects in number. It must know that Paris is in France and that
-France is in Europe. It must know that a sentence that starts with
-although expects a contrasting clause. It must know that a recipe for
-cake includes flour and sugar and eggs not motor oil and concrete.
-
-The model acquires all this knowledge through a single task: predict the
-next token. It is a simple task with profound implications. A system
-that can predict what humans will write next is a system that has
-compressed a significant fraction of human knowledge into a set of
-matrix multiplications.
-
-The transformer architecture made this possible. Before transformers
-language models could only capture local patterns within a few words.
-Recurrent networks forgot information that appeared more than a few
-dozen words back. Attention changed that. Attention lets every word
-interact with every other word regardless of distance. A word at the
-end of a paragraph can attend to a word at the beginning as easily as
-to the word right next to it.
-
-The scale made this powerful. GPT-2 with 1.5 billion parameters could
-write plausible paragraphs. GPT-3 with 175 billion parameters could
-write plausible essays and answer questions and generate code. The jump
-in capability came entirely from more data and more parameters. The
-architecture stayed almost the same.
-
-The latest generation of models adds instruction following. They are
-trained not just to predict the next word but to predict the next word
-in a helpful and harmless assistant's response. This additional training
-makes the models useful as tools rather than just interesting as
-demonstrations.
-
-But underneath the chat interface and the instruction tuning and the
-safety filters the core mechanism is unchanged. Tokens in. Attention
-across. Feed forward through. Logits out. The same story we have traced
-from beginning to end. The same mathematics. The same architecture. The
-same gradient descent optimizing cross entropy loss one step at a time.
+Die Feed-Forward-Netze sind zu Mustererkennern geworden. Ein Teil des
+Netzes aktiviert sich vielleicht stark, wenn es eine Liste von Elementen sieht, weil
+Kommas zwischen Elementen weitere Elemente vorhersagen. Ein anderer Teil aktiviert sich vielleicht bei
+Daten, weil das Wort in gefolgt von einer Jahreszahl ein bestimmtes
+zeitliches Muster vorhersagt. Diese Muster sind über Tausende von
+Neuronen verteilt, auf eine Weise, die schwer zu interpretieren, aber mathematisch
+optimal für die Vorhersage ist.
 
 ---
 
-## Epilogue: What You Can Build Next
+## Teil 22: Warum das wichtig ist
 
-You have now seen every piece of a modern language model. You could
-build one from scratch with the code in this guide. You could modify it.
-Add more layers. Use a bigger dataset. Experiment with different
-attention patterns. Swap SwiGLU for a different activation.
+Eine Maschine, die das nächste Wort mit hoher Genauigkeit vorhersagen kann, ist eine Maschine,
+die implizit die Regeln der Sprache gelernt hat. Grammatik. Syntax.
+Semantik. Diskursstruktur. Weltwissen. All das ist notwendig,
+um genaue Vorhersagen zu treffen. Das Modell muss wissen, dass Verben in Numerus mit
+ihren Subjekten übereinstimmen. Es muss wissen, dass Paris in Frankreich liegt und dass
+Frankreich in Europa liegt. Es muss wissen, dass ein Satz, der mit
+although beginnt, eine gegensätzliche Nebensatzkonstruktion erwarten lässt. Es muss wissen, dass ein Rezept
+für einen Kuchen Mehl und Zucker und Eier enthält, nicht Motoröl und Beton.
 
-The architecture described here is not the final word. Research
-continues. State space models like Mamba challenge the transformer's
-dominance. Mixture of experts routes tokens through different sub
-networks to scale more efficiently. Retrieval augmented generation
-connects models to external knowledge bases. But the core ideas are
-stable. Embeddings. Attention. Residuals. Normalization. Gradient
-descent. These will be relevant for as long as neural networks exist.
+Das Modell erwirbt all dieses Wissen durch eine einzige Aufgabe: das
+nächste Token vorherzusagen. Das ist eine einfache Aufgabe mit tiefgreifenden Implikationen. Ein
+System, das vorhersagen kann, was Menschen als Nächstes schreiben werden, ist ein System, das
+einen erheblichen Teil menschlichen Wissens in eine Reihe von
+Matrixmultiplikationen komprimiert hat.
 
-You now understand them. Not just what they are. Why they are. Every
-design choice in this architecture was made to solve a specific problem.
-The residual connections solve vanishing gradients. RMSNorm solves
-activation drift. SwiGLU solves the inflexibility of simple activation
-functions. RoPE solves position encoding without parameters. Every
-piece tells a story.
+Die Transformer-Architektur hat das möglich gemacht. Vor den Transformern
+konnten Sprachmodelle nur lokale Muster innerhalb weniger Wörter erfassen.
+Rekurrente Netze vergaßen Informationen, die mehr als ein paar
+Dutzend Wörter zurücklagen. Attention änderte das. Attention lässt jedes Wort
+mit jedem anderen Wort interagieren, unabhängig vom Abstand. Ein Wort am
+Ende eines Absatzes kann ein Wort am Anfang genauso leicht beachten wie
+das Wort direkt daneben.
 
-The story of modern AI is the story of many people over many years
-solving one problem at a time and stacking their solutions into
-something greater than the sum of its parts. You now know every part.
-You can be one of those people.
+Der Umfang (Scale) machte das leistungsfähig. GPT-2 mit 1,5 Milliarden Parametern konnte
+plausible Absätze schreiben. GPT-3 mit 175 Milliarden Parametern konnte
+plausible Aufsätze schreiben und Fragen beantworten und Code generieren. Der Sprung
+in der Leistungsfähigkeit kam vollständig durch mehr Daten und mehr Parameter. Die
+Architektur blieb fast unverändert.
+
+Die neueste Modellgeneration fügt Instruction Following hinzu. Sie werden
+nicht nur trainiert, das nächste Wort vorherzusagen, sondern das nächste Wort
+in der Antwort eines hilfreichen und harmlosen Assistenten vorherzusagen. Dieses zusätzliche
+Training macht die Modelle als Werkzeuge nützlich statt nur als
+Demonstrationen interessant.
+
+Aber unter der Chat-Oberfläche und dem Instruction Tuning und den
+Sicherheitsfiltern ist der Kernmechanismus unverändert. Token rein. Attention
+hindurch. Feed-Forward durch. Logits raus. Dieselbe Geschichte, die wir
+vom Anfang bis zum Ende verfolgt haben. Dieselbe Mathematik. Dieselbe Architektur. Derselbe
+Gradientenabstieg, der Schritt für Schritt Cross-Entropy-Loss optimiert.
+
+---
+
+## Epilog: Was Sie als Nächstes bauen können
+
+Sie haben jetzt jedes Teil eines modernen Sprachmodells gesehen. Sie könnten
+mit dem Code in diesem Leitfaden eines von Grund auf bauen. Sie könnten es modifizieren.
+Mehr Schichten hinzufügen. Einen größeren Datensatz verwenden. Mit anderen
+Attention-Mustern experimentieren. SwiGLU gegen eine andere Aktivierung tauschen.
+
+Die hier beschriebene Architektur ist nicht das letzte Wort. Die Forschung
+geht weiter. State-Space-Modelle wie Mamba fordern die Dominanz des Transformers
+heraus. Mixture of Experts leitet Token durch verschiedene Sub-
+Netzwerke, um effizienter zu skalieren. Retrieval Augmented Generation
+verbindet Modelle mit externen Wissensdatenbanken. Aber die Kernideen sind
+stabil. Embeddings. Attention. Residuals. Normalisierung. Gradienten-
+abstieg. Diese werden relevant sein, solange neuronale Netze existieren.
+
+Sie verstehen sie jetzt. Nicht nur was sie sind. Warum sie sind. Jede
+Designentscheidung in dieser Architektur wurde getroffen, um ein bestimmtes Problem zu lösen.
+Die Residual Connections lösen verschwindende Gradienten. RMSNorm löst
+Aktivierungsdrift. SwiGLU löst die Unflexibilität einfacher Aktivierungs-
+funktionen. RoPE löst Positional Encoding ohne Parameter. Jedes
+Teil erzählt eine Geschichte.
+
+Die Geschichte moderner KI ist die Geschichte vieler Menschen, die über viele Jahre
+ein Problem nach dem anderen gelöst und ihre Lösungen zu
+etwas Größerem zusammengefügt haben, als die Summe seiner Teile. Sie kennen jetzt jedes Teil.
+Sie können einer dieser Menschen sein.

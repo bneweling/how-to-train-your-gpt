@@ -1,127 +1,135 @@
-# Causal Masking: No Peeking at the Future
+# Causal Masking: Kein Blick in die Zukunft
 
-## What is it
+## Was ist das
 
-Causal masking is a rule that prevents every word in a sentence
-from seeing the words that come after it. Given a sentence like
-*The cat sat on the mat* the word *cat* can see *The* but not
-*sat*. The word *sat* can see *The* and *cat* but not *on*. Each
-word lives in the dark about what comes next.
+Causal Masking ist eine Regel, die verhindert, dass jedes Wort in
+einem Satz die Wörter sehen kann, die danach kommen. Nehmen wir
+einen Satz wie *The cat sat on the mat*: Das Wort *cat* kann *The*
+sehen, aber nicht *sat*. Das Wort *sat* kann *The* und *cat* sehen,
+aber nicht *on*. Jedes Wort tappt im Dunkeln darüber, was als
+Nächstes kommt.
 
-Think of it like reading a book one page at a time. You have read
-pages one through five. Page six is face down on the table. You
-are not allowed to peek. You must guess what happens on page six
-using only what you have already read.
+Stell es dir vor wie beim Lesen eines Buches, Seite für Seite. Du
+hast die Seiten eins bis fünf gelesen. Seite sechs liegt umgedreht
+auf dem Tisch. Du darfst nicht hinüberschauen. Du musst erraten,
+was auf Seite sechs passiert, nur mit dem, was du bereits gelesen
+hast.
 
-This rule seems restrictive. Why not let the model see everything.
-Because the model's entire job is to predict the next word. If
-the model could see the next word it would not need to predict
-it. It would just copy. That is not learning. That is cheating.
+Diese Regel wirkt einschränkend. Warum lässt man das Modell nicht
+einfach alles sehen? Weil die gesamte Aufgabe des Modells darin
+besteht, das nächste Wort vorherzusagen. Könnte das Modell das
+nächste Wort sehen, müsste es es nicht vorhersagen. Es würde es
+einfach kopieren. Das ist kein Lernen. Das ist Schummeln.
 
-## Where is it used
+## Wo wird es verwendet
 
-The causal mask lives inside the attention layer. Right after the
-attention scores are computed and right before the softmax turns
-them into percentages.
-
-```
-Attention scores → Apply causal mask → Softmax → Attention weights
-```
-
-Every attention layer in every transformer block applies the
-causal mask. For a twelve block model the mask is applied twelve
-times for every sentence. Always the same mask. Always the same
-rule. No peeking at the future.
-
-## Why we need it
-
-During training the model sees complete sentences. The input is
-*The cat sat on the mat* all at once. Without the causal mask the
-word *cat* could look at *mat* and say *ah the sentence ends with
-mat so cat must be followed by sat*. The model would learn a
-trivial mapping from full sentences to themselves. It would never
-learn to predict. It would only learn to copy.
-
-With the causal mask the model is forced to earn its predictions.
-At position two it sees *The* and *cat* and must guess *sat*. At
-position three it sees *The cat* and *sat* and must guess *on*.
-The model cannot look ahead for hints. Every prediction is made
-using only the information available at that point in the
-sentence. This is exactly how text generation works in the real
-world. You only know what came before. You never know what comes
-next.
-
-## When was it invented
-
-The causal mask was introduced alongside the transformer itself
-in the 2017 paper Attention Is All You Need. It was not an
-afterthought. It was a design requirement. The authors knew that
-language models must be trained autoregressively meaning one word
-at a time from left to right. The causal mask enforces this
-constraint during training so the model behaves correctly during
-generation.
-
-## How it works step by step
-
-### The attention matrix without a mask
-
-For a three word sentence *I love dogs* the model computes an
-attention score between every pair of words. Every word can see
-every other word.
+Die Causal Mask befindet sich innerhalb des Attention-Layers.
+Direkt nachdem die Attention-Scores berechnet wurden und direkt
+bevor der Softmax sie in Prozentwerte umwandelt.
 
 ```
-Attention scores (no mask):
+Attention-Scores → Causal Mask anwenden → Softmax → Attention-Weights
+```
+
+Jeder Attention-Layer in jedem Transformer-Block wendet die Causal
+Mask an. Bei einem Modell mit zwölf Blöcken wird die Maske für
+jeden Satz zwölfmal angewendet. Immer dieselbe Maske. Immer
+dieselbe Regel. Kein Blick in die Zukunft.
+
+## Warum wir sie brauchen
+
+Während des Trainings sieht das Modell vollständige Sätze. Der
+Input ist *The cat sat on the mat* auf einmal. Ohne die Causal
+Mask könnte das Wort *cat* auf *mat* schauen und sagen: *Ah, der
+Satz endet mit mat, also muss auf cat sat folgen*. Das Modell
+würde eine triviale Abbildung von vollständigen Sätzen auf sich
+selbst lernen. Es würde nie lernen, vorherzusagen. Es würde nur
+lernen zu kopieren.
+
+Mit der Causal Mask ist das Modell gezwungen, sich seine
+Vorhersagen zu erarbeiten. An Position zwei sieht es *The* und
+*cat* und muss *sat* erraten. An Position drei sieht es *The cat*
+und *sat* und muss *on* erraten. Das Modell kann nicht
+vorausschauen, um Hinweise zu finden. Jede Vorhersage wird
+ausschließlich mit den Informationen getroffen, die an dieser
+Stelle im Satz verfügbar sind. Genau so funktioniert
+Textgenerierung in der realen Welt. Man weiß nur, was vorher kam.
+Man weiß nie, was als Nächstes kommt.
+
+## Wann wurde es erfunden
+
+Die Causal Mask wurde zusammen mit dem Transformer selbst im
+Paper Attention Is All You Need von 2017 eingeführt. Sie war kein
+nachträglicher Einfall. Sie war eine Design-Anforderung. Die
+Autoren wussten, dass Sprachmodelle autoregressiv trainiert werden
+müssen, das heißt Wort für Wort von links nach rechts. Die Causal
+Mask erzwingt diese Einschränkung während des Trainings, sodass
+sich das Modell bei der Generierung korrekt verhält.
+
+## Wie es Schritt für Schritt funktioniert
+
+### Die Attention-Matrix ohne Maske
+
+Für den dreiwortigen Satz *I love dogs* berechnet das Modell einen
+Attention-Score zwischen jedem Wortpaar. Jedes Wort kann jedes
+andere Wort sehen.
+
+```
+Attention-Scores (ohne Maske):
 
            I       love    dogs
-I         0.42    0.15    0.08     ← I can see love and dogs
-love      0.33    0.51    0.22     ← love can see I and dogs
-dogs      0.19    0.28    0.44     ← dogs can see I and love
+I         0.42    0.15    0.08     ← I kann love und dogs sehen
+love      0.33    0.51    0.22     ← love kann I und dogs sehen
+dogs      0.19    0.28    0.44     ← dogs kann I und love sehen
 ```
 
-This is a fully connected matrix. Every pair of words has a score.
-The model can use information from anywhere in the sentence.
+Das ist eine vollständig verbundene Matrix. Jedes Wortpaar hat
+einen Score. Das Modell kann Informationen aus jedem Teil des
+Satzes nutzen.
 
-### The attention matrix with a causal mask
+### Die Attention-Matrix mit Causal Mask
 
-After applying the mask future positions are set to negative
-infinity. After softmax negative infinity becomes exactly zero.
-Those connections are severed.
+Nach dem Anwenden der Maske werden zukünftige Positionen auf minus
+unendlich gesetzt. Nach dem Softmax wird minus unendlich zu genau
+null. Diese Verbindungen werden gekappt.
 
 ```
-Attention scores (with mask):
+Attention-Scores (mit Maske):
 
            I       love    dogs
-I         0.42    -inf    -inf      ← I can only see itself
-love      0.33    0.51    -inf      ← love can see I and itself
-dogs      0.19    0.28    0.44      ← dogs can see all three
+I         0.42    -inf    -inf      ← I kann nur sich selbst sehen
+love      0.33    0.51    -inf      ← love kann I und sich selbst sehen
+dogs      0.19    0.28    0.44      ← dogs kann alle drei sehen
 ```
 
-After softmax these scores become weights:
+Nach dem Softmax werden aus diesen Scores Gewichte:
 
 ```
-Attention weights (after softmax):
+Attention-Weights (nach Softmax):
 
            I       love    dogs
-I         1.00    0.00    0.00      ← 100% on itself
-love      0.46    0.54    0.00      ← split between I and itself
-dogs      0.27    0.30    0.43      ← split among all three
+I         1.00    0.00    0.00      ← 100 % auf sich selbst
+love      0.46    0.54    0.00      ← aufgeteilt zwischen I und sich selbst
+dogs      0.27    0.30    0.43      ← aufgeteilt auf alle drei
 ```
 
-The upper right triangle is all zeros. This is the characteristic
-pattern of a causal mask. It is a lower triangular matrix.
+Das obere rechte Dreieck besteht nur aus Nullen. Das ist das
+charakteristische Muster einer Causal Mask. Es handelt sich um
+eine untere Dreiecksmatrix.
 
-### The rule in one line
+### Die Regel in einer Zeile
 
 ```
-Token at position p can only attend to tokens at positions
-0 through p. Token at position p cannot attend to any token
-at position p+1 or beyond.
+Ein Token an Position p kann nur Tokens an den Positionen
+0 bis p sehen. Ein Token an Position p kann kein Token an
+Position p+1 oder später sehen.
 ```
 
-## How we implement it
+## Wie wir es implementieren
 
-Creating a causal mask is surprisingly simple. PyTorch has a
-function called tril that returns the lower triangle of a matrix.
+Eine Causal Mask zu erstellen ist überraschend einfach. PyTorch
+hat eine Funktion namens tril, die das untere Dreieck einer Matrix
+zurückgibt.
 
 ```python
 import torch
@@ -131,78 +139,85 @@ mask = torch.tril(torch.ones(seq_len, seq_len))
 
 print(mask)
 
-# Output:
+# Ausgabe:
 # tensor([[1., 0., 0., 0.],
 #         [1., 1., 0., 0.],
 #         [1., 1., 1., 0.],
 #         [1., 1., 1., 1.]])
 ```
 
-That is the entire mask. Four lines of ones and zeros. Ones mean
-visible. Zeros mean hidden.
+Das ist die gesamte Maske. Vier Zeilen aus Einsen und Nullen.
+Einsen bedeuten sichtbar. Nullen bedeuten verborgen.
 
-In the actual attention code we use this mask like so:
+Im eigentlichen Attention-Code verwenden wir diese Maske so:
 
 ```python
 def create_causal_mask(seq_len, device):
     mask = torch.tril(torch.ones(seq_len, seq_len, device=device))
     return mask.view(1, 1, seq_len, seq_len)
 
-# Inside attention forward:
+# Innerhalb des Attention-Forward:
 if mask is not None:
     attn_scores = attn_scores.masked_fill(mask == 0, float('-inf'))
 ```
 
-The `masked_fill` operation puts negative infinity wherever the
-mask has a zero. After softmax `e^(-inf)` is zero and those
-positions contribute nothing to the final output.
+Die Operation `masked_fill` setzt minus unendlich überall dort
+ein, wo die Maske eine Null hat. Nach dem Softmax ist `e^(-inf)`
+gleich null, und diese Positionen tragen nichts zum finalen Output
+bei.
 
-## What happens during generation
+## Was während der Generierung passiert
 
-During training the causal mask prevents cheating. During text
-generation the causal mask is still there but it does less work.
+Während des Trainings verhindert die Causal Mask Schummeln.
+Während der Textgenerierung ist die Causal Mask noch immer
+vorhanden, verrichtet aber weniger Arbeit.
 
-When generating text we start with a prompt like *Once upon a*.
-The model processes these three tokens using the causal mask.
-Token two can see token zero and token one. Token one can see
-only token zero. Normal.
+Bei der Textgenerierung beginnen wir mit einem Prompt wie *Once
+upon a*. Das Modell verarbeitet diese drei Tokens mithilfe der
+Causal Mask. Token zwei kann Token null und Token eins sehen.
+Token eins kann nur Token null sehen. Normal.
 
-Then the model predicts the next token. Let us say it predicts
-*time*. We append *time* to the sequence making it *Once upon a
-time*. Now we run the model again on these four tokens. The
-causal mask still applies. The new token *time* can see *Once*
-and *upon* and *a* but it cannot see the next token because the
-next token does not exist yet.
+Dann sagt das Modell das nächste Token vorher. Nehmen wir an, es
+sagt *time* vorher. Wir hängen *time* an die Sequenz an, sodass
+daraus *Once upon a time* wird. Jetzt führen wir das Modell erneut
+auf diesen vier Tokens aus. Die Causal Mask gilt weiterhin. Das
+neue Token *time* kann *Once*, *upon* und *a* sehen, aber es kann
+das nächste Token nicht sehen, weil das nächste Token noch nicht
+existiert.
 
-The causal mask is built into the architecture. It is not a
-training only feature. It is a fundamental constraint that makes
-autoregressive language models possible. Without it we could
-never generate text token by token because the model would keep
-trying to peek at words that have not been written yet.
+Die Causal Mask ist fest in die Architektur eingebaut. Sie ist
+kein Feature, das nur beim Training vorkommt. Sie ist eine
+grundlegende Einschränkung, die autoregressive Sprachmodelle
+überhaupt erst möglich macht. Ohne sie könnten wir niemals Text
+Token für Token generieren, weil das Modell ständig versuchen
+würde, einen Blick auf Wörter zu erhaschen, die noch nicht
+geschrieben wurden.
 
-## What happens without the causal mask
+## Was ohne die Causal Mask passiert
 
-If we removed the causal mask during training the model would
-learn to cheat. Its training loss would be extremely low because
-it can always see the answer. But during generation when future
-tokens do not exist yet the model would be completely lost. It
-would not know how to predict the unknown. Its output would be
-gibberish.
+Würden wir die Causal Mask während des Trainings entfernen, würde
+das Modell lernen zu schummeln. Sein Trainings-Loss wäre extrem
+niedrig, weil es die Antwort jederzeit sehen kann. Aber während
+der Generierung, wenn zukünftige Tokens noch nicht existieren,
+wäre das Modell völlig verloren. Es wüsste nicht, wie es das
+Unbekannte vorhersagen soll. Sein Output wäre Kauderwelsch.
 
-This is a common failure mode for beginners who build their first
-transformer. The training loss looks fantastic. The generated
-text is nonsense. The causal mask was omitted.
+Das ist ein häufiger Fehlerfall bei Einsteigern, die ihren ersten
+Transformer bauen. Der Trainings-Loss sieht fantastisch aus. Der
+generierte Text ist Unsinn. Die Causal Mask wurde weggelassen.
 
-## What you need to remember
+## Was du dir merken solltest
 
-The causal mask makes attention a one way street. Words can look
-back but never forward. This forces the model to predict each
-token using only the tokens that came before it. This is exactly
-how text generation works. You write one word at a time. You
-never know what comes next until you write it.
+Die Causal Mask macht Attention zu einer Einbahnstraße. Wörter
+können zurückblicken, aber niemals vorausschauen. Das zwingt das
+Modell dazu, jedes Token nur mithilfe der Tokens vorherzusagen,
+die davor kamen. Genau so funktioniert Textgenerierung. Man
+schreibt ein Wort nach dem anderen. Man weiß nie, was als Nächstes
+kommt, bevor man es geschrieben hat.
 
-The mask is a lower triangular matrix of ones and zeros. Zeros
-become negative infinity in the attention scores. Negative
-infinity becomes zero after softmax. The connections to future
-words are severed. Only the past remains. This simple rule is
-what separates a language model from a text copier.
+Die Maske ist eine untere Dreiecksmatrix aus Einsen und Nullen.
+Nullen werden in den Attention-Scores zu minus unendlich. Minus
+unendlich wird nach dem Softmax zu null. Die Verbindungen zu
+zukünftigen Wörtern werden gekappt. Nur die Vergangenheit bleibt
+übrig. Diese einfache Regel ist es, was ein Sprachmodell von einem
+Textkopierer unterscheidet.

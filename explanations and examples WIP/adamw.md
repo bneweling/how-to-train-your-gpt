@@ -1,180 +1,195 @@
-# AdamW: The Optimizer That Trains Language Models
+# AdamW: Der Optimizer, der Sprachmodelle trainiert
 
-## What is it
+## Was ist das
 
-AdamW is the algorithm that updates the model's weights during
-training. After computing how wrong a prediction was and
-calculating which direction to move each weight AdamW decides
-exactly how far to move. It does this intelligently based on the
-history of past gradients for each parameter.
+AdamW ist der Algorithmus, der die Gewichte des Modells während
+des Trainings aktualisiert. Nachdem berechnet wurde, wie falsch
+eine Vorhersage war, und die Richtung bestimmt wurde, in die jedes
+Gewicht bewegt werden soll, entscheidet AdamW genau, wie weit es
+sich bewegen soll. Das macht es intelligent, basierend auf der
+Historie vergangener Gradienten für jeden Parameter.
 
-Think of it like hiking down a mountain in the fog. You cannot
-see the bottom. You can only feel which direction is downhill.
-You take a step. Then you feel again. A naive hiker always takes
-the same size step. But some parts of the mountain are steep
-and need big steps. Others are flat and need small steps. AdamW
-remembers how steep each parameter has been and adjusts the step
-size accordingly. It also remembers the general direction to keep
-momentum going.
+Stellen Sie es sich vor wie eine Wanderung einen Berg hinab im
+Nebel. Sie können den Talboden nicht sehen. Sie können nur
+fühlen, in welche Richtung es bergab geht. Sie machen einen
+Schritt. Dann fühlen Sie erneut. Ein naiver Wanderer macht immer
+Schritte gleicher Größe. Aber manche Teile des Berges sind steil
+und brauchen große Schritte. Andere sind flach und brauchen
+kleine Schritte. AdamW merkt sich, wie steil jeder Parameter war,
+und passt die Schrittgröße entsprechend an. Es merkt sich außerdem
+die allgemeine Richtung, um das Momentum aufrechtzuerhalten.
 
-The W in AdamW stands for decoupled weight decay. This is the key
-innovation over the original Adam optimizer. Weight decay slowly
-pushes all weights toward zero to prevent them from growing too
-large. In AdamW this push is separated from the gradient
-calculation. The separation makes weight decay work correctly.
+Das W in AdamW steht für entkoppelten Weight Decay (decoupled
+weight decay). Dies ist die entscheidende Neuerung gegenüber dem
+ursprünglichen Adam-Optimizer. Weight Decay drängt alle Gewichte
+langsam in Richtung null, um zu verhindern, dass sie zu groß
+werden. Bei AdamW ist dieser Effekt von der Gradientenberechnung
+getrennt. Diese Trennung sorgt dafür, dass Weight Decay korrekt
+funktioniert.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-AdamW is called every training step after backward propagation.
-It takes the gradients that have been computed and clipped and
-applies them to the model weights.
+AdamW wird bei jedem Trainingsschritt nach der Backpropagation
+aufgerufen. Es nimmt die berechneten und geclippten Gradienten
+und wendet sie auf die Gewichte des Modells an.
 
 ```python
 loss.backward()
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-optimizer.step()  # AdamW updates weights here
+optimizer.step()  # AdamW aktualisiert hier die Gewichte
 optimizer.zero_grad()
 ```
 
-## Why we use it instead of plain gradient descent
+## Warum wir es anstelle von einfachem Gradientenabstieg verwenden
 
-Plain gradient descent is simple. Move each weight in the
-direction that reduces the loss. The step size is the same for
-every weight.
+Einfacher Gradientenabstieg ist simpel. Jedes Gewicht wird in die
+Richtung bewegt, die den Loss verringert. Die Schrittgröße ist
+für jedes Gewicht gleich.
 
 ```
 weight = weight - learning_rate × gradient
 ```
 
-This has three problems.
+Das hat drei Probleme.
 
-First the step size is fixed. A weight that needs a big change
-gets the same size step as a weight that needs a tiny change. The
-learning rate must be chosen for the most sensitive weights. This
-makes training slow for all other weights.
+Erstens ist die Schrittgröße fest. Ein Gewicht, das eine große
+Änderung braucht, bekommt denselben Schritt wie ein Gewicht, das
+nur eine winzige Änderung braucht. Die Learning Rate muss für die
+empfindlichsten Gewichte gewählt werden. Das macht das Training
+für alle anderen Gewichte langsam.
 
-Second there is no momentum. If the gradient is noisy and points
-in a different direction each step the optimizer zigzags back and
-forth making slow progress. Momentum smooths out the noise by
-incorporating the direction from previous steps.
+Zweitens gibt es kein Momentum. Wenn der Gradient verrauscht ist
+und bei jedem Schritt in eine andere Richtung zeigt, zickzackt der
+Optimizer hin und her und macht nur langsam Fortschritte. Momentum
+glättet das Rauschen, indem es die Richtung vorheriger Schritte
+einbezieht.
 
-Third there is no weight decay. Without regularization weights
-can grow arbitrarily large. Large weights mean the model is over
-confident about some patterns and ignores others. The model
-overfits.
+Drittens gibt es keinen Weight Decay. Ohne Regularisierung können
+Gewichte beliebig groß werden. Große Gewichte bedeuten, dass das
+Modell bei manchen Mustern übermäßig selbstsicher ist und andere
+ignoriert. Das Modell overfittet.
 
-AdamW solves all three problems.
+AdamW löst alle drei Probleme.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Adam was published in 2014 by Diederik Kingma and Jimmy Ba. It
-quickly became the default optimizer for deep learning. But
-researchers noticed that the weight decay implementation in Adam
-was entangled with the adaptive learning rates. This meant weight
-decay did not actually prevent large weights. It mostly just
-slowed down training.
+Adam wurde 2014 von Diederik Kingma und Jimmy Ba veröffentlicht.
+Er wurde schnell zum Standard-Optimizer für Deep Learning. Doch
+Forscher bemerkten, dass die Weight-Decay-Implementierung in Adam
+mit den adaptiven Learning Rates verflochten war. Das bedeutete,
+dass Weight Decay große Gewichte nicht tatsächlich verhinderte.
+Es verlangsamte meist nur das Training.
 
-AdamW was proposed in 2017 by Ilya Loshchilov and Frank Hutter.
-They showed that decoupling weight decay from the adaptive
-learning rates fixed the problem. AdamW achieved better
-generalization than Adam with the same hyperparameters. The fix
-was simple but the impact was large. GPT-3 trained with AdamW.
-LLaMA trained with AdamW. Every modern language model uses AdamW.
+AdamW wurde 2017 von Ilya Loshchilov und Frank Hutter
+vorgeschlagen. Sie zeigten, dass die Entkopplung von Weight Decay
+und adaptiven Learning Rates das Problem behob. AdamW erzielte mit
+denselben Hyperparametern eine bessere Generalisierung als Adam.
+Die Korrektur war einfach, aber die Wirkung war groß. GPT-3 wurde
+mit AdamW trainiert. LLaMA wurde mit AdamW trainiert. Jedes
+moderne Sprachmodell verwendet AdamW.
 
-## How it works
+## Wie es funktioniert
 
-AdamW maintains two running averages for each parameter. The first
-is the momentum which tracks the average direction of recent
-gradients. The second is the velocity which tracks the average
-magnitude of recent gradients.
+AdamW führt für jeden Parameter zwei laufende Durchschnitte. Der
+erste ist das Momentum, das die durchschnittliche Richtung der
+letzten Gradienten verfolgt. Der zweite ist die Velocity, die die
+durchschnittliche Größenordnung der letzten Gradienten verfolgt.
 
-### Step 1: compute the noisy gradient
+### Schritt 1: den verrauschten Gradienten berechnen
 
 ```python
 gradient = compute_gradient(loss, weight)
 ```
 
-This is the raw signal from one batch of data. It is noisy. A
-single batch might give a misleading direction.
+Das ist das rohe Signal aus einem Batch an Daten. Es ist
+verrauscht. Ein einzelner Batch kann in eine irreführende Richtung
+weisen.
 
-### Step 2: update the momentum
+### Schritt 2: das Momentum aktualisieren
 
 ```python
 momentum = beta1 × momentum + (1 - beta1) × gradient
 ```
 
-The momentum is a weighted average of past gradients. Beta1 is
-usually 0.9. This means recent gradients count for ninety percent
-and older gradients fade away. The momentum smooths out noise and
-gives a stable direction.
+Das Momentum ist ein gewichteter Durchschnitt vergangener
+Gradienten. Beta1 liegt üblicherweise bei 0,9. Das bedeutet, dass
+aktuelle Gradienten zu neunzig Prozent zählen und ältere
+Gradienten verblassen. Das Momentum glättet das Rauschen und
+liefert eine stabile Richtung.
 
-### Step 3: update the velocity
+### Schritt 3: die Velocity aktualisieren
 
 ```python
 velocity = beta2 × velocity + (1 - beta2) × gradient²
 ```
 
-The velocity tracks how much each parameter has been moving.
-Beta2 is usually 0.95. Parameters that have been making large
-moves get a high velocity. Parameters that have been sitting
-still get a low velocity.
+Die Velocity verfolgt, wie stark sich jeder Parameter bewegt hat.
+Beta2 liegt üblicherweise bei 0,95. Parameter, die große
+Bewegungen gemacht haben, bekommen eine hohe Velocity. Parameter,
+die sich kaum bewegt haben, bekommen eine niedrige Velocity.
 
-### Step 4: bias correction
+### Schritt 4: Bias-Korrektur
 
-Both momentum and velocity start at zero. In the first few steps
-they are biased toward zero. The bias correction fixes this.
+Sowohl Momentum als auch Velocity starten bei null. In den ersten
+Schritten sind sie in Richtung null verzerrt. Die Bias-Korrektur
+behebt das.
 
 ```python
 momentum_corrected = momentum / (1 - beta1^t)
 velocity_corrected = velocity / (1 - beta2^t)
 ```
 
-Where t is the current step number. After many steps the
-correction becomes negligible. But in the first few steps it
-prevents the optimizer from taking tiny useless steps.
+Dabei ist t die aktuelle Schrittnummer. Nach vielen Schritten wird
+die Korrektur vernachlässigbar. Aber in den ersten Schritten
+verhindert sie, dass der Optimizer winzige, nutzlose Schritte
+macht.
 
-### Step 5: decoupled weight decay
+### Schritt 5: entkoppelter Weight Decay
 
 ```python
 weight = weight × (1 - learning_rate × weight_decay)
 ```
 
-This shrinks every weight by a tiny fraction. Weight decay is
-usually 0.1. With a learning rate of 0.0003 each weight is
-multiplied by 0.99997 per step. Over thousands of steps this
-gently pushes weights toward zero. Only weights that constantly
-receive strong gradients survive. Weights that are not useful
-fade away.
+Das schrumpft jedes Gewicht um einen winzigen Bruchteil. Weight
+Decay liegt üblicherweise bei 0,1. Bei einer Learning Rate von
+0,0003 wird jedes Gewicht pro Schritt mit 0,99997 multipliziert.
+Über Tausende von Schritten hinweg drängt dies die Gewichte sanft
+in Richtung null. Nur Gewichte, die kontinuierlich starke
+Gradienten erhalten, überleben. Gewichte, die nicht nützlich sind,
+verschwinden allmählich.
 
-Note that this step happens before the gradient update and is
-completely independent of the gradient. This is the decoupled
-part of AdamW. In the original Adam weight decay was mixed in
-with the gradient scaling which made it ineffective.
+Beachten Sie, dass dieser Schritt vor dem Gradienten-Update
+erfolgt und vollständig unabhängig vom Gradienten ist. Das ist
+der entkoppelte Teil von AdamW. Im ursprünglichen Adam war Weight
+Decay mit der Gradientenskalierung vermischt, was es unwirksam
+machte.
 
-### Step 6: apply the gradient
+### Schritt 6: den Gradienten anwenden
 
 ```python
 weight = weight - learning_rate × momentum_corrected / (sqrt(velocity_corrected) + eps)
 ```
 
-The gradient step is scaled by the learning rate. Then it is
-divided by the square root of the velocity. Parameters with high
-velocity have been changing a lot so we take smaller steps.
-Parameters with low velocity have been stable so we can take
-larger steps. The epsilon prevents division by zero.
+Der Gradientenschritt wird mit der Learning Rate skaliert.
+Anschließend wird er durch die Quadratwurzel der Velocity geteilt.
+Parameter mit hoher Velocity haben sich stark verändert, daher
+machen wir kleinere Schritte. Parameter mit niedriger Velocity
+waren stabil, daher können wir größere Schritte machen. Das
+Epsilon verhindert eine Division durch null.
 
-## Two parameter groups
+## Zwei Parametergruppen
 
-Not all parameters should get weight decay. The biases and
-normalization weights are one dimensional. They adjust the offset
-and scale of activations. Pushing them toward zero would prevent
-them from doing their job. We create two groups of parameters
-with different weight decay values.
+Nicht alle Parameter sollten Weight Decay bekommen. Die Biases
+und Normalisierungsgewichte sind eindimensional. Sie passen den
+Offset und die Skalierung von Aktivierungen an. Sie in Richtung
+null zu drängen würde sie daran hindern, ihre Aufgabe zu
+erfüllen. Wir erstellen zwei Gruppen von Parametern mit
+unterschiedlichen Weight-Decay-Werten.
 
 ```python
 def create_optimizer(model, config):
-    decay_params = []      # Linear and embedding weights
-    no_decay_params = []   # Biases and normalization weights
+    decay_params = []      # Linear- und Embedding-Gewichte
+    no_decay_params = []   # Biases und Normalisierungsgewichte
 
     for name, param in model.named_parameters():
         if not param.requires_grad:
@@ -190,44 +205,48 @@ def create_optimizer(model, config):
     ], lr=3e-4, betas=(0.9, 0.95), eps=1e-8)
 ```
 
-The decay group gets weight decay of 0.1. The no decay group gets
-zero weight decay. Each group is treated separately by the
-optimizer.
+Die Decay-Gruppe bekommt einen Weight Decay von 0,1. Die
+No-Decay-Gruppe bekommt einen Weight Decay von null. Jede Gruppe
+wird vom Optimizer separat behandelt.
 
-## The hyperparameters
+## Die Hyperparameter
 
-Every optimizer has settings called hyperparameters. For AdamW
-the important ones are:
+Jeder Optimizer hat Einstellungen, die Hyperparameter genannt
+werden. Bei AdamW sind die wichtigsten:
 
 ```
 learning_rate = 0.0003  (3e-4)
-  How big a step to take. Smaller is safer but slower.
+  Wie groß der Schritt ist, der gemacht wird. Kleiner ist
+  sicherer, aber langsamer.
 
 betas = (0.9, 0.95)
-  How much to trust past gradients. Higher means smoother updates.
+  Wie stark vergangenen Gradienten vertraut wird. Höher bedeutet
+  glattere Updates.
 
 weight_decay = 0.1
-  How aggressively to push weights toward zero. Higher prevents
-  overfitting but too high makes the model forget.
+  Wie aggressiv Gewichte in Richtung null gedrängt werden. Höher
+  verhindert Overfitting, aber zu hoch lässt das Modell vergessen.
 
 eps = 0.00000001 (1e-8)
-  A tiny number to prevent division by zero. Never needs tuning.
+  Eine winzige Zahl, um eine Division durch null zu verhindern.
+  Muss nie angepasst werden.
 ```
 
-These values are the LLaMA defaults and have been battle tested
-on models from one billion to seventy billion parameters. Unless
-you are doing something unusual there is rarely a reason to
-change them.
+Diese Werte sind die LLaMA-Standardwerte und wurden an Modellen
+von einer Milliarde bis siebzig Milliarden Parametern in der
+Praxis erprobt. Wenn Sie nichts Ungewöhnliches vorhaben, gibt es
+selten einen Grund, sie zu ändern.
 
-## What you need to remember
+## Was Sie sich merken sollten
 
-AdamW is the standard optimizer for training language models. It
-combines momentum for stability adaptive learning rates for
-efficiency and decoupled weight decay for regularization. The
-three mechanisms work together to make training fast stable and
-resistant to overfitting.
+AdamW ist der Standard-Optimizer für das Training von
+Sprachmodellen. Es kombiniert Momentum für Stabilität, adaptive
+Learning Rates für Effizienz und entkoppelten Weight Decay für
+Regularisierung. Die drei Mechanismen wirken zusammen, um das
+Training schnell, stabil und widerstandsfähig gegen Overfitting
+zu machen.
 
-Every production language model trains with AdamW. The
-hyperparameters are well established and rarely need tuning. Like
-gradient clipping it has no meaningful downside. It is simply the
-right tool for the job.
+Jedes produktive Sprachmodell wird mit AdamW trainiert. Die
+Hyperparameter sind gut etabliert und müssen selten angepasst
+werden. Wie Gradient Clipping hat es keinen nennenswerten
+Nachteil. Es ist schlicht das richtige Werkzeug für die Aufgabe.

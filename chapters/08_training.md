@@ -1,215 +1,215 @@
-# Chapter 8 — The Training Pipeline
+# Kapitel 8 — Die Trainings-Pipeline
 
-## What Is "Training" — Really?
+## Was ist "Training" — wirklich?
 
-Training a language model is like teaching a child to read:
+Ein Sprachmodell zu trainieren ist wie einem Kind das Lesen beizubringen:
 
-1. Show them a sentence: "The cat sat on the ___"
-2. Ask them to guess the missing word
-3. If they guess right → good job, no change needed
-4. If they guess wrong → correct them, they adjust their understanding slightly
-5. Repeat millions of times with millions of sentences
+1. Zeig ihm einen Satz: "The cat sat on the ___"
+2. Bitte es, das fehlende Wort zu erraten
+3. Rät es richtig → gut gemacht, keine Änderung nötig
+4. Rät es falsch → korrigiere es, es passt sein Verständnis leicht an
+5. Wiederhole das millionenfach mit Millionen von Sätzen
 
-Mathematically, this is **gradient descent**: the model makes a prediction, measures how wrong it was (loss), then adjusts its 124 million parameters slightly to be less wrong next time.
+Mathematisch gesehen ist das **Gradientenabstieg**: Das Modell macht eine Vorhersage, misst, wie falsch sie war (Loss), und passt dann seine 124 Millionen Parameter leicht an, um beim nächsten Mal weniger falsch zu liegen.
 
-## The Training Loop — Visual
+## Die Trainingsschleife — Visualisierung
 
 ```mermaid
 flowchart TD
-    A["📥 Get batch of text<br/>'The cat sat on the mat'"] --> B["🔢 Tokenize<br/>[464, 3797, 3332, 319, 262, 2603]"]
-    B --> C["➡️ Forward Pass<br/>Model predicts: P(mat|The cat sat on the)"]
-    C --> D["📉 Compute Loss<br/>How wrong was the prediction?"]
-    D --> E["⬅️ Backward Pass (Backpropagation)<br/>Calculate: 'how should I change<br/>each weight to reduce loss?'"]
-    E --> F["📈 Update Weights (AdamW)<br/>Move each weight slightly in<br/>the direction that reduces loss"]
+    A["📥 Textbatch holen<br/>'The cat sat on the mat'"] --> B["🔢 Tokenisieren<br/>[464, 3797, 3332, 319, 262, 2603]"]
+    B --> C["➡️ Forward Pass<br/>Modell sagt vorher: P(mat|The cat sat on the)"]
+    C --> D["📉 Loss berechnen<br/>Wie falsch war die Vorhersage?"]
+    D --> E["⬅️ Backward Pass (Backpropagation)<br/>Berechnen: 'Wie sollte ich<br/>jedes Gewicht ändern, um den Loss zu verringern?'"]
+    E --> F["📈 Gewichte aktualisieren (AdamW)<br/>Jedes Gewicht ein Stück in die<br/>Richtung bewegen, die den Loss verringert"]
     style A fill:#1565c0,stroke:#0d47a1,color:#ffffff
     style D fill:#c62828,stroke:#b71c1c,color:#ffffff
     style F fill:#2e7d32,stroke:#1b5e20,color:#ffffff
 ```
 
-## Cross-Entropy Loss — The Math
+## Cross-Entropy Loss — Die Mathematik
 
-### What Loss Actually Measures
+### Was der Loss tatsächlich misst
 
-Given the model's prediction for the next word:
+Gegeben die Vorhersage des Modells für das nächste Wort:
 
 ```
-True next word: "mat" (token ID 2603)
+Tatsächliches nächstes Wort: "mat" (Token-ID 2603)
 
-Model's predicted probabilities:
-  "mat":   0.45  ← model thinks 45% chance of "mat"
-  "rug":   0.30  ← 30% chance of "rug"
-  "floor": 0.15  ← 15% chance
-  "table": 0.07  ← 7% chance
-  "dog":   0.03  ← 3% chance of something random
+Vorhergesagte Wahrscheinlichkeiten des Modells:
+  "mat":   0.45  ← Modell denkt: 45% Wahrscheinlichkeit für "mat"
+  "rug":   0.30  ← 30% Wahrscheinlichkeit für "rug"
+  "floor": 0.15  ← 15% Wahrscheinlichkeit
+  "table": 0.07  ← 7% Wahrscheinlichkeit
+  "dog":   0.03  ← 3% Wahrscheinlichkeit für etwas Zufälliges
 ```
 
-**Cross-entropy loss** for this prediction:
+**Cross-Entropy Loss** für diese Vorhersage:
 ```
 loss = -log(P("mat")) = -log(0.45) = 0.799
 ```
 
-If the model was more confident:
+Wenn das Modell sicherer gewesen wäre:
 ```
-P("mat") = 0.95  →  loss = -log(0.95) = 0.051  ← much better!
-```
-
-If the model was wrong and confident:
-```
-P("mat") = 0.01  →  loss = -log(0.01) = 4.605  ← terrible!
+P("mat") = 0.95  →  loss = -log(0.95) = 0.051  ← viel besser!
 ```
 
-### The Full Cross-Entropy Formula
+Wenn das Modell falsch und dabei selbstsicher gewesen wäre:
+```
+P("mat") = 0.01  →  loss = -log(0.01) = 4.605  ← schrecklich!
+```
 
-For a single prediction with true class `y` and predicted probabilities `p`:
+### Die vollständige Cross-Entropy-Formel
+
+Für eine einzelne Vorhersage mit wahrer Klasse `y` und vorhergesagten Wahrscheinlichkeiten `p`:
 ```
 Loss = -log(p_y)
 ```
 
-For a batch of `N` predictions:
+Für einen Batch von `N` Vorhersagen:
 ```
 Loss = -(1/N) Σ log(p_y_true)
 ```
 
-This is exactly what `F.cross_entropy(logits, targets)` computes. It:
-1. Applies softmax to convert logits → probabilities
-2. Takes negative log of the probability for the correct class
-3. Averages across all tokens in the batch
+Genau das berechnet `F.cross_entropy(logits, targets)`. Es:
+1. Wendet Softmax an, um Logits in Wahrscheinlichkeiten umzuwandeln
+2. Bildet den negativen Logarithmus der Wahrscheinlichkeit der korrekten Klasse
+3. Mittelt über alle Token im Batch
 
-### Why -log? Why not just error rate?
+### Warum -log? Warum nicht einfach die Fehlerrate?
 
-| Approach | Formula | Gradient Signal |
+| Ansatz | Formel | Gradientensignal |
 |---|---|---|
-| Error rate | 1 if wrong, 0 if right | Zero gradient — can't optimize |
-| -log(p) | -log(0.45) = 0.80 | Smooth gradient — easy to optimize |
-| -(1-p) | -(1-0.45) = -0.55 | Weaker signal for confident wrong answers |
+| Fehlerrate | 1 wenn falsch, 0 wenn richtig | Kein Gradient — nicht optimierbar |
+| -log(p) | -log(0.45) = 0.80 | Glatter Gradient — leicht zu optimieren |
+| -(1-p) | -(1-0.45) = -0.55 | Schwächeres Signal bei selbstsicheren falschen Antworten |
 
-`-log(p)` has a special property: the gradient gets STRONGER as we get more wrong. If `p=0.01`, the gradient is 100x larger than if `p=0.99`. This means the model learns fastest from its biggest mistakes.
+`-log(p)` hat eine besondere Eigenschaft: Der Gradient wird STÄRKER, je falscher wir liegen. Bei `p=0.01` ist der Gradient 100-mal größer als bei `p=0.99`. Das bedeutet, das Modell lernt am schnellsten aus seinen größten Fehlern.
 
-## Backpropagation — In Plain English
+## Backpropagation — Einfach erklärt
 
-"The model is a big math function with 124 million knobs. We want to find which direction to turn each knob to make the loss smaller."
+"Das Modell ist eine riesige mathematische Funktion mit 124 Millionen Reglern. Wir wollen herausfinden, in welche Richtung wir jeden Regler drehen müssen, damit der Loss kleiner wird."
 
-### The Chain Rule Analogy
+### Die Kettenregel-Analogie
 
-Imagine you're baking and the cake comes out too sweet. You need to reduce sugar. But you don't know how much reducing sugar by 1 gram affects sweetness. And you don't know how much reducing sweetness by 1 unit affects the "cake quality score."
+Stell dir vor, du backst und der Kuchen wird zu süß. Du musst den Zucker reduzieren. Aber du weißt nicht, wie stark eine Reduzierung des Zuckers um 1 Gramm die Süße beeinflusst. Und du weißt nicht, wie stark eine Verringerung der Süße um 1 Einheit den "Kuchen-Qualitätswert" beeinflusst.
 
 ```
-∂(quality)     ∂(quality)     ∂(sweetness)
-──────────  =  ──────────  ×  ───────────
-  ∂(sugar)      ∂(sweetness)    ∂(sugar)
+∂(Qualität)     ∂(Qualität)     ∂(Süße)
+───────────  =  ───────────  ×  ─────────
+ ∂(Zucker)        ∂(Süße)        ∂(Zucker)
   
-  "How much        "How much      "How much
-   does sugar       sweetness      does sugar
-   affect           affects        affect
-   quality?"        quality?"      sweetness?"
+  "Wie stark        "Wie stark      "Wie stark
+   beeinflusst       beeinflusst     beeinflusst
+   der Zucker        die Süße        der Zucker
+   die Qualität?"    die Qualität?"  die Süße?"
 ```
 
-Backpropagation applies this chain rule **backwards through the entire model** — from the loss, through each layer, back to the embeddings — computing how much each parameter contributed to the error.
+Backpropagation wendet diese Kettenregel **rückwärts durch das gesamte Modell** an — vom Loss über jede Schicht zurück bis zu den Embeddings — und berechnet dabei, wie stark jeder Parameter zum Fehler beigetragen hat.
 
-### Without Calculus: An Intuitive View
+### Ohne Analysis: Eine intuitive Betrachtung
 
 ```python
-# Imagine this is in the training loop:
-loss = F.cross_entropy(predictions, targets)  # "How wrong were we?"
-loss.backward()                                 # "Figure out WHY we were wrong"
+# Stell dir vor, das steht in der Trainingsschleife:
+loss = F.cross_entropy(predictions, targets)  # "Wie falsch lagen wir?"
+loss.backward()                                 # "Herausfinden, WARUM wir falsch lagen"
 
-# After backward(), every parameter now has a .grad attribute:
+# Nach backward() hat jeder Parameter jetzt ein .grad-Attribut:
 print(model.token_embedding.weight.grad[9246, 42])
-# → 0.000342  "If we increase embedding cat[42] by 0.001,
-#              the loss decreases by 0.000342"
+# → 0.000342  "Wenn wir das Embedding cat[42] um 0.001 erhöhen,
+#              sinkt der Loss um 0.000342"
 ```
 
-## Gradient Descent with AdamW
+## Gradientenabstieg mit AdamW
 
-### Simple Gradient Descent
+### Einfacher Gradientenabstieg
 
 ```
 weight = weight - learning_rate × gradient
 ```
 
-This is like: "If the gradient says 'go left', take a small step left."
+Das ist wie: "Wenn der Gradient sagt 'geh nach links', mach einen kleinen Schritt nach links."
 
-### AdamW — Three Improvements
+### AdamW — Drei Verbesserungen
 
-1. **Momentum (β₁ = 0.9):** Remember the DIRECTION. Like a ball rolling down a hill — it builds speed. This smooths out noisy gradients.
+1. **Momentum (β₁ = 0.9):** Merkt sich die RICHTUNG. Wie ein Ball, der einen Hügel hinunterrollt — er baut Geschwindigkeit auf. Das glättet verrauschte Gradienten.
 
-2. **Adaptive Learning Rate (β₂ = 0.95):** Each parameter gets its own learning rate based on how much it's been moving. Parameters that rarely change get bigger steps. Parameters bouncing back and forth get smaller steps.
+2. **Adaptive Learning Rate (β₂ = 0.95):** Jeder Parameter bekommt seine eigene Lernrate, basierend darauf, wie stark er sich bisher bewegt hat. Parameter, die sich selten ändern, bekommen größere Schritte. Parameter, die hin- und herspringen, bekommen kleinere Schritte.
 
-3. **Decoupled Weight Decay:** Directly shrink weights toward zero (preventing them from growing too large). Unlike vanilla Adam, this is separated from the gradient scaling.
+3. **Decoupled Weight Decay:** Schrumpft Gewichte direkt in Richtung null (verhindert, dass sie zu groß werden). Im Gegensatz zu gewöhnlichem Adam ist das von der Gradientenskalierung getrennt.
 
 ```
-AdamW update step:
+AdamW-Update-Schritt:
   momentum       = β₁ × old_momentum + (1-β₁) × gradient
   velocity       = β₂ × old_velocity + (1-β₂) × gradient²
-  corrected_m    = momentum / (1 - β₁^t)     (bias correction)
-  corrected_v    = velocity / (1 - β₂^t)     (bias correction)
-  weight         = weight (1 - lr × weight_decay)  (decoupled!)
+  corrected_m    = momentum / (1 - β₁^t)     (Bias-Korrektur)
+  corrected_v    = velocity / (1 - β₂^t)     (Bias-Korrektur)
+  weight         = weight (1 - lr × weight_decay)  (entkoppelt!)
   weight         = weight - lr × corrected_m / (√corrected_v + ε)
 ```
 
 ## Mixed Precision Training
 
-### Float32 vs BFloat16 vs Float16
+### Float32 vs. BFloat16 vs. Float16
 
-| Format | Bits | Exponent | Mantissa | Range | Precision |
+| Format | Bits | Exponent | Mantisse | Bereich | Genauigkeit |
 |---|---|---|---|---|---|
-| Float32 | 32 | 8 | 23 | ±3.4 × 10³⁸ | 7 decimal digits |
-| Float16 | 16 | 5 | 10 | ±65,504 | 3 decimal digits |
-| **BFloat16** | 16 | 8 | 7 | ±3.4 × 10³⁸ | 2 decimal digits |
+| Float32 | 32 | 8 | 23 | ±3.4 × 10³⁸ | 7 Dezimalstellen |
+| Float16 | 16 | 5 | 10 | ±65,504 | 3 Dezimalstellen |
+| **BFloat16** | 16 | 8 | 7 | ±3.4 × 10³⁸ | 2 Dezimalstellen |
 
-**Why BFloat16:** Same range as float32 (no overflow!), but half the memory and 2x faster matrix multiplications. Less precision than float16, but neural networks don't need high precision — they're robust to rounding.
+**Warum BFloat16:** Gleicher Wertebereich wie float32 (kein Overflow!), aber nur halb so viel Speicher und 2x schnellere Matrixmultiplikationen. Weniger Präzision als float16, aber neuronale Netze brauchen keine hohe Präzision — sie sind robust gegenüber Rundung.
 
-**Our approach:** Forward pass in bfloat16 (fast), keep master weights in float32 (accurate updates).
+**Unser Ansatz:** Forward Pass in bfloat16 (schnell), Master-Gewichte in float32 behalten (präzise Updates).
 
 ```python
-# autocast context: automatically uses bfloat16 where safe
+# autocast-Kontext: verwendet automatisch bfloat16, wo es sicher ist
 with torch.amp.autocast(device.type, enabled=use_amp):
     _, loss = model(input_ids, targets=target_ids)
 
-# scaler handles loss scaling for float16, not needed for bfloat16 on modern GPUs
-# but included for compatibility
+# scaler übernimmt das Loss-Scaling für float16, für bfloat16 auf modernen GPUs nicht nötig
+# aber der Kompatibilität halber trotzdem enthalten
 scaler.scale(loss).backward()
 scaler.step(optimizer)
 ```
 
 ## Gradient Accumulation
 
-**Problem:** You want effective batch size 32 but GPU only fits batch size 4.
+**Problem:** Du willst eine effektive Batch Size von 32, aber auf die GPU passt nur eine Batch Size von 4.
 
-**Solution:** Run 4 forward passes with batch=4, accumulate gradients (sum them), then do ONE optimizer step. This is mathematically equivalent to batch=32.
+**Lösung:** Führe 4 Forward Passes mit batch=4 aus, akkumuliere die Gradienten (summiere sie) und mache dann EINEN Optimizer-Schritt. Das ist mathematisch äquivalent zu batch=32.
 
 ```python
-# Instead of:
-for batch_32 in data:  # Doesn't fit in GPU memory!
+# Anstatt:
+for batch_32 in data:  # Passt nicht ins GPU-Memory!
     loss = model(batch_32)
     loss.backward()
     optimizer.step()
 
-# We do:
+# Machen wir:
 for i in range(4):
-    loss = model(batch_4)           # batch_4 fits in memory
-    (loss / 4).backward()           # Scale: each batch contributes 1/4
-                                    # Gradient ACCUMULATES in .grad attributes
-optimizer.step()                    # One update for all 4 mini-batches
-optimizer.zero_grad()              # Reset for next accumulation cycle
+    loss = model(batch_4)           # batch_4 passt ins Memory
+    (loss / 4).backward()           # Skalierung: jeder Batch trägt 1/4 bei
+                                    # Gradient AKKUMULIERT sich in den .grad-Attributen
+optimizer.step()                    # Ein Update für alle 4 Mini-Batches
+optimizer.zero_grad()              # Reset für den nächsten Akkumulationszyklus
 ```
 
-## Overfitting — The Model "Memorizes"
+## Overfitting — Das Modell "lernt auswendig"
 
-**What it looks like:** Training loss keeps decreasing, but generated text gets worse — repetitive, nonsensical, or copying training data verbatim.
+**Wie es aussieht:** Der Trainings-Loss sinkt weiter, aber der generierte Text wird schlechter — repetitiv, unsinnig oder er kopiert Trainingsdaten wortwörtlich.
 
-**Why it happens:** The model memorizes the training data instead of learning general language patterns.
+**Warum es passiert:** Das Modell merkt sich die Trainingsdaten, anstatt allgemeine Sprachmuster zu lernen.
 
-**How we prevent it:**
-| Technique | How It Helps |
+**Wie wir es verhindern:**
+| Technik | Wie sie hilft |
 |---|---|
-| **Dropout (0.1)** | Randomly disables 10% of neurons during training — forces redundancy |
-| **Weight decay (0.1)** | Keeps weights small — large weights → memorization |
-| **Large, diverse dataset** | More data → harder to memorize everything |
-| **Early stopping** | Stop training when validation loss stops improving |
-| **Gradient clipping** | Prevents a few examples from dominating weight updates |
+| **Dropout (0.1)** | Deaktiviert während des Trainings zufällig 10% der Neuronen — erzwingt Redundanz |
+| **Weight Decay (0.1)** | Hält die Gewichte klein — große Gewichte → Auswendiglernen |
+| **Großes, vielfältiges Dataset** | Mehr Daten → schwerer, sich alles zu merken |
+| **Early Stopping** | Training stoppen, wenn sich der Validation Loss nicht mehr verbessert |
+| **Gradient Clipping** | Verhindert, dass einzelne Beispiele die Gewichtsupdates dominieren |
 
-## Complete Training Code
+## Vollständiger Trainingscode
 
 ### Dataset
 
@@ -220,43 +220,43 @@ from torch.utils.data import Dataset
 
 class TextDataset(Dataset):
     """
-    WHAT: Prepares text data by splitting into training chunks.
-    WHY: The model learns to predict the next token. Each chunk
-         provides input-target pairs for next-token prediction.
+    WAS: Bereitet Textdaten auf, indem sie in Trainings-Chunks aufgeteilt werden.
+    WARUM: Das Modell lernt, das nächste Token vorherzusagen. Jeder Chunk
+           liefert Input-Target-Paare für die Next-Token-Prediction.
 
-         Each sample: input[t] and target[t+1] for all positions t.
-         This is called "teacher forcing" — we show the correct
-         answer for every position during training.
+           Jedes Sample: input[t] und target[t+1] für alle Positionen t.
+           Das nennt man "Teacher Forcing" — wir zeigen während des
+           Trainings für jede Position die richtige Antwort.
     """
 
     def __init__(self, texts: list[str], tokenizer, max_seq_len: int = 1024):
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
 
-        # ===== Concatenate all texts with EOS separators =====
-        # WHY: EOS prevents the model from learning false connections
-        #      between unrelated documents.
+        # ===== Alle Texte mit EOS-Trennzeichen aneinanderhängen =====
+        # WARUM: EOS verhindert, dass das Modell falsche Verbindungen
+        #        zwischen unabhängigen Dokumenten lernt.
         all_tokens = []
         for text in texts:
             tokens = tokenizer.encode(text)
             all_tokens.extend(tokens)
-            all_tokens.append(tokenizer.eos_token_id)  # Document boundary marker
+            all_tokens.append(tokenizer.eos_token_id)  # Markierung der Dokumentgrenze
 
         self.tokens = torch.tensor(all_tokens, dtype=torch.long)
         print(f"Total tokens in dataset: {len(self.tokens):,}")
 
     def __len__(self) -> int:
-        """Number of chunks. Each uses max_seq_len+1 tokens."""
+        """Anzahl der Chunks. Jeder verwendet max_seq_len+1 Token."""
         return (len(self.tokens) - 1) // self.max_seq_len
 
     def __getitem__(self, idx: int) -> tuple:
         """
-        Returns (input_ids, target_ids) for one chunk.
-        Target is shifted by 1 position:
+        Gibt (input_ids, target_ids) für einen Chunk zurück.
+        Target ist um 1 Position verschoben:
 
         tokens:    [The,  cat,  sat,  on,   the,  mat,  EOS,  The,  dog,  ...]
         idx=0:     [The,  cat,  sat,  on,   the]     ← input_ids
-                   [cat,  sat,  on,   the,  mat]     ← target_ids (shifted)
+                   [cat,  sat,  on,   the,  mat]     ← target_ids (verschoben)
         """
         start = idx * self.max_seq_len
         end = start + self.max_seq_len
@@ -265,14 +265,14 @@ class TextDataset(Dataset):
         return input_ids, target_ids
 ```
 
-### Data Loading
+### Daten laden
 
 ```python
 from datasets import load_dataset
 
 
 def load_training_data(max_samples: int = None):
-    """Download WikiText-103 — clean Wikipedia text."""
+    """Lädt WikiText-103 herunter — sauberer Wikipedia-Text."""
     print("Loading dataset: wikitext-103-raw-v1...")
     dataset = load_dataset("Salesforce/wikitext", "wikitext-103-raw-v1", split="train")
     texts = [item["text"] for item in dataset if item["text"].strip()]
@@ -290,13 +290,14 @@ import math
 
 class CosineWarmupScheduler:
     """
-    WHAT: Three-phase learning rate schedule.
-    WHY: Warmup prevents early instability. Cosine decay provides
-         smooth convergence. Minimum floor prevents zero learning.
+    WAS: Dreiphasiger Learning-Rate-Schedule.
+    WARUM: Warmup verhindert frühe Instabilität. Cosine Decay sorgt
+           für einen glatten Konvergenzverlauf. Die Mindestgrenze
+           verhindert eine Lernrate von null.
 
-    Phase 1 (Warmup):    LR: 0 → max_lr  (linear increase over warmup_steps)
-    Phase 2 (Decay):     LR: max_lr → min_lr (cosine curve)
-    Phase 3 (Minimum):   LR: min_lr (constant)
+    Phase 1 (Warmup):    LR: 0 → max_lr  (linearer Anstieg über warmup_steps)
+    Phase 2 (Decay):     LR: max_lr → min_lr (Cosinus-Kurve)
+    Phase 3 (Minimum):   LR: min_lr (konstant)
     """
     def __init__(self, optimizer, warmup_steps, max_steps, max_lr=3e-4, min_lr=1e-5):
         self.optimizer = optimizer
@@ -334,12 +335,12 @@ class CosineWarmupScheduler:
 ```python
 def create_optimizer(model, config):
     """
-    WHAT: AdamW with two parameter groups (with/without weight decay).
-    WHY: Norm layers and biases should NOT get weight decay — it
-         pushes them toward zero, destroying normalization.
+    WAS: AdamW mit zwei Parametergruppen (mit/ohne Weight Decay).
+    WARUM: Norm-Layer und Biases sollten KEINEN Weight Decay bekommen —
+           er würde sie Richtung null drücken und die Normalisierung zerstören.
 
-    Group 1 (weight_decay > 0): Linear weights, embeddings
-    Group 2 (weight_decay = 0): Biases, RMSNorm, LayerNorm
+    Gruppe 1 (weight_decay > 0): Linear-Gewichte, Embeddings
+    Gruppe 2 (weight_decay = 0): Biases, RMSNorm, LayerNorm
     """
     decay_params = []
     no_decay_params = []
@@ -363,7 +364,7 @@ def create_optimizer(model, config):
     )
 ```
 
-### The Training Loop
+### Die Trainingsschleife
 
 ```python
 import torch
@@ -373,8 +374,8 @@ import os
 
 def train(model, train_dataset, config, device, save_dir="checkpoints"):
     """
-    WHAT: The main training loop.
-    WHY: Iterates: forward → backward → update, logging and saving periodically.
+    WAS: Die Haupt-Trainingsschleife.
+    WARUM: Iteriert: Forward → Backward → Update, mit regelmäßigem Logging und Speichern.
     """
     os.makedirs(save_dir, exist_ok=True)
     model = model.to(device)
@@ -413,12 +414,12 @@ def train(model, train_dataset, config, device, save_dir="checkpoints"):
             input_ids = input_ids.to(device, non_blocking=True)
             target_ids = target_ids.to(device, non_blocking=True)
 
-            # ===== FORWARD: Predict next tokens, measure error =====
+            # ===== FORWARD: Nächste Token vorhersagen, Fehler messen =====
             with torch.amp.autocast(device.type, enabled=use_amp):
                 _, loss = model(input_ids, targets=target_ids)
             loss = loss / config.grad_accum_steps
 
-            # ===== BACKWARD: Calculate how to improve =====
+            # ===== BACKWARD: Berechnen, wie verbessert werden kann =====
             if scaler:
                 scaler.scale(loss).backward()
             else:
@@ -426,7 +427,7 @@ def train(model, train_dataset, config, device, save_dir="checkpoints"):
 
             total_loss += loss.item() * config.grad_accum_steps
 
-            # ===== UPDATE: Every grad_accum_steps, optimize =====
+            # ===== UPDATE: Alle grad_accum_steps optimieren =====
             if (batch_idx + 1) % config.grad_accum_steps == 0:
                 if scaler:
                     scaler.unscale_(optimizer)
@@ -441,7 +442,7 @@ def train(model, train_dataset, config, device, save_dir="checkpoints"):
                 scheduler.step()
                 step += 1
 
-                # Logging every 100 steps
+                # Logging alle 100 Schritte
                 if step % 100 == 0 or step == 1:
                     avg_loss = total_loss / (100 if step > 0 else 1)
                     elapsed = time.time() - start_time
@@ -453,7 +454,7 @@ def train(model, train_dataset, config, device, save_dir="checkpoints"):
                     loss_history.append((step, avg_loss))
                     total_loss = 0.0
 
-                # Save checkpoint every 5000 steps
+                # Checkpoint alle 5000 Schritte speichern
                 if step % 5000 == 0:
                     checkpoint = {
                         "step": step, "model_state_dict": model.state_dict(),
@@ -476,12 +477,12 @@ def train(model, train_dataset, config, device, save_dir="checkpoints"):
 
 def plot_loss(loss_history, save_path="loss_curve.png"):
     """
-    WHAT: Visualize training progress.
-    WHY: Loss curves diagnose problems:
-         ↘ Steady decrease: training is working
-         → Flat line: stalled (higher LR, check data)
-         ↗ Increasing: overfitting (more dropout, weight decay)
-         ⚡ Spikes: unstable (lower LR, longer warmup)
+    WAS: Visualisiert den Trainingsfortschritt.
+    WARUM: Loss-Kurven helfen bei der Diagnose von Problemen:
+           ↘ Stetiger Rückgang: Training funktioniert
+           → Flache Linie: stagniert (höhere LR, Daten prüfen)
+           ↗ Anstieg: Overfitting (mehr Dropout, Weight Decay)
+           ⚡ Ausreißer: instabil (niedrigere LR, längeres Warmup)
     """
     import matplotlib.pyplot as plt
     steps, losses = zip(*loss_history)
@@ -496,5 +497,5 @@ def plot_loss(loss_history, save_path="loss_curve.png"):
 
 ---
 
-**Previous:** [Chapter 7 — GPT Model](07_gpt_model.md)
-**Next:** [Chapter 9 — Inference](09_inference.md)
+**Vorheriges Kapitel:** [Kapitel 7 — GPT-Modell](07_gpt_model.md)
+**Nächstes Kapitel:** [Kapitel 9 — Inference](09_inference.md)

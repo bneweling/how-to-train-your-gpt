@@ -1,151 +1,151 @@
-# Chapter 1 — Setup & Tooling
+# Kapitel 1 — Setup & Tooling
 
-## What You Need to Know Before We Start
+## Was du wissen musst, bevor wir starten
 
-### "What is Python, really?"
+### "Was ist Python eigentlich?"
 
-Python is just a **language for telling the computer what to do**. You write instructions in a `.py` file, and Python "reads" them and executes them one by one. If you've written any Python before — even just `print("hello")` — you're ready.
+Python ist einfach eine **Sprache, um dem Computer zu sagen, was er tun soll**. Du schreibst Anweisungen in eine `.py`-Datei, und Python "liest" sie und führt sie eine nach der anderen aus. Wenn du schon einmal Python geschrieben hast — und sei es nur `print("hello")` — bist du bereit.
 
-### "What is a GPU and why do I need one?"
+### "Was ist eine GPU, und warum brauche ich eine?"
 
-**Analogy:** Imagine you need to paint 10,000 tiny tiles.
+**Analogie:** Stell dir vor, du musst 10.000 winzige Fliesen bemalen.
 
-- A **CPU** is like a master artist who paints tiles ONE at a time — precise but slow.
-- A **GPU** is like 10,000 art students who each paint ONE tile simultaneously — faster, even though each student is "dumber" than the master.
+- Eine **CPU** ist wie ein Meistermaler, der die Fliesen EINE nach der anderen bemalt — präzise, aber langsam.
+- Eine **GPU** ist wie 10.000 Kunststudenten, die jeweils gleichzeitig EINE Fliese bemalen — schneller, auch wenn jeder Student "weniger geschickt" ist als der Meister.
 
-Training neural networks involves millions of **identical, independent math operations** (matrix multiplications). GPUs have thousands of small cores designed exactly for this. A GPU can be 50-100x faster than CPU for training.
+Das Training neuronaler Netze besteht aus Millionen **identischer, unabhängiger mathematischer Operationen** (Matrixmultiplikationen). GPUs verfügen über Tausende kleiner Kerne, die genau dafür ausgelegt sind. Eine GPU kann beim Training 50- bis 100-mal schneller sein als eine CPU.
 
-**Do you absolutely need a GPU?** No — our tiny test model will run on CPU, just very slowly (minutes vs hours). For real training, a GPU is essential.
+**Brauchst du unbedingt eine GPU?** Nein — unser winziges Testmodell läuft auch auf der CPU, nur sehr langsam (Minuten statt Stunden). Für echtes Training ist eine GPU jedoch unverzichtbar.
 
-| Your Hardware | What You Can Train | Approximate Speed |
+| Deine Hardware | Was du trainieren kannst | Ungefähre Geschwindigkeit |
 |---|---|---|
-| CPU only | Tiny model (4 layers, 256 dims) | Hours |
-| Apple M1/M2/M3 | Small model (12 layers, 768 dims) | Hours |
-| RTX 3060/4060 (12GB) | GPT-2 small (124M params) | Few hours |
-| RTX 3090/4090 (24GB) | GPT-2 medium (350M) | Few hours |
-| A100 (80GB) | GPT-2 large (774M) | Hours |
+| Nur CPU | Winziges Modell (4 Layer, 256 Dimensionen) | Stunden |
+| Apple M1/M2/M3 | Kleines Modell (12 Layer, 768 Dimensionen) | Stunden |
+| RTX 3060/4060 (12GB) | GPT-2 small (124M Parameter) | Wenige Stunden |
+| RTX 3090/4090 (24GB) | GPT-2 medium (350M) | Wenige Stunden |
+| A100 (80GB) | GPT-2 large (774M) | Stunden |
 
-### "What is a virtual environment?"
+### "Was ist eine virtuelle Umgebung?"
 
-A virtual environment (`venv`) is like a **clean, empty kitchen** just for this project. Without it, you'd be mixing your project's ingredients (Python packages) with everything else on your computer — leading to conflicts when two projects need different versions of the same package.
+Eine virtuelle Umgebung (`venv`) ist wie eine **saubere, leere Küche** nur für dieses Projekt. Ohne sie würdest du die Zutaten deines Projekts (Python-Pakete) mit allem anderen auf deinem Computer vermischen — das führt zu Konflikten, wenn zwei Projekte unterschiedliche Versionen desselben Pakets benötigen.
 
 ```bash
-# Create a clean kitchen
+# Eine saubere Küche erstellen
 python -m venv gpt_env
 
-# Step into it
+# Hineingehen
 source gpt_env/bin/activate          # Mac/Linux
-# OR:
+# ODER:
 gpt_env\Scripts\activate             # Windows
 
-# Now pip install only affects this kitchen
-# To leave: type `deactivate`
+# Jetzt wirkt sich pip install nur auf diese Küche aus
+# Zum Verlassen: `deactivate` eingeben
 ```
 
-### "What is pip?"
+### "Was ist pip?"
 
-`pip` is Python's **package installer**. It downloads code other people have written (libraries) from the internet and installs them into your environment. Think of it as an "app store" for Python code.
+`pip` ist Pythons **Paketinstallationsprogramm**. Es lädt Code, den andere Leute geschrieben haben (Bibliotheken), aus dem Internet herunter und installiert ihn in deiner Umgebung. Stell es dir wie einen "App Store" für Python-Code vor.
 
-### "What is PyTorch?"
+### "Was ist PyTorch?"
 
-PyTorch is the framework we'll use to build our neural network. It provides:
+PyTorch ist das Framework, mit dem wir unser neuronales Netz bauen werden. Es bietet:
 
-| PyTorch Feature | What It Does | Analogy |
+| PyTorch-Feature | Was es macht | Analogie |
 |---|---|---|
-| `torch.Tensor` | Multi-dimensional arrays | Like NumPy arrays, but can live on GPU |
-| `torch.nn.Module` | Building blocks for networks | LEGO pieces you snap together |
-| `torch.optim` | Algorithms that update weights | The "learning" part of machine learning |
-| `autograd` | Automatic gradient calculation | Does calculus for you automatically |
-| `DataLoader` | Feeds data efficiently | A conveyor belt delivering training data |
+| `torch.Tensor` | Mehrdimensionale Arrays | Wie NumPy-Arrays, können aber auf der GPU liegen |
+| `torch.nn.Module` | Bausteine für Netze | LEGO-Steine, die du zusammensteckst |
+| `torch.optim` | Algorithmen, die Weights aktualisieren | Der "lernende" Teil von Machine Learning |
+| `autograd` | Automatische Gradientenberechnung | Erledigt die Analysis automatisch für dich |
+| `DataLoader` | Liefert Daten effizient | Ein Förderband, das Trainingsdaten anliefert |
 
-## Installation — Step by Step
+## Installation — Schritt für Schritt
 
 ```bash
-# Step 1: Create the virtual environment
+# Schritt 1: Virtuelle Umgebung erstellen
 python -m venv gpt_env
 
-# Step 2: Activate it
+# Schritt 2: Aktivieren
 source gpt_env/bin/activate          # Mac/Linux
 # gpt_env\Scripts\activate           # Windows
 
-# Step 3: Install PyTorch (choose the right one)
-# For CPU only (default, works everywhere):
+# Schritt 3: PyTorch installieren (die passende Variante wählen)
+# Nur CPU (Standard, funktioniert überall):
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# For Apple Silicon (M1/M2/M3):
+# Für Apple Silicon (M1/M2/M3):
 # pip install torch torchvision torchaudio
 
-# For NVIDIA GPU (CUDA 11.8):
+# Für NVIDIA-GPU (CUDA 11.8):
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
-# For NVIDIA GPU (CUDA 12.1 - newer cards like RTX 40 series):
+# Für NVIDIA-GPU (CUDA 12.1 - neuere Karten wie die RTX-40er-Serie):
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
-# Step 4: Install remaining packages
+# Schritt 4: Restliche Pakete installieren
 pip install tiktoken datasets numpy matplotlib
 
-# Step 5: Verify everything works
+# Schritt 5: Prüfen, ob alles funktioniert
 python -c "import torch; print(f'PyTorch {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
-## What Each Library Does (In Detail)
+## Was jede Bibliothek macht (im Detail)
 
-| Library | What It Does | Why We Need It |
+| Bibliothek | Was sie macht | Warum wir sie brauchen |
 |---|---|---|
-| **torch** | Core PyTorch: tensors, GPU ops, autograd | The foundation — everything else builds on this |
-| **tiktoken** | Fast BPE tokenizer from OpenAI | Same tokenizer GPT-3.5/4 use. Written in Rust, extremely fast |
-| **datasets** (HuggingFace) | Downloads + caches training data | Saves us from manually downloading and parsing Wikipedia |
-| **numpy** | Fast numerical arrays on CPU | For quick data manipulation (though PyTorch handles most) |
-| **matplotlib** | Creates charts and graphs | To visualize our training loss — is the model learning? |
-| **math** (built-in) | sqrt, sin, cos, pi | Mathematical constants for positional encoding |
-| **time** (built-in) | Measure elapsed time | Track training speed in tokens/second |
-| **os** (built-in) | Create directories, save files | Save model checkpoints so we don't lose progress |
+| **torch** | PyTorch-Kern: Tensoren, GPU-Operationen, autograd | Das Fundament — alles andere baut darauf auf |
+| **tiktoken** | Schneller BPE-Tokenizer von OpenAI | Derselbe Tokenizer, den GPT-3.5/4 verwenden. In Rust geschrieben, extrem schnell |
+| **datasets** (HuggingFace) | Lädt Trainingsdaten herunter und cached sie | Erspart uns das manuelle Herunterladen und Parsen von Wikipedia |
+| **numpy** | Schnelle numerische Arrays auf der CPU | Für schnelle Datenmanipulation (auch wenn PyTorch das meiste übernimmt) |
+| **matplotlib** | Erstellt Diagramme und Grafiken | Um unseren Trainings-Loss zu visualisieren — lernt das Modell? |
+| **math** (eingebaut) | sqrt, sin, cos, pi | Mathematische Konstanten für das Positional Encoding |
+| **time** (eingebaut) | Verstrichene Zeit messen | Trainingsgeschwindigkeit in Tokens/Sekunde verfolgen |
+| **os** (eingebaut) | Verzeichnisse erstellen, Dateien speichern | Modell-Checkpoints speichern, damit kein Fortschritt verloren geht |
 
-## Our Complete Import Block
+## Unser vollständiger Import-Block
 
 ```python
-# ===== WHAT: Standard Python libraries =====
-import math              # WHY: sqrt(), sin(), cos() for positional encoding math
-import time              # WHY: measure training speed (tokens per second)
-import os                # WHY: create directories, save/load model checkpoint files
-from dataclasses import dataclass  # WHY: clean config class — no messy dictionaries
+# ===== WAS: Standard-Python-Bibliotheken =====
+import math              # WARUM: sqrt(), sin(), cos() für die Mathematik des Positional Encoding
+import time              # WARUM: Trainingsgeschwindigkeit messen (Tokens pro Sekunde)
+import os                # WARUM: Verzeichnisse erstellen, Modell-Checkpoint-Dateien speichern/laden
+from dataclasses import dataclass  # WARUM: saubere Config-Klasse — keine unübersichtlichen Dictionaries
 
-# ===== WHAT: NumPy — the CPU array library =====
-import numpy as np       # WHY: fast numerical operations on CPU arrays
-                         #      (mostly used for quick data checks, not heavy lifting)
+# ===== WAS: NumPy — die Array-Bibliothek für die CPU =====
+import numpy as np       # WARUM: schnelle numerische Operationen auf CPU-Arrays
+                         #      (meist für schnelle Datenchecks, nicht für die Schwerstarbeit)
 
-# ===== WHAT: PyTorch — the neural network framework =====
-import torch             # WHY: core library — tensors, GPU support, autograd
-import torch.nn as nn               # WHY: neural network building blocks:
-                                     #      Linear (dense layers), Embedding (lookup tables),
-                                     #      Dropout (regularization), ModuleList (stacking layers)
-import torch.nn.functional as F     # WHY: stateless functions used inside forward():
-                                     #      softmax (convert to probabilities),
-                                     #      cross_entropy (measure prediction error),
-                                     #      silu (SwiGLU activation function)
-from torch.utils.data import Dataset, DataLoader  # WHY: efficient data pipeline
-#                                  Dataset = define how to load one sample
-#                                  DataLoader = batch them, shuffle, prefetch
+# ===== WAS: PyTorch — das Framework für neuronale Netze =====
+import torch             # WARUM: Kernbibliothek — Tensoren, GPU-Unterstützung, autograd
+import torch.nn as nn               # WARUM: Bausteine für neuronale Netze:
+                                     #      Linear (dense layers), Embedding (Lookup-Tabellen),
+                                     #      Dropout (Regularisierung), ModuleList (Layer stapeln)
+import torch.nn.functional as F     # WARUM: zustandslose Funktionen, verwendet innerhalb von forward():
+                                     #      softmax (Umwandlung in Wahrscheinlichkeiten),
+                                     #      cross_entropy (misst den Vorhersagefehler),
+                                     #      silu (SwiGLU-Aktivierungsfunktion)
+from torch.utils.data import Dataset, DataLoader  # WARUM: effiziente Daten-Pipeline
+#                                  Dataset = definiert, wie ein einzelnes Sample geladen wird
+#                                  DataLoader = bündelt sie in Batches, mischt, lädt vor
 
-# ===== WHAT: tiktoken — OpenAI's fast BPE tokenizer =====
-import tiktoken          # WHY: same Byte Pair Encoding tokenizer as GPT-3.5/GPT-4
-                         #      Written in Rust, ~100x faster than pure Python tokenizers
-                         #      Handles 50K+ vocabulary efficiently
+# ===== WAS: tiktoken — OpenAIs schneller BPE-Tokenizer =====
+import tiktoken          # WARUM: derselbe Byte-Pair-Encoding-Tokenizer wie GPT-3.5/GPT-4
+                         #      In Rust geschrieben, ~100x schneller als reine Python-Tokenizer
+                         #      Verarbeitet ein Vokabular von 50K+ effizient
 
-# ===== WHAT: HuggingFace datasets — download training text =====
-from datasets import load_dataset    # WHY: one line to download WikiText-103
-                                     #      Handles caching (only downloads once),
-                                     #      streaming (for datasets too big for disk),
-                                     #      and format conversion automatically
+# ===== WAS: HuggingFace datasets — Trainingstext herunterladen =====
+from datasets import load_dataset    # WARUM: eine Zeile, um WikiText-103 herunterzuladen
+                                     #      Übernimmt Caching (lädt nur einmal herunter),
+                                     #      Streaming (für Datasets, die zu groß für die Festplatte sind)
+                                     #      und automatische Formatkonvertierung
 
-# ===== WHAT: matplotlib — plot loss curves =====
-import matplotlib.pyplot as plt      # WHY: visualize training progress
-                                     #      Is the loss going down? Is it plateauing?
-                                     #      A picture is worth 1,000 log lines
+# ===== WAS: matplotlib — Loss-Kurven plotten =====
+import matplotlib.pyplot as plt      # WARUM: Trainingsfortschritt visualisieren
+                                     #      Sinkt der Loss? Stagniert er?
+                                     #      Ein Bild sagt mehr als 1.000 Log-Zeilen
 
-# ===== WHAT: Quick verification =====
-# WHY: Always test your environment before writing 500 lines of code.
-#      A missing import now saves hours of debugging later.
+# ===== WAS: Schnelle Verifizierung =====
+# WARUM: Teste deine Umgebung immer, bevor du 500 Zeilen Code schreibst.
+#      Ein fehlender Import jetzt erspart später Stunden des Debuggens.
 print("All imports ready!")
 print(f"PyTorch version: {torch.__version__}")
 print(f"CUDA available:  {torch.cuda.is_available()}")
@@ -154,7 +154,7 @@ if torch.cuda.is_available():
     print(f"GPU Memory:      {torch.cuda.get_device_properties(0).total_mem / 1e9:.1f} GB")
 ```
 
-**Expected output (with GPU):**
+**Erwartete Ausgabe (mit GPU):**
 ```
 All imports ready!
 PyTorch version: 2.1.0
@@ -163,29 +163,29 @@ GPU:             NVIDIA GeForce RTX 3090
 GPU Memory:      24.0 GB
 ```
 
-**Expected output (CPU only):**
+**Erwartete Ausgabe (nur CPU):**
 ```
 All imports ready!
 PyTorch version: 2.1.0
 CUDA available:  False
 ```
 
-If you see the GPU output, you're ready to train. If you see CPU only, training will work — just slower. Either way, let's continue.
+Wenn du die GPU-Ausgabe siehst, bist du bereit fürs Training. Wenn du nur die CPU-Ausgabe siehst, funktioniert das Training trotzdem — nur langsamer. So oder so, machen wir weiter.
 
 ---
 
-## How to Think About the Rest of This Guide
+## Wie du den Rest dieses Guides angehen solltest
 
-Every chapter follows this pattern:
+Jedes Kapitel folgt diesem Muster:
 
-1. **Analogy** — Explain the concept in plain English (like teaching a 5-year-old)
-2. **Math** — Show the actual formulas and why they work
-3. **Code** — Every single line annotated with WHAT it does and WHY
-4. **Visual** — Diagram or worked example showing data flowing through
+1. **Analogie** — Das Konzept in einfachen Worten erklären (als würde man es einem Fünfjährigen beibringen)
+2. **Mathematik** — Die tatsächlichen Formeln zeigen und erklären, warum sie funktionieren
+3. **Code** — Jede einzelne Zeile kommentiert mit WAS sie tut und WARUM
+4. **Visualisierung** — Diagramm oder durchgerechnetes Beispiel, das zeigt, wie die Daten durchfließen
 
-If you ever feel lost, go back to the analogy. If the code feels overwhelming, focus on the WHAT/WHY comments — they're designed to be read top-to-bottom like a story.
+Wenn du dich jemals verloren fühlst, kehre zur Analogie zurück. Wenn dir der Code zu viel wird, konzentriere dich auf die WAS/WARUM-Kommentare — sie sind so gestaltet, dass man sie von oben nach unten wie eine Geschichte lesen kann.
 
 ---
 
-**Previous:** [Chapter 0 — Overview](00_overview.md)
-**Next:** [Chapter 2 — Tokenization](02_tokenization.md)
+**Zurück:** [Kapitel 0 — Überblick](00_overview.md)
+**Weiter:** [Kapitel 2 — Tokenisierung](02_tokenization.md)

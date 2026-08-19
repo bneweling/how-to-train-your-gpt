@@ -1,95 +1,101 @@
 # DPO: Direct Preference Optimization
 
-## The short answer
+## Die kurze Antwort
 
-DPO teaches a model to prefer good responses over bad ones. Instead of
-training a separate reward model like RLHF does DPO works directly
-with pairs of responses. Each training example shows the model a chosen
-response and a rejected response for the same prompt. The model learns
-to increase the probability of the chosen one and decrease the
-probability of the rejected one. No reward model needed. No
-reinforcement learning needed. Just a dataset of preferences and a small
-modification to the training loss.
+DPO bringt einem Modell bei, gute Antworten gegenüber schlechten zu
+bevorzugen. Statt wie RLHF ein separates Reward-Modell zu trainieren,
+arbeitet DPO direkt mit Paaren von Antworten. Jedes Trainingsbeispiel
+zeigt dem Modell für denselben Prompt eine bevorzugte (chosen) und eine
+abgelehnte (rejected) Antwort. Das Modell lernt, die Wahrscheinlichkeit
+der bevorzugten Antwort zu erhöhen und die Wahrscheinlichkeit der
+abgelehnten Antwort zu senken. Kein Reward-Modell nötig. Kein
+Reinforcement Learning nötig. Nur ein Dataset mit Präferenzen und eine
+kleine Anpassung der Trainings-Loss.
 
-## Where it sits
+## Wo es einzuordnen ist
 
-DPO is a fine-tuning method. It takes a base chat model that already
-knows how to follow instructions and improves the quality of its
-responses. RLHF came first. DPO came later and is simpler. Both achieve
-the same goal: making the model's outputs more aligned with what humans
-want.
-
-```
-Base model (knows language)
-  → Instruction tuning (knows how to follow instructions)
-    → DPO or RLHF (knows which responses are better)
-      → Aligned model (helpful, harmless, honest)
-```
-
-## Why DPO replaced RLHF for most teams
-
-RLHF has three steps. Train a reward model on human preference data.
-Use the reward model to score the language model's outputs. Update the
-language model using reinforcement learning to maximize the reward. Each
-step is complex and error prone. The reward model can be fooled. The RL
-training can be unstable. The whole process requires constant
-monitoring.
-
-DPO has one step. Train the language model directly on the preference
-data using a modified loss function. The loss encourages the model to
-increase the probability of chosen responses relative to rejected
-responses. No separate reward model. No RL algorithm. No instability.
-The training loop is the same as standard fine-tuning. Only the loss
-function changes.
-
-## How DPO works
-
-DPO compares two responses to the same prompt. One was preferred by a
-human. One was rejected. The model sees both and adjusts its weights to
-make the chosen response more likely and the rejected response less
-likely.
-
-The DPO loss is a modified cross entropy loss.
+DPO ist eine Fine-Tuning-Methode. Sie nimmt ein Basis-Chat-Modell, das
+bereits weiß, wie man Anweisungen befolgt, und verbessert die Qualität
+seiner Antworten. RLHF kam zuerst. DPO kam später und ist einfacher.
+Beide verfolgen dasselbe Ziel: die Ausgaben des Modells besser mit dem
+in Einklang zu bringen, was Menschen wollen.
 
 ```
-Given:
-  prompt: "Explain gravity to a child"
-  chosen: "Gravity is the force that pulls things toward each other."
-  rejected: "Gravity is a fundamental interaction."
+Basismodell (kennt Sprache)
+  → Instruction Tuning (kann Anweisungen befolgen)
+    → DPO oder RLHF (weiß, welche Antworten besser sind)
+      → Aligniertes Modell (hilfreich, harmlos, ehrlich)
+```
 
-The DPO loss:
+## Warum DPO RLHF für die meisten Teams abgelöst hat
+
+RLHF besteht aus drei Schritten. Ein Reward-Modell auf menschlichen
+Präferenzdaten trainieren. Das Reward-Modell nutzen, um die Ausgaben des
+Sprachmodells zu bewerten. Das Sprachmodell mittels Reinforcement
+Learning aktualisieren, um den Reward zu maximieren. Jeder Schritt ist
+komplex und fehleranfällig. Das Reward-Modell lässt sich austricksen.
+Das RL-Training kann instabil werden. Der gesamte Prozess erfordert
+ständige Überwachung.
+
+DPO hat einen einzigen Schritt. Das Sprachmodell wird direkt auf den
+Präferenzdaten mit einer modifizierten Loss-Funktion trainiert. Die Loss
+ermutigt das Modell, die Wahrscheinlichkeit bevorzugter Antworten
+relativ zu abgelehnten Antworten zu erhöhen. Kein separates
+Reward-Modell. Kein RL-Algorithmus. Keine Instabilität. Die Trainings-
+Loop ist dieselbe wie beim Standard-Fine-Tuning. Nur die Loss-Funktion
+ändert sich.
+
+## Wie DPO funktioniert
+
+DPO vergleicht zwei Antworten auf denselben Prompt. Eine wurde von einem
+Menschen bevorzugt. Eine wurde abgelehnt. Das Modell sieht beide und
+passt seine Weights so an, dass die bevorzugte Antwort wahrscheinlicher
+und die abgelehnte Antwort unwahrscheinlicher wird.
+
+Die DPO-Loss ist eine modifizierte Cross-Entropy-Loss.
+
+```
+Gegeben:
+  prompt: "Erkläre einem Kind die Schwerkraft"
+  chosen: "Schwerkraft ist die Kraft, die Dinge zueinander zieht."
+  rejected: "Schwerkraft ist eine fundamentale Wechselwirkung."
+
+Die DPO-Loss:
   log_ratio = log(P(chosen | prompt)) - log(P(rejected | prompt))
   loss = -log(sigmoid(beta * log_ratio))
 ```
 
-The beta parameter controls how strongly the model is pushed toward the
-chosen responses. Higher beta means stronger preference signal. Lower
-beta is more conservative. Typical beta values are 0.1 to 0.5.
+Der Beta-Parameter steuert, wie stark das Modell in Richtung der
+bevorzugten Antworten gedrängt wird. Höheres Beta bedeutet ein stärkeres
+Präferenzsignal. Niedrigeres Beta ist konservativer. Typische
+Beta-Werte liegen zwischen 0.1 und 0.5.
 
-The reference model is the model before DPO training. DPO compares the
-current model's probabilities to the reference model's probabilities.
-This prevents the model from drifting too far from its original
-behavior. Without the reference model the model could learn to repeat
-the chosen responses verbatim. With the reference model it learns the
-general pattern of what makes a good response.
+Das Referenzmodell ist das Modell vor dem DPO-Training. DPO vergleicht
+die Wahrscheinlichkeiten des aktuellen Modells mit den
+Wahrscheinlichkeiten des Referenzmodells. Das verhindert, dass sich das
+Modell zu weit von seinem ursprünglichen Verhalten entfernt. Ohne das
+Referenzmodell könnte das Modell lernen, die bevorzugten Antworten
+wortwörtlich zu wiederholen. Mit dem Referenzmodell lernt es das
+allgemeine Muster dessen, was eine gute Antwort ausmacht.
 
 ```
-Full DPO loss with reference model:
+Vollständige DPO-Loss mit Referenzmodell:
 
 log_ratio_current = log(P_current(chosen | prompt)) - log(P_current(rejected | prompt))
 log_ratio_ref = log(P_ref(chosen | prompt)) - log(P_ref(rejected | prompt))
 loss = -log(sigmoid(beta * (log_ratio_current - log_ratio_ref)))
 ```
 
-The subtraction of the reference model's log ratio is what makes DPO
-work. It asks: does the current model prefer the chosen response MORE
-than the reference model did. If yes the loss is small. If no the loss
-is large and the model is updated.
+Die Subtraktion des Log-Ratios des Referenzmodells ist das, was DPO
+funktionieren lässt. Sie stellt die Frage: Bevorzugt das aktuelle Modell
+die bevorzugte Antwort STÄRKER als das Referenzmodell es tat. Wenn ja,
+ist die Loss klein. Wenn nein, ist die Loss groß und das Modell wird
+aktualisiert.
 
-## The data format
+## Das Datenformat
 
-DPO training data is simple. Each example has a prompt, a chosen
-response and a rejected response.
+Die DPO-Trainingsdaten sind einfach. Jedes Beispiel besteht aus einem
+Prompt, einer bevorzugten Antwort und einer abgelehnten Antwort.
 
 ```json
 {
@@ -99,18 +105,20 @@ response and a rejected response.
 }
 ```
 
-The chosen response is better. Maybe it uses simpler language. Maybe it
-is more complete. Maybe it avoids factual errors. The rejected response
-is worse. Maybe it uses jargon. Maybe it is too brief. Maybe it contains
-a mistake. The model learns from the difference.
+Die bevorzugte Antwort ist besser. Vielleicht verwendet sie einfachere
+Sprache. Vielleicht ist sie vollständiger. Vielleicht vermeidet sie
+sachliche Fehler. Die abgelehnte Antwort ist schlechter. Vielleicht
+verwendet sie Fachjargon. Vielleicht ist sie zu knapp. Vielleicht
+enthält sie einen Fehler. Das Modell lernt aus dem Unterschied.
 
-The quality of DPO training depends entirely on the quality of
-preference pairs. If the rejected response is actually better than the
-chosen one the model learns the wrong lesson. Every preference pair must
-be carefully curated. High quality data is expensive to produce but
-essential for good results.
+Die Qualität des DPO-Trainings hängt vollständig von der Qualität der
+Präferenzpaare ab. Wenn die abgelehnte Antwort tatsächlich besser ist
+als die bevorzugte, lernt das Modell die falsche Lektion. Jedes
+Präferenzpaar muss sorgfältig kuratiert werden. Qualitativ hochwertige
+Daten sind teuer in der Erstellung, aber für gute Ergebnisse
+unerlässlich.
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import torch
@@ -119,9 +127,9 @@ import torch.nn.functional as F
 def dpo_loss(policy_model, reference_model, prompt_ids,
              chosen_ids, rejected_ids, beta=0.1):
     """
-    Compute DPO loss for a single preference pair.
-    policy_model is the model being trained.
-    reference_model is frozen and represents pre-DPO behavior.
+    Berechnet die DPO-Loss für ein einzelnes Präferenzpaar.
+    policy_model ist das Modell, das trainiert wird.
+    reference_model ist eingefroren und repräsentiert das Verhalten vor DPO.
     """
     with torch.no_grad():
         ref_chosen_logp = reference_model(chosen_ids)[0].log_softmax(-1).sum()
@@ -138,7 +146,7 @@ def dpo_loss(policy_model, reference_model, prompt_ids,
     return loss
 
 
-# Example usage (conceptual)
+# Beispielhafte Verwendung (konzeptionell)
 preference_pairs = [
     {
         "prompt": "Explain gravity to a child.",
@@ -152,8 +160,8 @@ preference_pairs = [
     },
 ]
 
-policy_model = ...  # Your chat model
-reference_model = ...  # Frozen copy of the same model
+policy_model = ...  # Dein Chat-Modell
+reference_model = ...  # Eingefrorene Kopie desselben Modells
 
 for pair in preference_pairs:
     prompt_ids = tokenize(pair["prompt"])
@@ -168,40 +176,44 @@ for pair in preference_pairs:
 
 ## DPO versus RLHF
 
-| Aspect | RLHF | DPO |
+| Aspekt | RLHF | DPO |
 |---|---|---|
-| Steps | 3 (reward model + PPO + KL penalty) | 1 (direct loss) |
-| Stability | Can be unstable. Needs careful tuning | Stable. Standard supervised learning |
-| Compute | Higher. Must run reward model | Lower. Only the policy model |
-| Code complexity | High. PPO implementation is tricky | Low. Modified loss function |
-| Data | Same preference pairs | Same preference pairs |
-| Quality | Established. Used by ChatGPT | Comparable in many benchmarks |
+| Schritte | 3 (Reward-Modell + PPO + KL-Penalty) | 1 (direkte Loss) |
+| Stabilität | Kann instabil sein. Erfordert sorgfältiges Tuning | Stabil. Standard-Supervised-Learning |
+| Rechenaufwand | Höher. Reward-Modell muss mitlaufen | Niedriger. Nur das Policy-Modell |
+| Code-Komplexität | Hoch. PPO-Implementierung ist tricky | Niedrig. Modifizierte Loss-Funktion |
+| Daten | Dieselben Präferenzpaare | Dieselben Präferenzpaare |
+| Qualität | Etabliert. Wird von ChatGPT verwendet | In vielen Benchmarks vergleichbar |
 
-DPO has largely replaced RLHF in the open source community. It is
-simpler to implement and achieves comparable results on most benchmarks.
-The main advantage of RLHF is that it can learn from online feedback
-where the model generates responses and humans rate them in real time.
-DPO requires pre collected preference pairs. For offline datasets the
-two methods perform similarly.
+DPO hat RLHF in der Open-Source-Community weitgehend abgelöst. Es ist
+einfacher zu implementieren und erzielt in den meisten Benchmarks
+vergleichbare Ergebnisse. Der Hauptvorteil von RLHF ist, dass es aus
+Online-Feedback lernen kann, bei dem das Modell Antworten generiert und
+Menschen sie in Echtzeit bewerten. DPO benötigt vorab gesammelte
+Präferenzpaare. Für Offline-Datasets schneiden beide Methoden ähnlich
+ab.
 
-## When to use DPO
+## Wann DPO eingesetzt werden sollte
 
-Use DPO when you have access to human preference data and want to
-improve the quality of a model's responses beyond what instruction
-tuning alone can achieve. The model must already follow instructions.
-DPO cannot teach a base model to chat. It can only improve the quality
-of a model that already chats.
+Verwende DPO, wenn du Zugang zu menschlichen Präferenzdaten hast und die
+Qualität der Antworten eines Modells über das hinaus verbessern
+möchtest, was Instruction Tuning allein erreichen kann. Das Modell muss
+bereits Anweisungen befolgen können. DPO kann einem Basismodell nicht
+beibringen zu chatten. Es kann nur die Qualität eines Modells
+verbessern, das bereits chattet.
 
-Use DPO when you want to reduce harmful outputs or improve factual
-accuracy or make responses more concise or align with specific style
-guidelines. Any quality dimension that can be expressed as a preference
-between two responses can be optimized with DPO.
+Verwende DPO, wenn du schädliche Ausgaben reduzieren oder die
+Faktentreue verbessern oder Antworten prägnanter gestalten oder an
+bestimmte Style-Guidelines anpassen möchtest. Jede Qualitätsdimension,
+die sich als Präferenz zwischen zwei Antworten ausdrücken lässt, kann
+mit DPO optimiert werden.
 
-## What you need to remember
+## Was du dir merken solltest
 
-DPO trains a model directly on preference pairs without a separate
-reward model. The loss function encourages the model to prefer chosen
-responses over rejected ones. A reference model prevents the model from
-drifting too far from its original behavior. DPO is simpler and more
-stable than RLHF and achieves comparable results. It is the standard
-preference optimization method in the open source community.
+DPO trainiert ein Modell direkt auf Präferenzpaaren, ohne ein separates
+Reward-Modell. Die Loss-Funktion ermutigt das Modell, bevorzugte
+Antworten gegenüber abgelehnten zu bevorzugen. Ein Referenzmodell
+verhindert, dass sich das Modell zu weit von seinem ursprünglichen
+Verhalten entfernt. DPO ist einfacher und stabiler als RLHF und erzielt
+vergleichbare Ergebnisse. Es ist die Standardmethode zur
+Präferenzoptimierung in der Open-Source-Community.

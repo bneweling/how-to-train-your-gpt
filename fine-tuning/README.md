@@ -1,31 +1,32 @@
-# Fine-Tuning: Making the Model Useful
+# Fine-Tuning: Das Modell nützlich machen
 
-This folder covers everything about adapting a pretrained language model
-for a specific task. Pretraining teaches the model language. Fine-tuning
-teaches it to be helpful.
+Dieser Ordner behandelt alles rund um die Anpassung eines vortrainierten
+Sprachmodells für eine bestimmte Aufgabe. Pretraining bringt dem Modell
+Sprache bei. Fine-Tuning bringt ihm bei, hilfreich zu sein.
 
-## What's inside
+## Inhalt
 
-| File | Topic |
+| Datei | Thema |
 |---|---|
-| [01_what_is_finetuning.md](01_what_is_finetuning.md) | The concept. Why we fine-tune. Types: full, LoRA, QLoRA. |
-| [02_lora_explained.md](02_lora_explained.md) | LoRA deep dive. Low-rank decomposition. The math in simple terms. |
-| [03_qlora_explained.md](03_qlora_explained.md) | QLoRA. Quantization plus LoRA. Run on a laptop. |
-| [04_data_preparation.md](04_data_preparation.md) | How to format data for instruction tuning. Chat templates. |
-| [05_full_finetune.md](05_full_finetune.md) | Full fine-tuning. When and why not. |
-| [06_dpo_explained.md](06_dpo_explained.md) | DPO. Preference optimization without RL. |
-| [07_prompt_vs_finetune.md](07_prompt_vs_finetune.md) | When to prompt engineer vs when to fine-tune. |
+| [01_what_is_finetuning.md](01_what_is_finetuning.md) | Das Konzept. Warum wir fine-tunen. Typen: Full, LoRA, QLoRA. |
+| [02_lora_explained.md](02_lora_explained.md) | LoRA im Detail. Low-Rank-Zerlegung. Die Mathematik einfach erklärt. |
+| [03_qlora_explained.md](03_qlora_explained.md) | QLoRA. Quantization plus LoRA. Läuft auf einem Laptop. |
+| [04_data_preparation.md](04_data_preparation.md) | Wie man Daten für Instruction Tuning formatiert. Chat-Templates. |
+| [05_full_finetune.md](05_full_finetune.md) | Vollständiges Fine-Tuning. Wann und warum nicht. |
+| [06_dpo_explained.md](06_dpo_explained.md) | DPO. Präferenzoptimierung ohne RL. |
+| [07_prompt_vs_finetune.md](07_prompt_vs_finetune.md) | Wann Prompt Engineering sinnvoll ist und wann Fine-Tuning. |
 
 ## Notebook
 
-[`notebooks/lora_finetune.ipynb`](notebooks/lora_finetune.ipynb). A
-runnable notebook that fine-tunes a small model with LoRA on a toy
-instruction dataset. Runs on a single consumer GPU.
+[`notebooks/lora_finetune.ipynb`](notebooks/lora_finetune.ipynb). Ein
+lauffähiges Notebook, das ein kleines Modell mit LoRA auf einem einfachen
+Instruction-Datensatz fine-tunt. Läuft auf einer einzelnen Consumer-GPU.
 
-## Reading order
+## Empfohlene Lesereihenfolge
 
-Start with 01 for the big picture. Then 02 to understand LoRA which is
-what almost everyone uses. 03 adds quantization for even smaller GPUs.
-04 shows you how to prepare your data. 05 covers the full approach.
-06 explains DPO the simpler alternative to RLHF. 07 helps you decide
-between prompting and fine-tuning for your own use case.
+Beginne mit 01 für den Überblick. Dann 02, um LoRA zu verstehen, das von
+fast allen verwendet wird. 03 fügt Quantization für noch kleinere GPUs
+hinzu. 04 zeigt dir, wie du deine Daten vorbereitest. 05 behandelt den
+vollständigen Ansatz. 06 erklärt DPO, die einfachere Alternative zu RLHF.
+07 hilft dir, dich zwischen Prompting und Fine-Tuning für deinen eigenen
+Anwendungsfall zu entscheiden.

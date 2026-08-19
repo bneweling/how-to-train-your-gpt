@@ -1,295 +1,308 @@
-# Encoder, Decoder and Encoder-Decoder: The Three Transformer Families
+# Encoder, Decoder und Encoder-Decoder: Die drei Transformer-Familien
 
-## The short answer
+## Die kurze Antwort
 
-There are three ways to build a transformer. Decoder-only models like
-GPT generate text one token at a time. They can only see what came
-before. Encoder-only models like BERT look at the entire input at once
-in both directions. They understand text but cannot generate it.
-Encoder-decoder models like T5 read the full input with an encoder and
-generate output with a decoder. They are built for tasks that transform
-one piece of text into another.
+Es gibt drei Wege, einen Transformer zu bauen. Decoder-only-Modelle wie
+GPT erzeugen Text Token für Token. Sie können nur sehen, was vorher kam.
+Encoder-only-Modelle wie BERT betrachten die gesamte Eingabe auf einmal
+in beide Richtungen. Sie verstehen Text, können ihn aber nicht generieren.
+Encoder-Decoder-Modelle wie T5 lesen die vollständige Eingabe mit einem
+Encoder und erzeugen die Ausgabe mit einem Decoder. Sie sind für Aufgaben
+gebaut, die einen Textabschnitt in einen anderen transformieren.
 
-This guide builds a decoder-only model. The same architecture as GPT
-and LLaMA and Mistral. This file explains why and what the other
-options do.
+Dieser Guide baut ein Decoder-only-Modell. Dieselbe Architektur wie GPT,
+LLaMA und Mistral. Diese Datei erklärt, warum, und was die anderen
+Optionen leisten.
 
-## Decoder-Only (GPT family)
+## Decoder-Only (GPT-Familie)
 
-### What it looks like
-
-```
-Input: "The cat sat on the"
-  → Token embedding
-    → Causal attention (can only look backward)
-      → Feed forward
-        → Repeat N times
-          → Output projection
-            → Predict next token: "mat"
-```
-
-The key feature is the causal mask. Every token can only attend to
-tokens that came before it. Token 5 can see tokens 0 through 4. Token
-5 cannot see token 6 because token 6 has not been written yet.
-
-### How it's trained
-
-Decoder-only models are trained on next token prediction. Show the
-model a sequence of tokens. Ask it to predict each next token. The
-model learns to guess what comes next. This is called autoregressive
-training.
+### So sieht es aus
 
 ```
-Training example:
-  Input:  [The, cat, sat, on, the]
-  Target: [cat, sat, on, the, mat]
-
-  The model sees "The" and must predict "cat"
-  The model sees "The cat" and must predict "sat"
-  The model sees "The cat sat" and must predict "on"
-  ... and so on
+Eingabe: "The cat sat on the"
+  → Token-Embedding
+    → Causal Attention (kann nur rückwärts schauen)
+      → Feed-Forward
+        → N-mal wiederholen
+          → Ausgabeprojektion
+            → Nächstes Token vorhersagen: "mat"
 ```
 
-Every prediction is made using only past tokens. The model never sees
-the future. The causal mask enforces this during training. During
-generation no mask is needed because future tokens simply do not exist
-yet.
+Das zentrale Merkmal ist die Causal Mask. Jedes Token kann nur auf
+Token achten, die davor kamen. Token 5 kann Token 0 bis 4 sehen. Token
+5 kann Token 6 nicht sehen, weil Token 6 noch nicht geschrieben wurde.
 
-### What it's good at
+### So wird trainiert
 
-Text generation. Writing stories. Answering questions. Having
-conversations. Completing code. Any task where you produce new text
-one token at a time.
-
-Decoder-only models are the universal tool. With enough scale and the
-right training data they can do almost anything. GPT-3 showed this in
-2020. The model could translate and summarize and answer questions
-despite being trained only to predict the next word. It learned these
-skills implicitly because the training data contained examples of
-translation and summarization and question answering.
-
-### Why we chose it
-
-Decoder-only models are the simplest to build and train. One task.
-Predict the next token. One architecture. Causal attention whose output
-goes through a feed forward network. No separate encoder. No cross
-attention between encoder and decoder. One stack of identical blocks.
-
-They also scale the best. Every major breakthrough in capability from
-GPT-2 to GPT-3 to GPT-4 came from decoder-only models. The simplicity
-of the architecture means all resources go into making the model bigger
-and the data better. There is no complexity budget spent on additional
-components.
-
-### The limitation
-
-Decoder-only models cannot look at the full input bidirectionally.
-Token 5 cannot use information from token 10 because token 10 does not
-exist yet. This is fine for generation but suboptimal for understanding
-tasks where the entire input is available from the start.
-
-For tasks like classification or named entity recognition where you
-have the complete input a bidirectional model can capture context from
-both directions. A decoder-only model can only capture context from the
-left. In practice this matters less than you might think. With enough
-scale a decoder-only model learns to compensate for the missing right
-context by building rich representations that anticipate what comes
-next.
-
-## Encoder-Only (BERT family)
-
-### What it looks like
+Decoder-only-Modelle werden mit Next-Token-Prediction trainiert. Man
+zeigt dem Modell eine Sequenz von Token. Man lässt es jedes nächste
+Token vorhersagen. Das Modell lernt zu erraten, was als Nächstes kommt.
+Das nennt man autoregressives Training.
 
 ```
-Input: "The cat sat on the [MASK]"
-  → Token embedding
-    → Bidirectional attention (can look everywhere)
-      → Feed forward
-        → Repeat N times
-          → Output projection
-            → Predict masked token: "mat"
+Trainingsbeispiel:
+  Eingabe: [The, cat, sat, on, the]
+  Ziel:    [cat, sat, on, the, mat]
+
+  Das Modell sieht "The" und muss "cat" vorhersagen
+  Das Modell sieht "The cat" und muss "sat" vorhersagen
+  Das Modell sieht "The cat sat" und muss "on" vorhersagen
+  ... und so weiter
 ```
 
-The key feature is bidirectional attention. Every token can attend to
-every other token regardless of position. There is no causal mask.
-Token 5 can see token 0 and token 10 equally.
+Jede Vorhersage wird nur anhand vergangener Token getroffen. Das Modell
+sieht die Zukunft nie. Die Causal Mask erzwingt das während des
+Trainings. Bei der Generierung wird keine Maske benötigt, weil zukünftige
+Token schlicht noch nicht existieren.
 
-### How it's trained
+### Worin es gut ist
 
-Encoder-only models are trained on masked language modeling. Hide some
-percentage of input tokens randomly. Ask the model to predict what was
-hidden.
+Textgenerierung. Geschichten schreiben. Fragen beantworten. Gespräche
+führen. Code vervollständigen. Jede Aufgabe, bei der neuer Text Token
+für Token erzeugt wird.
 
-```
-Training example:
-  Original: "The cat sat on the mat"
-  Masked:   "The cat [MASK] on the [MASK]"
-  Target:   "sat" and "mat"
+Decoder-only-Modelle sind das universelle Werkzeug. Mit ausreichender
+Skalierung und den richtigen Trainingsdaten können sie fast alles. GPT-3
+hat das 2020 gezeigt. Das Modell konnte übersetzen, zusammenfassen und
+Fragen beantworten, obwohl es nur darauf trainiert war, das nächste Wort
+vorherzusagen. Es hat diese Fähigkeiten implizit gelernt, weil die
+Trainingsdaten Beispiele für Übersetzung, Zusammenfassung und
+Frage-Antwort-Aufgaben enthielten.
 
-  The model sees the whole sentence including words after the mask.
-  It uses context from both directions to predict the hidden words.
-```
+### Warum wir uns dafür entschieden haben
 
-The model sees the entire input at once. It can use information from
-words before AND after the masked token. This is fundamentally
-different from decoder-only training where the model is blind to the
-future.
+Decoder-only-Modelle sind am einfachsten zu bauen und zu trainieren.
+Eine Aufgabe. Das nächste Token vorhersagen. Eine Architektur. Causal
+Attention, deren Ausgabe durch ein Feed-Forward-Netzwerk läuft. Kein
+separater Encoder. Keine Cross-Attention zwischen Encoder und Decoder.
+Ein Stapel identischer Blöcke.
 
-### What it's good at
+Sie skalieren außerdem am besten. Jeder große Fähigkeitssprung von GPT-2
+über GPT-3 bis GPT-4 kam von Decoder-only-Modellen. Die Einfachheit der
+Architektur bedeutet, dass alle Ressourcen darin fließen, das Modell
+größer und die Daten besser zu machen. Es wird kein Komplexitätsbudget
+für zusätzliche Komponenten verbraucht.
 
-Understanding tasks. Classification. Named entity recognition. Question
-answering where the answer is in the provided text. Sentiment analysis.
-Any task where the input is complete and the output is a label or a
-span of text rather than a generated sequence.
+### Die Einschränkung
 
-BERT embeddings became the standard for representing text. For years
-the best approach for any NLP task was to take a pretrained BERT model
-and add a small task specific head on top. Fine-tune for a few epochs.
-The approach worked because BERT's bidirectional understanding captured
-rich representations of word meaning in context.
+Decoder-only-Modelle können die vollständige Eingabe nicht bidirektional
+betrachten. Token 5 kann keine Information von Token 10 nutzen, weil
+Token 10 noch nicht existiert. Das ist für die Generierung in Ordnung,
+aber suboptimal für Verständnisaufgaben, bei denen die gesamte Eingabe
+von Anfang an verfügbar ist.
 
-### The limitation
+Bei Aufgaben wie Klassifikation oder Named Entity Recognition, bei denen
+die vollständige Eingabe vorliegt, kann ein bidirektionales Modell
+Kontext aus beiden Richtungen erfassen. Ein Decoder-only-Modell kann nur
+Kontext von links erfassen. In der Praxis spielt das eine geringere
+Rolle, als man annehmen könnte. Mit ausreichender Skalierung lernt ein
+Decoder-only-Modell, den fehlenden rechten Kontext auszugleichen, indem
+es reichhaltige Repräsentationen aufbaut, die vorwegnehmen, was als
+Nächstes kommt.
 
-Encoder-only models cannot generate text autoregressively. They have
-no causal mask. They have no mechanism to produce one token at a time
-conditioned on previous outputs. You cannot use BERT to write a story
-or hold a conversation.
+## Encoder-Only (BERT-Familie)
 
-Encoder-only models are also limited by their training objective. Masked
-language modeling teaches the model to fill in blanks. It does not teach
-the model to produce coherent sequences. You can generate text by
-iteratively masking and predicting but the output is typically worse
-than what a decoder-only model produces.
-
-## Encoder-Decoder (T5 family)
-
-### What it looks like
-
-```
-Input: "Translate to French: The cat sat on the mat"
-  → Encoder (bidirectional attention)
-    → Hidden representation of the full input
-      → Decoder (causal attention + cross attention)
-        → Output: "Le chat s'est assis sur le tapis"
-```
-
-The encoder reads the entire input bidirectionally. It produces a dense
-representation of the input. The decoder generates the output
-autoregressively one token at a time. The decoder has both causal self
-attention like a GPT and cross attention that looks at the encoder's
-output.
-
-The cross attention is the key difference from decoder-only models. At
-every generation step the decoder can look back at the full encoded
-input. This gives the decoder direct access to the input representation
-without needing to encode it in the autoregressive state.
-
-### How it's trained
-
-Encoder-decoder models are trained on sequence to sequence tasks. Show
-the model an input sequence and a target output sequence. The encoder
-processes the input. The decoder generates the output one token at a
-time.
+### So sieht es aus
 
 ```
-Training example:
-  Input:  "Summarize: The cat sat on the mat for three hours..."
-  Target: "A cat stayed on a mat for a long time."
-
-  The encoder reads the full input bidirectionally.
-  The decoder generates "A" then "cat" then "stayed" and so on.
-  At each step the decoder can cross attend to the encoder's output.
+Eingabe: "The cat sat on the [MASK]"
+  → Token-Embedding
+    → Bidirektionale Attention (kann überallhin schauen)
+      → Feed-Forward
+        → N-mal wiederholen
+          → Ausgabeprojektion
+            → Maskiertes Token vorhersagen: "mat"
 ```
 
-The training uses teacher forcing. The decoder is given the correct
-previous tokens during training. The model learns to produce the next
-token given the input and the correct history.
+Das zentrale Merkmal ist bidirektionale Attention. Jedes Token kann auf
+jedes andere Token achten, unabhängig von der Position. Es gibt keine
+Causal Mask. Token 5 kann Token 0 und Token 10 gleichermaßen sehen.
 
-### What it's good at
+### So wird trainiert
 
-Sequence to sequence tasks. Translation. Summarization. Any task where
-the input and output are both text but have different lengths or
-structures.
-
-Encoder-decoder models separate the concerns. The encoder focuses on
-understanding the input. The decoder focuses on generating the output.
-This division of labor can be more efficient than a decoder-only model
-which must do both in a single stack of layers.
-
-### The limitation
-
-Encoder-decoder models are more complex. Two separate stacks of layers.
-Cross attention between them. More parameters for the same quality on
-general language tasks. The architecture is specialized for sequence to
-sequence tasks and less flexible for open ended generation.
-
-The rise of decoder-only models has reduced the popularity of encoder
-decoder architectures. A large enough decoder-only model can implicitly
-perform the separation that an encoder-decoder model makes explicit.
-GPT-3 showed this for translation and summarization. The decoder-only
-model learned to understand the input and generate the output in a
-single stack of layers.
-
-## Why this guide teaches decoder-only
-
-Decoder-only models are the foundation of modern AI. ChatGPT is a
-decoder-only model. Claude is a decoder-only model. LLaMA and Mistral
-are decoder-only models. Understanding how they work means
-understanding the architecture behind the most capable AI systems ever
-built.
-
-The architecture is also the simplest. One stack of blocks. One
-attention pattern with causal masking. One training objective. Next
-token prediction. The simplicity makes it the best starting point for
-learning. Once you understand the decoder-only transformer you can
-understand any transformer variant.
-
-Encoder-only models are still widely used. BERT and its variants power
-search engines and classification systems and information retrieval.
-But they cannot generate text. Understanding them is useful for
-specialized applications but not essential for building generative AI.
-
-Encoder-decoder models are becoming less common. The gap between
-decoder-only and encoder-decoder performance has narrowed. For most
-practical purposes a large decoder-only model matches or exceeds an
-encoder-decoder model on the same task. The added complexity is harder
-to justify.
-
-## When to use each
+Encoder-only-Modelle werden mit Masked Language Modeling trainiert. Ein
+bestimmter Prozentsatz der Eingabe-Token wird zufällig verborgen. Das
+Modell wird gebeten vorherzusagen, was verborgen wurde.
 
 ```
-Do you need to generate new text token by token?
+Trainingsbeispiel:
+  Original:   "The cat sat on the mat"
+  Maskiert:   "The cat [MASK] on the [MASK]"
+  Ziel:       "sat" und "mat"
+
+  Das Modell sieht den gesamten Satz einschließlich der Wörter nach der Maskierung.
+  Es nutzt Kontext aus beiden Richtungen, um die verborgenen Wörter vorherzusagen.
+```
+
+Das Modell sieht die gesamte Eingabe auf einmal. Es kann Information
+aus Wörtern vor UND nach dem maskierten Token nutzen. Das unterscheidet
+sich grundlegend vom Training von Decoder-only-Modellen, bei dem das
+Modell blind für die Zukunft ist.
+
+### Worin es gut ist
+
+Verständnisaufgaben. Klassifikation. Named Entity Recognition.
+Frage-Antwort-Aufgaben, bei denen die Antwort im bereitgestellten Text
+steht. Sentiment-Analyse. Jede Aufgabe, bei der die Eingabe vollständig
+ist und die Ausgabe ein Label oder eine Textspanne ist statt einer
+generierten Sequenz.
+
+BERT-Embeddings wurden zum Standard für die Repräsentation von Text.
+Jahrelang bestand der beste Ansatz für jede NLP-Aufgabe darin, ein
+vortrainiertes BERT-Modell zu nehmen und einen kleinen, aufgabenspezifischen
+Head obendrauf zu setzen. Ein paar Epochen fine-tunen. Der Ansatz
+funktionierte, weil BERTs bidirektionales Verständnis reichhaltige
+Repräsentationen der Wortbedeutung im Kontext einfing.
+
+### Die Einschränkung
+
+Encoder-only-Modelle können nicht autoregressiv Text generieren. Sie
+haben keine Causal Mask. Sie haben keinen Mechanismus, um Token für
+Token bedingt auf vorherige Ausgaben zu erzeugen. Man kann BERT nicht
+verwenden, um eine Geschichte zu schreiben oder ein Gespräch zu führen.
+
+Encoder-only-Modelle sind außerdem durch ihr Trainingsziel eingeschränkt.
+Masked Language Modeling bringt dem Modell bei, Lücken zu füllen. Es
+bringt dem Modell nicht bei, kohärente Sequenzen zu erzeugen. Man kann
+Text erzeugen, indem man iterativ maskiert und vorhersagt, aber die
+Ausgabe ist typischerweise schlechter als das, was ein Decoder-only-Modell
+produziert.
+
+## Encoder-Decoder (T5-Familie)
+
+### So sieht es aus
+
+```
+Eingabe: "Translate to French: The cat sat on the mat"
+  → Encoder (bidirektionale Attention)
+    → Verborgene Repräsentation der gesamten Eingabe
+      → Decoder (Causal Attention + Cross-Attention)
+        → Ausgabe: "Le chat s'est assis sur le tapis"
+```
+
+Der Encoder liest die gesamte Eingabe bidirektional. Er erzeugt eine
+dichte Repräsentation der Eingabe. Der Decoder generiert die Ausgabe
+autoregressiv Token für Token. Der Decoder verfügt sowohl über Causal
+Self-Attention wie ein GPT als auch über Cross-Attention, die auf die
+Ausgabe des Encoders schaut.
+
+Die Cross-Attention ist der entscheidende Unterschied zu
+Decoder-only-Modellen. Bei jedem Generierungsschritt kann der Decoder auf
+die vollständige, encodierte Eingabe zurückblicken. Das gibt dem Decoder
+direkten Zugriff auf die Eingaberepräsentation, ohne sie im
+autoregressiven Zustand codieren zu müssen.
+
+### So wird trainiert
+
+Encoder-Decoder-Modelle werden auf Sequence-to-Sequence-Aufgaben
+trainiert. Man zeigt dem Modell eine Eingabesequenz und eine
+Ziel-Ausgabesequenz. Der Encoder verarbeitet die Eingabe. Der Decoder
+erzeugt die Ausgabe Token für Token.
+
+```
+Trainingsbeispiel:
+  Eingabe: "Summarize: The cat sat on the mat for three hours..."
+  Ziel:    "A cat stayed on a mat for a long time."
+
+  Der Encoder liest die gesamte Eingabe bidirektional.
+  Der Decoder erzeugt "A", dann "cat", dann "stayed" und so weiter.
+  Bei jedem Schritt kann der Decoder eine Cross-Attention auf die Ausgabe des Encoders anwenden.
+```
+
+Das Training verwendet Teacher Forcing. Dem Decoder werden während des
+Trainings die korrekten vorherigen Token gegeben. Das Modell lernt, das
+nächste Token anhand der Eingabe und der korrekten Historie zu erzeugen.
+
+### Worin es gut ist
+
+Sequence-to-Sequence-Aufgaben. Übersetzung. Zusammenfassung. Jede
+Aufgabe, bei der Eingabe und Ausgabe beide Text sind, aber unterschiedliche
+Längen oder Strukturen haben.
+
+Encoder-Decoder-Modelle trennen die Zuständigkeiten. Der Encoder
+konzentriert sich auf das Verstehen der Eingabe. Der Decoder konzentriert
+sich auf das Erzeugen der Ausgabe. Diese Arbeitsteilung kann effizienter
+sein als ein Decoder-only-Modell, das beides in einem einzigen Stapel von
+Layern erledigen muss.
+
+### Die Einschränkung
+
+Encoder-Decoder-Modelle sind komplexer. Zwei separate Stapel von Layern.
+Cross-Attention zwischen ihnen. Mehr Parameter für dieselbe Qualität bei
+allgemeinen Sprachaufgaben. Die Architektur ist auf
+Sequence-to-Sequence-Aufgaben spezialisiert und weniger flexibel für
+offene Generierung.
+
+Der Aufstieg der Decoder-only-Modelle hat die Popularität von
+Encoder-Decoder-Architekturen verringert. Ein ausreichend großes
+Decoder-only-Modell kann implizit die Trennung leisten, die ein
+Encoder-Decoder-Modell explizit macht. GPT-3 hat das für Übersetzung und
+Zusammenfassung gezeigt. Das Decoder-only-Modell lernte, die Eingabe zu
+verstehen und die Ausgabe in einem einzigen Stapel von Layern zu
+erzeugen.
+
+## Warum dieser Guide Decoder-only lehrt
+
+Decoder-only-Modelle sind das Fundament moderner KI. ChatGPT ist ein
+Decoder-only-Modell. Claude ist ein Decoder-only-Modell. LLaMA und
+Mistral sind Decoder-only-Modelle. Zu verstehen, wie sie funktionieren,
+bedeutet, die Architektur hinter den fähigsten je gebauten KI-Systemen zu
+verstehen.
+
+Die Architektur ist zudem die einfachste. Ein Stapel von Blöcken. Ein
+Attention-Muster mit Causal Masking. Ein Trainingsziel. Next-Token-
+Prediction. Die Einfachheit macht sie zum besten Ausgangspunkt für das
+Lernen. Sobald man den Decoder-only-Transformer verstanden hat, kann man
+jede Transformer-Variante verstehen.
+
+Encoder-only-Modelle werden weiterhin breit eingesetzt. BERT und seine
+Varianten treiben Suchmaschinen, Klassifikationssysteme und Information
+Retrieval an. Aber sie können keinen Text generieren. Sie zu verstehen
+ist nützlich für spezialisierte Anwendungen, aber nicht essenziell für
+den Bau generativer KI.
+
+Encoder-Decoder-Modelle werden seltener. Der Leistungsunterschied
+zwischen Decoder-only- und Encoder-Decoder-Modellen hat sich verringert.
+Für die meisten praktischen Zwecke erreicht oder übertrifft ein großes
+Decoder-only-Modell ein Encoder-Decoder-Modell bei derselben Aufgabe. Die
+zusätzliche Komplexität lässt sich schwerer rechtfertigen.
+
+## Wann man was verwendet
+
+```
+Müssen Sie neuen Text Token für Token generieren?
   → Decoder-only (GPT, LLaMA, Mistral)
 
-Do you need to understand text and produce a label or classification?
+Müssen Sie Text verstehen und ein Label oder eine Klassifikation erzeugen?
   → Encoder-only (BERT, RoBERTa, DeBERTa)
 
-Do you need to transform text from one form to another and want the
-best possible quality for a specific task?
-  → Encoder-decoder (T5, BART)
+Müssen Sie Text von einer Form in eine andere transformieren und wollen
+Sie die bestmögliche Qualität für eine bestimmte Aufgabe?
+  → Encoder-Decoder (T5, BART)
 
-Do you want one architecture that can do everything reasonably well
-and is simple to understand and build?
+Wollen Sie eine Architektur, die alles einigermaßen gut kann
+und einfach zu verstehen und zu bauen ist?
   → Decoder-only
 ```
 
-## What you need to remember
+## Was Sie sich merken müssen
 
-Decoder-only models generate text one token at a time using only past
-context. They are trained on next token prediction. This is the GPT
-family and what this entire guide teaches.
+Decoder-only-Modelle erzeugen Text Token für Token, nur unter
+Verwendung von vergangenem Kontext. Sie werden mit Next-Token-Prediction
+trainiert. Das ist die GPT-Familie und das, was dieser gesamte Guide
+lehrt.
 
-Encoder-only models understand text bidirectionally using the full
-context. They are trained on masked language modeling. This is the
-BERT family. They cannot generate text.
+Encoder-only-Modelle verstehen Text bidirektional unter Verwendung des
+vollständigen Kontexts. Sie werden mit Masked Language Modeling
+trainiert. Das ist die BERT-Familie. Sie können keinen Text generieren.
 
-Encoder-decoder models combine both. An encoder reads the input
-bidirectionally. A decoder generates the output autoregressively with
-cross attention to the encoder. This is the T5 family. They are built
-for sequence to sequence tasks.
+Encoder-Decoder-Modelle kombinieren beides. Ein Encoder liest die
+Eingabe bidirektional. Ein Decoder erzeugt die Ausgabe autoregressiv mit
+Cross-Attention zum Encoder. Das ist die T5-Familie. Sie sind für
+Sequence-to-Sequence-Aufgaben gebaut.
 
-All three use the same building blocks. Attention. Feed forward
-networks. Residual connections. Normalization. The only differences are
-the attention mask pattern and the training objective. Master the
-decoder-only architecture and you have mastered the foundation of all
-modern language models.
+Alle drei verwenden dieselben Bausteine. Attention. Feed-Forward-
+Netzwerke. Residual Connections. Normalisierung. Die einzigen
+Unterschiede sind das Attention-Mask-Muster und das Trainingsziel. Wer
+die Decoder-only-Architektur beherrscht, hat das Fundament aller
+modernen Sprachmodelle gemeistert.

@@ -1,178 +1,186 @@
-# Residual Connections: The Gradient Highway
+# Residual Connections: Der Gradienten-Highway
 
-## What is it
+## Was ist das
 
-A residual connection is a shortcut that lets information skip
-past a layer. Instead of replacing the input the layer adds
-something to it.
-
-```
-Without residual:  output = layer(input)
-With residual:     output = input + layer(norm(input))
-```
-
-Think of it like editing a document. Without a residual connection
-you throw away the original and write a completely new draft. With
-a residual connection you keep the original and just make small
-fixes on top. The original is always there underneath. The changes
-are incremental.
-
-This seems like a small difference. It is the single most
-important design choice that makes deep neural networks possible.
-Without residual connections you cannot train a network deeper
-than about twenty layers. With them you can train networks with
-hundreds or even thousands of layers. The difference is not a
-matter of convenience. It is the difference between a model that
-learns and a model that does nothing.
-
-## Where is it used
-
-Residual connections wrap every sublayer in the transformer block.
-Every attention layer has one. Every feed forward layer has one.
-For a twelve block model there are twenty four residual
-connections.
+Eine Residual Connection ist eine Abkürzung, die es Informationen
+erlaubt, an einem Layer vorbeizulaufen. Statt den Input zu ersetzen,
+addiert der Layer etwas zu ihm hinzu.
 
 ```
-Transformer Block:
-  x → RMSNorm → Attention → +x  ← residual here
-    → RMSNorm → SwiGLU   → +x  ← residual here
+Ohne Residual:  output = layer(input)
+Mit Residual:   output = input + layer(norm(input))
 ```
 
-Without these plus signs the model would not be able to train.
-The first few layers would get no gradient signal and would never
-update. The model would be stuck with random weights forever.
+Stell es dir vor wie das Bearbeiten eines Dokuments. Ohne Residual
+Connection wirfst du das Original weg und schreibst einen komplett
+neuen Entwurf. Mit einer Residual Connection behältst du das
+Original und nimmst nur kleine Korrekturen daran vor. Das Original
+ist immer darunter vorhanden. Die Änderungen sind inkrementell.
 
-## Why we need it: the vanishing gradient problem
+Das wirkt wie ein kleiner Unterschied. Es ist die wichtigste
+einzelne Design-Entscheidung, die tiefe neuronale Netze überhaupt
+möglich macht. Ohne Residual Connections lässt sich ein Netz nicht
+tiefer als etwa zwanzig Layer trainieren. Mit ihnen lassen sich
+Netze mit Hunderten oder sogar Tausenden von Layern trainieren. Der
+Unterschied ist keine Frage der Bequemlichkeit. Es ist der
+Unterschied zwischen einem Modell, das lernt, und einem Modell, das
+gar nichts tut.
 
-To understand why residual connections matter we need to
-understand how neural networks learn.
+## Wo wird es eingesetzt
 
-When the model makes a prediction and gets it wrong it computes
-a loss. Then it asks how much each weight contributed to that
-loss. This question travels backward through the network from the
-final layer to the first layer. At each layer the signal gets
-multiplied by a number called the weight gradient.
-
-If the weight gradient is smaller than one the signal shrinks at
-every layer. After going backward through ten layers the signal
-is tiny. After twenty layers it is microscopic. After a hundred
-layers it is essentially zero. The first layers get no learning
-signal at all. They stay random forever.
+Residual Connections umschließen jeden Sublayer im
+Transformer-Block. Jeder Attention-Layer hat eine. Jeder
+Feed-Forward-Layer hat eine. Bei einem Modell mit zwölf Blöcken gibt
+es vierundzwanzig Residual Connections.
 
 ```
-Gradient at layer 1 = gradient at layer 100 × w₁ × w₂ × ... × w₉₉
+Transformer-Block:
+  x → RMSNorm → Attention → +x  ← Residual hier
+    → RMSNorm → SwiGLU   → +x  ← Residual hier
+```
 
-If each weight is 0.5:
-Gradient at layer 1 = gradient at layer 100 × 0.5⁹⁹
-                    = gradient at layer 100 × 0.00000000000000000000000000000016
+Ohne diese Pluszeichen könnte das Modell nicht trainiert werden. Die
+ersten Layer würden kein Gradientensignal erhalten und sich nie
+aktualisieren. Das Modell wäre für immer mit zufälligen Weights
+festgefahren.
+
+## Warum wir es brauchen: das Vanishing-Gradient-Problem
+
+Um zu verstehen, warum Residual Connections wichtig sind, müssen
+wir verstehen, wie neuronale Netze lernen.
+
+Wenn das Modell eine Vorhersage macht und sie falsch ist, berechnet
+es einen Loss. Dann wird ermittelt, wie stark jedes Weight zu
+diesem Loss beigetragen hat. Diese Frage wandert rückwärts durch
+das Netz, vom letzten Layer bis zum ersten. Bei jedem Layer wird
+das Signal mit einer Zahl multipliziert, die man Weight-Gradient
+nennt.
+
+Ist der Weight-Gradient kleiner als eins, schrumpft das Signal bei
+jedem Layer. Nach zehn Layern rückwärts ist das Signal winzig. Nach
+zwanzig Layern ist es mikroskopisch klein. Nach hundert Layern ist
+es praktisch null. Die ersten Layer erhalten überhaupt kein
+Lernsignal. Sie bleiben für immer zufällig.
+
+```
+Gradient bei Layer 1 = Gradient bei Layer 100 × w₁ × w₂ × ... × w₉₉
+
+Wenn jedes Weight 0.5 ist:
+Gradient bei Layer 1 = Gradient bei Layer 100 × 0.5⁹⁹
+                    = Gradient bei Layer 100 × 0.00000000000000000000000000000016
                     ≈ 0
 ```
 
-This is the vanishing gradient problem. It is why deep networks
-were impossible to train for decades. Researchers tried bigger
-computers and better optimizers but nothing worked. The math of
-multiplying small numbers together always wins.
+Das ist das Vanishing-Gradient-Problem. Deshalb waren tiefe Netze
+jahrzehntelang nicht trainierbar. Forscher versuchten es mit
+größeren Computern und besseren Optimizern, aber nichts half. Die
+Mathematik des Multiplizierens kleiner Zahlen gewinnt immer.
 
-Residual connections solve this by adding a second path. The
-gradient can travel backward through the layer like before. Or it
-can skip the layer entirely and go straight to the input.
+Residual Connections lösen dieses Problem, indem sie einen zweiten
+Pfad hinzufügen. Der Gradient kann wie zuvor rückwärts durch den
+Layer wandern. Oder er kann den Layer komplett überspringen und
+direkt zum Input gelangen.
 
 ```
-Without residual:
+Ohne Residual:
   output = layer(input)
-  gradient path: input ← layer ← loss (must go through layer)
+  Gradientenpfad: input ← layer ← loss (muss durch den Layer gehen)
 
-With residual:
+Mit Residual:
   output = input + layer(input)
-  gradient path: input ← loss (direct path, always gradient of 1.0)
-                input ← layer ← loss (indirect path, may be small)
+  Gradientenpfad: input ← loss (direkter Pfad, Gradient immer 1.0)
+                input ← layer ← loss (indirekter Pfad, kann klein sein)
 ```
 
-The direct path always gives a gradient of exactly 1.0. No matter
-how small the layer's gradient is the direct path ensures that
-every layer gets at least some learning signal. The signal never
-vanishes completely.
+Der direkte Pfad liefert immer einen Gradienten von exakt 1.0. Egal
+wie klein der Gradient des Layers ist, der direkte Pfad stellt
+sicher, dass jeder Layer wenigstens ein gewisses Lernsignal erhält.
+Das Signal verschwindet nie vollständig.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Residual connections were introduced in 2015 by researchers at
-Microsoft in a paper about image recognition. They showed that a
-152 layer network with residuals outperformed a 19 layer network
-without them. The idea was adopted by the transformer authors in
-2017. Today residual connections are used in virtually every deep
-learning model regardless of architecture.
+Residual Connections wurden 2015 von Forschern bei Microsoft in
+einem Paper über Bilderkennung eingeführt. Sie zeigten, dass ein
+Netz mit 152 Layern und Residual Connections ein Netz mit 19 Layern
+ohne diese übertraf. Die Idee wurde 2017 von den Autoren des
+Transformer-Papers übernommen. Heute werden Residual Connections in
+praktisch jedem Deep-Learning-Modell eingesetzt, unabhängig von der
+Architektur.
 
-## How it works: a concrete example
+## Wie es funktioniert: ein konkretes Beispiel
 
-Let us trace a single number flowing through a residual
-connection.
+Verfolgen wir, wie eine einzelne Zahl durch eine Residual Connection
+fließt.
 
-### Without residual
+### Ohne Residual
 
 ```
 Input x = 2.0
 
-The attention layer processes it:
+Der Attention-Layer verarbeitet ihn:
 attention_output = 0.1
 
-Final output = 0.1
+Finaler Output = 0.1
 ```
 
-The original value of 2.0 is completely gone. The layer replaced
-it. If the layer outputs garbage the garbage becomes the new
-input for the next layer. Garbage in garbage out.
+Der ursprüngliche Wert von 2.0 ist vollständig verschwunden. Der
+Layer hat ihn ersetzt. Wenn der Layer Müll ausgibt, wird dieser
+Müll zum neuen Input für den nächsten Layer. Garbage in, Garbage
+out.
 
-### With residual
+### Mit Residual
 
 ```
 Input x = 2.0
 
-RMSNorm normalizes it: norm(x) = 1.5
-The attention layer processes it: attention(norm(x)) = 0.1
+RMSNorm normalisiert ihn: norm(x) = 1.5
+Der Attention-Layer verarbeitet ihn: attention(norm(x)) = 0.1
 
-Final output = x + attention(norm(x))
+Finaler Output = x + attention(norm(x))
              = 2.0 + 0.1
              = 2.1
 ```
 
-The original value of 2.0 is preserved. The layer added a small
-correction of 0.1. The output is very close to the input. If the
-layer outputs garbage the residual connection still passes the
-good input through. The model can survive a bad layer.
+Der ursprüngliche Wert von 2.0 bleibt erhalten. Der Layer hat eine
+kleine Korrektur von 0.1 hinzugefügt. Der Output liegt sehr nah am
+Input. Wenn der Layer Müll ausgibt, lässt die Residual Connection
+trotzdem den guten Input durch. Das Modell kann einen schlechten
+Layer überstehen.
 
-### What this means for learning
+### Was das für das Lernen bedeutet
 
-The model does not need to learn the correct output from scratch
-at every layer. It only needs to learn what *change* to make to
-the input. This is a much easier problem.
+Das Modell muss den korrekten Output nicht bei jedem Layer von
+Grund auf neu lernen. Es muss nur lernen, welche *Änderung* am
+Input vorzunehmen ist. Das ist ein viel einfacheres Problem.
 
 ```
-Learning target without residual: "Produce the number 2.1"
-Learning target with residual:    "Add 0.1 to the input"
+Lernziel ohne Residual: "Erzeuge die Zahl 2.1"
+Lernziel mit Residual:  "Addiere 0.1 zum Input"
 ```
 
-The second target is easier because the layer starts by outputting
-zero. At initialization with small weights most neural network
-layers output values very close to zero. So the residual block
-behaves like an identity function at first. Nothing changes. Then
-during training the model learns to add meaningful deltas. The
-architecture biases the model toward preserving its input and
-making small improvements. This is exactly what we want.
+Das zweite Ziel ist einfacher, weil der Layer anfangs null ausgibt.
+Bei der Initialisierung mit kleinen Weights geben die meisten Layer
+eines neuronalen Netzes Werte sehr nahe null aus. Der
+Residual-Block verhält sich also anfangs wie eine
+Identitätsfunktion. Es ändert sich nichts. Im Laufe des Trainings
+lernt das Modell dann, sinnvolle Deltas hinzuzufügen. Die
+Architektur begünstigt, dass das Modell seinen Input bewahrt und
+kleine Verbesserungen vornimmt. Genau das wollen wir.
 
-## A tiny code example
+## Ein winziges Code-Beispiel
 
 ```python
 import torch
 import torch.nn as nn
 
-# A simple layer with and without residual
+# Ein einfacher Layer mit und ohne Residual
 class NoResidual(nn.Module):
     def forward(self, x):
-        return torch.tanh(x)  # Just the layer output
+        return torch.tanh(x)  # Nur der Layer-Output
 
 class WithResidual(nn.Module):
     def forward(self, x):
-        return x + torch.tanh(x)  # Input plus layer output
+        return x + torch.tanh(x)  # Input plus Layer-Output
 
 x = torch.tensor([2.0, -1.0, 0.5, -3.0])
 
@@ -190,7 +198,7 @@ print("With residual the output is the input plus a small correction.")
 print("The original information is always preserved in the sum.")
 ```
 
-Running this code you will see something like:
+Wenn du diesen Code ausführst, siehst du etwa Folgendes:
 
 ```
 Input:           tensor([ 2.0000, -1.0000,  0.5000, -3.0000])
@@ -198,15 +206,16 @@ Without residual: tensor([ 0.9640, -0.7616,  0.4621, -0.9950])
 With residual:    tensor([ 2.9640, -1.7616,  0.9621, -3.9950])
 ```
 
-The without residual output is squashed into the range from
-negative one to one. All information about the magnitude of the
-input is gone. The with residual output preserves the original
-values and adds small adjustments on top.
+Der Output ohne Residual wird in den Bereich von minus eins bis
+eins gequetscht. Alle Information über die Größenordnung des Inputs
+ist verloren. Der Output mit Residual bewahrt die ursprünglichen
+Werte und addiert kleine Anpassungen obendrauf.
 
-## The gradient test
+## Der Gradiententest
 
-We can actually measure the gradient flow. Let us stack many
-layers and see which one lets the gradient survive.
+Wir können den Gradientenfluss tatsächlich messen. Stapeln wir
+viele Layer übereinander und schauen wir, welche Variante den
+Gradienten überleben lässt.
 
 ```python
 import torch
@@ -215,7 +224,7 @@ import torch.nn as nn
 x = torch.tensor([1.0], requires_grad=True)
 layer = nn.Linear(1, 1)
 
-# Stack 50 layers WITHOUT residuals
+# 50 Layer OHNE Residuals stapeln
 current = x
 for _ in range(50):
     current = torch.tanh(layer(current))
@@ -223,7 +232,7 @@ for _ in range(50):
 current.backward()
 print(f"Gradient after 50 layers WITHOUT residuals: {x.grad.item():.10f}")
 
-# Stack 50 layers WITH residuals
+# 50 Layer MIT Residuals stapeln
 x.grad = None
 current = x
 for _ in range(50):
@@ -233,47 +242,47 @@ current.backward()
 print(f"Gradient after 50 layers WITH residuals:    {x.grad.item():.4f}")
 ```
 
-Running this code you will see something like:
+Wenn du diesen Code ausführst, siehst du etwa Folgendes:
 
 ```
 Gradient after 50 layers WITHOUT residuals: 0.0000000000
 Gradient after 50 layers WITH residuals:    0.2314
 ```
 
-Without residuals the gradient vanishes completely after fifty
-layers. The first layer cannot learn anything. With residuals the
-gradient is still healthy. Every layer can learn.
+Ohne Residuals verschwindet der Gradient nach fünfzig Layern
+vollständig. Der erste Layer kann nichts lernen. Mit Residuals
+bleibt der Gradient gesund. Jeder Layer kann lernen.
 
-## The mental model
+## Das mentale Modell
 
-Think of a deep neural network as trying to learn a complicated
-function. The function might be something like *understand this
-paragraph of text*. Without residuals the network must learn this
-function from scratch at every layer. Each layer must figure out
-the whole thing from the raw input. This is hard.
+Stell dir ein tiefes neuronales Netz vor, das versucht, eine
+komplizierte Funktion zu lernen. Die Funktion könnte etwa lauten:
+*verstehe diesen Textabschnitt*. Ohne Residuals muss das Netz diese
+Funktion bei jedem Layer von Grund auf neu lernen. Jeder Layer muss
+das Ganze aus dem rohen Input herausfinden. Das ist schwer.
 
-With residuals each layer only needs to learn the *difference*
-between perfect output and the current output. The first layer
-learns a little. The second layer refines. The third layer
-refines further. Each layer makes a small improvement on top of
-what came before. This is like sculpting. Start with a block of
-stone. Chip away a little. Chip away a little more. Eventually
-you have a statue. You never threw away the original block. You
-just refined it.
+Mit Residuals muss jeder Layer nur die *Differenz* zwischen dem
+perfekten Output und dem aktuellen Output lernen. Der erste Layer
+lernt ein bisschen. Der zweite Layer verfeinert. Der dritte Layer
+verfeinert weiter. Jeder Layer nimmt eine kleine Verbesserung an
+dem vor, was zuvor kam. Das ist wie Bildhauerei. Du fängst mit
+einem Steinblock an. Du schlägst ein bisschen ab. Du schlägst noch
+ein bisschen ab. Am Ende hast du eine Statue. Du hast den
+ursprünglichen Block nie weggeworfen. Du hast ihn nur verfeinert.
 
-## What you need to remember
+## Was du dir merken musst
 
-Residual connections let the input skip past each layer and be
-added to the output. This creates a direct path for gradients to
-flow backward through the entire network without being multiplied
-by small numbers at each step.
+Residual Connections lassen den Input an jedem Layer vorbeilaufen
+und zum Output addieren. Das schafft einen direkten Pfad, über den
+Gradienten rückwärts durch das gesamte Netz fließen können, ohne
+bei jedem Schritt mit kleinen Zahlen multipliziert zu werden.
 
-Without residual connections deep networks suffer from vanishing
-gradients and cannot be trained. With residual connections
-gradients survive even through hundreds of layers. This is why
-GPT-3 can have ninety six layers and still learn effectively. The
-gradient highway stays open from the last layer all the way back
-to the first.
+Ohne Residual Connections leiden tiefe Netze unter Vanishing
+Gradients und lassen sich nicht trainieren. Mit Residual
+Connections überleben Gradienten sogar durch Hunderte von Layern
+hindurch. Deshalb kann GPT-3 sechsundneunzig Layer haben und
+trotzdem effektiv lernen. Der Gradienten-Highway bleibt vom letzten
+bis zum ersten Layer durchgehend offen.
 
-The fix is one plus sign. Output equals input plus layer output.
-That single addition makes deep learning possible.
+Die Lösung ist ein einziges Pluszeichen. Output gleich Input plus
+Layer-Output. Diese eine Addition macht Deep Learning möglich.

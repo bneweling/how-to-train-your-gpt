@@ -1,27 +1,29 @@
-# A Token's Journey: One Sentence Through the Entire GPT
+# Die Reise eines Tokens: Ein Satz durch das gesamte GPT
 
-This is the story of one sentence. We will follow it from the moment it
-enters the model as raw text to the moment the model predicts the next
-word. Every number is real. Every step is explained. By the end you will
-see how every piece of the architecture works together.
+Dies ist die Geschichte eines einzigen Satzes. Wir folgen ihm von dem
+Moment an, in dem er als Rohtext in das Modell gelangt, bis zu dem
+Moment, in dem das Modell das nächste Wort vorhersagt. Jede Zahl ist
+real. Jeder Schritt wird erklärt. Am Ende wirst du sehen, wie jedes Teil
+der Architektur zusammenwirkt.
 
-## The sentence
+## Der Satz
 
 ```
 "The cat sat on the mat"
 ```
 
-Six words. One period. This is our test subject. We want the model to
-read this sentence and predict what word comes next. Maybe *comfortably*.
-Maybe *quietly*. Maybe *and*. The model does not know yet. It will figure
-it out step by step.
+Sechs Wörter. Ein Punkt. Das ist unser Testobjekt. Wir wollen, dass das
+Modell diesen Satz liest und vorhersagt, welches Wort als Nächstes
+kommt. Vielleicht *comfortably*. Vielleicht *quietly*. Vielleicht *and*.
+Das Modell weiß es noch nicht. Es wird es Schritt für Schritt
+herausfinden.
 
-## Step 1: Tokenization
+## Schritt 1: Tokenisierung
 
-The first thing the model does is break the sentence into tokens. Our
-tokenizer uses the same BPE vocabulary as GPT-2. It has 50257 tokens.
-Each token is a small piece of text. Common words get their own token.
-Punctuation gets its own token.
+Das Erste, was das Modell tut, ist, den Satz in Tokens zu zerlegen.
+Unser Tokenizer verwendet dasselbe BPE-Vokabular wie GPT-2. Es umfasst
+50257 Tokens. Jedes Token ist ein kleines Textstück. Häufige Wörter
+bekommen ihr eigenes Token. Satzzeichen bekommen ihr eigenes Token.
 
 ```
 "The cat sat on the mat."
@@ -29,21 +31,21 @@ Punctuation gets its own token.
 [464, 3797, 3332, 319, 262, 2603, 13]
 ```
 
-Seven tokens for seven pieces of text. Token 464 is *The* with a capital
-T. Token 3797 is *cat*. Token 3332 is *sat*. Token 319 is *on*. Token
-262 is *the* with a lowercase t. Token 2603 is *mat*. Token 13 is the
-period. Each token is just a number. The model does not know what these
-numbers mean yet.
+Sieben Tokens für sieben Textstücke. Token 464 ist *The* mit großem T.
+Token 3797 ist *cat*. Token 3332 ist *sat*. Token 319 ist *on*. Token
+262 ist *the* mit kleinem t. Token 2603 ist *mat*. Token 13 ist der
+Punkt. Jedes Token ist nur eine Zahl. Das Modell weiß noch nicht, was
+diese Zahlen bedeuten.
 
-## Step 2: Embedding lookup
+## Schritt 2: Embedding-Lookup
 
-The model has a giant lookup table. It has 50257 rows. Each row is a
-vector of 768 numbers. Row 3797 is the vector for *cat*. Row 2603 is the
-vector for *mat*. The model looks up each token ID and returns its
-vector.
+Das Modell besitzt eine riesige Lookup-Tabelle. Sie hat 50257 Zeilen.
+Jede Zeile ist ein Vektor aus 768 Zahlen. Zeile 3797 ist der Vektor für
+*cat*. Zeile 2603 ist der Vektor für *mat*. Das Modell schlägt jede
+Token-ID nach und liefert deren Vektor zurück.
 
 ```
-Token 464 ("The"):  [ 0.023, -0.451,  0.789, ..., -0.102]  (768 numbers)
+Token 464 ("The"):  [ 0.023, -0.451,  0.789, ..., -0.102]  (768 Zahlen)
 Token 3797 ("cat"): [ 0.019, -0.443,  0.795, ..., -0.098]
 Token 3332 ("sat"): [-0.231,  0.567, -0.334, ...,  0.445]
 Token 319 ("on"):   [ 0.891,  0.112, -0.334, ...,  0.567]
@@ -52,250 +54,266 @@ Token 2603 ("mat"): [ 0.445, -0.667,  0.223, ..., -0.111]
 Token 13 ("."):     [-0.123,  0.456, -0.789, ...,  0.234]
 ```
 
-We now have a matrix of shape 7 times 768. Seven rows. Seven hundred and
-sixty eight columns. This matrix is the input to the first transformer
-block.
+Wir haben jetzt eine Matrix der Form 7 mal 768. Sieben Zeilen.
+Siebenhundertachtundsechzig Spalten. Diese Matrix ist die Eingabe für
+den ersten Transformer-Block.
 
-At this point the vectors are random. The model was just initialized.
-*Cat* and *dog* are not near each other yet. Training will fix that. But
-even now the model can process them. The vectors exist. They have shape.
-The math can flow.
+An diesem Punkt sind die Vektoren zufällig. Das Modell wurde gerade erst
+initialisiert. *Cat* und *dog* liegen noch nicht nahe beieinander. Das
+Training wird das ändern. Aber schon jetzt kann das Modell sie
+verarbeiten. Die Vektoren existieren. Sie haben eine Form. Die
+Mathematik kann fließen.
 
-## Step 3: The first transformer block
+## Schritt 3: Der erste Transformer-Block
 
-The model has twelve transformer blocks. Each block does the same two
-things. First attention: let every word talk to every other word. Second
-feed forward: let each word think privately about what it heard.
+Das Modell hat zwölf Transformer-Blöcke. Jeder Block tut dasselbe
+Zweierlei. Erstens Attention: Jedes Wort darf mit jedem anderen Wort
+sprechen. Zweitens Feed-Forward: Jedes Wort denkt für sich allein
+darüber nach, was es gehört hat.
 
-### Step 3a: Multi-head attention
+### Schritt 3a: Multi-Head-Attention
 
-Attention is where the magic happens. The word *sat* needs to understand
-what it is doing in this sentence. It should look at *The* and *cat*
-because they tell it who is sitting. It should look at *on* and *the*
-and *mat* because they tell it where. It should look at the period
-because that tells it the sentence is ending.
+Attention ist der Ort, an dem die Magie geschieht. Das Wort *sat* muss
+verstehen, was es in diesem Satz tut. Es sollte auf *The* und *cat*
+schauen, weil sie ihm sagen, wer sitzt. Es sollte auf *on* und *the* und
+*mat* schauen, weil sie ihm sagen, wo. Es sollte auf den Punkt schauen,
+weil der ihm sagt, dass der Satz endet.
 
-The attention mechanism has twelve heads. Each head looks at the
-sentence from a different angle. One head might focus on subject-verb
-relationships. Another might focus on prepositional phrases. Another
-might focus on sentence boundaries.
+Der Attention-Mechanismus hat zwölf Heads. Jeder Head betrachtet den
+Satz aus einem anderen Blickwinkel. Ein Head könnte sich auf
+Subjekt-Verb-Beziehungen konzentrieren. Ein anderer könnte sich auf
+Präpositionalphrasen konzentrieren. Wieder ein anderer könnte sich auf
+Satzgrenzen konzentrieren.
 
-For one head with our seven tokens the model does the following:
+Für einen Head mit unseren sieben Tokens macht das Modell Folgendes:
 
-First it projects every token into three spaces. The Query space asks
-what am I looking for. The Key space says what do I have to offer. The
-Value space holds my actual content.
-
-```
-For token "sat" (position 2):
-Q = [ 0.34, -0.12,  0.78, ...]  (64 numbers for this head)
-K = [-0.23,  0.56, -0.41, ...]  (64 numbers)
-V = [ 0.67, -0.89,  0.12, ...]  (64 numbers)
-```
-
-Then it asks every other token: how well does my Query match your Key.
-This is the attention score. A high score means sat really wants what
-that token offers. A low score means sat does not care.
-
-Let us look at the computed scores for sat against every token. Before
-softmax these are raw numbers. Larger is better.
+Zuerst projiziert es jedes Token in drei Räume. Der Query-Raum fragt:
+Wonach suche ich? Der Key-Raum sagt: Was habe ich anzubieten? Der
+Value-Raum enthält meinen eigentlichen Inhalt.
 
 ```
-sat attending to "The" (pos 0): score = 0.42  (subject of the sentence)
-sat attending to "cat" (pos 1): score = 0.78  (who is doing the sitting)
-sat attending to "sat" (pos 2): score = 0.15  (itself, always some self attention)
-sat attending to "on"  (pos 3): score = 0.31  (where the sitting happens)
-sat attending to "the" (pos 4): score = 0.22
-sat attending to "mat" (pos 5): score = 0.28  (the object under the cat)
-sat attending to "."   (pos 6): score = 0.05  (punctuation, least important)
+Für Token "sat" (Position 2):
+Q = [ 0.34, -0.12,  0.78, ...]  (64 Zahlen für diesen Head)
+K = [-0.23,  0.56, -0.41, ...]  (64 Zahlen)
+V = [ 0.67, -0.89,  0.12, ...]  (64 Zahlen)
 ```
 
-The word *cat* gets the highest score. This makes sense. The verb *sat*
-needs to know who is sitting. *cat* is the subject. *on* and *mat* are
-also relevant but less critical. The period is irrelevant to
-understanding the action.
+Dann fragt es jedes andere Token: Wie gut passt meine Query zu deinem
+Key? Das ist der Attention-Score. Ein hoher Score bedeutet, dass sat
+wirklich will, was dieses Token anbietet. Ein niedriger Score bedeutet,
+dass es sat egal ist.
 
-These scores are divided by the square root of 64 which is 8. This keeps
-the numbers from getting too large. Then softmax converts them to
-percentages.
-
-```
-After softmax:
-sat attending to "The": 0.18  (18 percent attention)
-sat attending to "cat": 0.35  (35 percent)
-sat attending to "sat": 0.10  (10 percent)
-sat attending to "on":  0.13  (13 percent)
-sat attending to "the": 0.11  (11 percent)
-sat attending to "mat": 0.12  (12 percent)
-sat attending to ".":   0.01  (1 percent)
-Total: 1.00 (100 percent)
-```
-
-Now the model mixes the Value vectors using these percentages. The new
-representation of *sat* is a weighted blend of all the Values.
+Schauen wir uns die berechneten Scores von sat gegenüber jedem Token an.
+Vor dem Softmax sind das rohe Zahlen. Größer ist besser.
 
 ```
-New sat = 0.18 × V_The + 0.35 × V_cat + 0.10 × V_sat
-        + 0.13 × V_on  + 0.11 × V_the + 0.12 × V_mat
-        + 0.01 × V_period
+sat achtet auf "The" (Pos. 0): Score = 0.42  (Subjekt des Satzes)
+sat achtet auf "cat" (Pos. 1): Score = 0.78  (wer sitzt)
+sat achtet auf "sat" (Pos. 2): Score = 0.15  (sich selbst, immer etwas Self-Attention)
+sat achtet auf "on"  (Pos. 3): Score = 0.31  (wo das Sitzen stattfindet)
+sat achtet auf "the" (Pos. 4): Score = 0.22
+sat achtet auf "mat" (Pos. 5): Score = 0.28  (das Objekt unter der Katze)
+sat achtet auf "."   (Pos. 6): Score = 0.05  (Satzzeichen, am wenigsten wichtig)
 ```
 
-The new *sat* now contains information about *cat* and *on* and *mat*.
-It knows its subject and its object. It is no longer just the word
-*sat*. It is the word *sat* in the context of this specific sentence.
+Das Wort *cat* erhält den höchsten Score. Das ergibt Sinn. Das Verb
+*sat* muss wissen, wer sitzt. *cat* ist das Subjekt. *on* und *mat* sind
+ebenfalls relevant, aber weniger entscheidend. Der Punkt ist für das
+Verständnis der Handlung irrelevant.
 
-The same process happens for every token. *mat* looks back and sees
-*on* and *the* and realizes it is part of a prepositional phrase. *The*
-looks at *cat* and realizes it is modifying a noun. Every token gains
-context from every other token.
-
-### Step 3b: The feed forward network
-
-After attention every token has mixed information from all other tokens.
-Now each token needs to think independently about what it just learned.
-The feed forward network processes every token alone with the same
-weights.
-
-The feed forward network expands from 768 dimensions to 3072 dimensions
-and back to 768. In the middle it applies the SwiGLU activation. The
-gate decides what information to keep and what to throw away.
+Diese Scores werden durch die Quadratwurzel von 64, also 8, geteilt. Das
+verhindert, dass die Zahlen zu groß werden. Anschließend wandelt Softmax
+sie in Prozentwerte um.
 
 ```
-For token "sat":
-Input:  [0.45, -0.23, 0.67, ..., -0.11]  (768 numbers, context aware from attention)
-Expand: multiply by W1 (768 → 3072)
-Gate:   multiply by W2 (768 → 3072) then apply gate
-Combine: SiLU(expand) × gate  (element wise multiply)
-Project: multiply by W3 (3072 → 768)
-Output: [0.41, -0.28, 0.71, ..., -0.09]  (768 numbers, further processed)
+Nach Softmax:
+sat achtet auf "The": 0.18  (18 Prozent Attention)
+sat achtet auf "cat": 0.35  (35 Prozent)
+sat achtet auf "sat": 0.10  (10 Prozent)
+sat achtet auf "on":  0.13  (13 Prozent)
+sat achtet auf "the": 0.11  (11 Prozent)
+sat achtet auf "mat": 0.12  (12 Prozent)
+sat achtet auf ".":   0.01  (1 Prozent)
+Summe: 1.00 (100 Prozent)
 ```
 
-Before the FFN output is committed the residual connection adds back the
-original input. This is the gradient highway. If the FFN produced
-garbage the original signal still passes through.
+Nun mischt das Modell die Value-Vektoren anhand dieser Prozentwerte. Die
+neue Repräsentation von *sat* ist eine gewichtete Mischung aller Values.
 
 ```
-Final output for this block = input + FFN_output
-                             = [0.45, -0.23, ..., -0.11] + [0.41, -0.28, ..., -0.09]
-                             = [0.86, -0.51, ..., -0.20]
+Neues sat = 0.18 × V_The + 0.35 × V_cat + 0.10 × V_sat
+          + 0.13 × V_on  + 0.11 × V_the + 0.12 × V_mat
+          + 0.01 × V_period
 ```
 
-The token has been updated. It carries more information than before. The
-original meaning is still there but it has been refined.
+Das neue *sat* enthält nun Informationen über *cat* und *on* und *mat*.
+Es kennt sein Subjekt und sein Objekt. Es ist nicht mehr nur das Wort
+*sat*. Es ist das Wort *sat* im Kontext dieses spezifischen Satzes.
 
-## Step 4: Through the remaining blocks
+Derselbe Prozess läuft für jedes Token ab. *mat* blickt zurück, sieht
+*on* und *the* und erkennt, dass es Teil einer Präpositionalphrase ist.
+*The* schaut auf *cat* und erkennt, dass es ein Nomen modifiziert. Jedes
+Token gewinnt Kontext von jedem anderen Token.
 
-The same process repeats eleven more times. Each block the tokens get
-slightly better at understanding each other. The attention patterns
-become more sophisticated. The feed forward networks add more nuance.
+### Schritt 3b: Das Feed-Forward-Netzwerk
 
-By block twelve the representation of *sat* no longer looks anything
-like the original embedding. It has been shaped by attention to its
-subject *cat*. It has been shaped by attention to its object *mat*. It
-has been processed through twelve feed forward networks. The original
-768 numbers have been transformed into 768 numbers that encode
-everything the model knows about this specific occurrence of the verb
-*sat*.
+Nach der Attention hat jedes Token Informationen von allen anderen
+Tokens vermischt. Jetzt muss jedes Token unabhängig darüber nachdenken,
+was es gerade gelernt hat. Das Feed-Forward-Netzwerk verarbeitet jedes
+Token einzeln mit denselben Weights.
 
-## Step 5: Predicting the next word
-
-After the final transformer block the model applies one last RMSNorm
-to clean up the representations. Then it projects the vector for the
-last token back to vocabulary space.
+Das Feed-Forward-Netzwerk erweitert von 768 Dimensionen auf 3072
+Dimensionen und dann wieder zurück auf 768. In der Mitte wendet es die
+SwiGLU-Aktivierung an. Das Gate entscheidet, welche Informationen
+behalten und welche verworfen werden.
 
 ```
-Vector for "." (position 6, the last token):
-[0.12, -0.34, 0.56, ..., -0.78]  (768 numbers)
-
-Project to vocabulary:
-Multiply by the LM head weight matrix (768 × 50257)
-Result: 50257 numbers. One score for every possible next token.
+Für Token "sat":
+Eingabe:  [0.45, -0.23, 0.67, ..., -0.11]  (768 Zahlen, durch Attention kontextbewusst)
+Erweitern: Multiplikation mit W1 (768 → 3072)
+Gate:   Multiplikation mit W2 (768 → 3072), danach Gate anwenden
+Kombinieren: SiLU(Erweitern) × Gate  (elementweise Multiplikation)
+Projektion: Multiplikation mit W3 (3072 → 768)
+Ausgabe: [0.41, -0.28, 0.71, ..., -0.09]  (768 Zahlen, weiter verarbeitet)
 ```
 
-These 50257 numbers are called logits. The highest logit is the model's
-best guess for the next word. Let us look at the top five predictions.
+Bevor die FFN-Ausgabe endgültig übernommen wird, addiert die Residual
+Connection die ursprüngliche Eingabe wieder hinzu. Das ist die
+Gradienten-Autobahn. Selbst wenn das FFN Unsinn produziert hätte, würde
+das ursprüngliche Signal trotzdem hindurchgelangen.
 
 ```
-Token 13  ("."):    logit = -0.23  (the model could predict another period)
-Token 290 (" and"): logit = 2.34   (and then what happened next)
-Token 3797 ("cat"): logit = -1.45  (unlikely to repeat cat here)
-Token 198 ("\n"):   logit = 3.12   (start a new paragraph)
-Token 50256 ("<|endoftext|>"): logit = 4.56  (end the document)
+Finale Ausgabe dieses Blocks = Eingabe + FFN_output
+                              = [0.45, -0.23, ..., -0.11] + [0.41, -0.28, ..., -0.09]
+                              = [0.86, -0.51, ..., -0.20]
 ```
 
-The highest score is 4.56 for the end of text token. The model thinks
-the sentence is complete. The second highest is 3.12 for a newline. The
-third is 2.34 for the word *and*.
+Das Token wurde aktualisiert. Es trägt mehr Informationen als zuvor. Die
+ursprüngliche Bedeutung ist noch vorhanden, wurde aber verfeinert.
 
-If we use greedy sampling we pick the highest. The model outputs the end
-of text token. The generation stops. The sentence is done.
+## Schritt 4: Durch die übrigen Blöcke
 
-If we use temperature 0.8 the probabilities spread out more. The model
-might pick *and* instead. The story continues.
+Derselbe Prozess wiederholt sich noch elf weitere Male. Mit jedem Block
+werden die Tokens ein wenig besser darin, einander zu verstehen. Die
+Attention-Muster werden ausgefeilter. Die Feed-Forward-Netzwerke fügen
+mehr Nuancen hinzu.
+
+Bis Block zwölf ähnelt die Repräsentation von *sat* in keiner Weise mehr
+dem ursprünglichen Embedding. Sie wurde durch Attention auf ihr Subjekt
+*cat* geformt. Sie wurde durch Attention auf ihr Objekt *mat* geformt.
+Sie wurde durch zwölf Feed-Forward-Netzwerke verarbeitet. Die
+ursprünglichen 768 Zahlen wurden in 768 Zahlen umgewandelt, die alles
+kodieren, was das Modell über dieses spezifische Vorkommen des Verbs
+*sat* weiß.
+
+## Schritt 5: Das nächste Wort vorhersagen
+
+Nach dem letzten Transformer-Block wendet das Modell ein abschließendes
+RMSNorm an, um die Repräsentationen zu bereinigen. Anschließend
+projiziert es den Vektor des letzten Tokens zurück in den
+Vokabularraum.
+
+```
+Vektor für "." (Position 6, das letzte Token):
+[0.12, -0.34, 0.56, ..., -0.78]  (768 Zahlen)
+
+Projektion in das Vokabular:
+Multiplikation mit der LM-Head-Weight-Matrix (768 × 50257)
+Ergebnis: 50257 Zahlen. Ein Score für jedes mögliche nächste Token.
+```
+
+Diese 50257 Zahlen werden Logits genannt. Der höchste Logit ist die
+beste Schätzung des Modells für das nächste Wort. Schauen wir uns die
+fünf besten Vorhersagen an.
+
+```
+Token 13  ("."):    Logit = -0.23  (das Modell könnte einen weiteren Punkt vorhersagen)
+Token 290 (" and"): Logit = 2.34   (und was dann als Nächstes geschah)
+Token 3797 ("cat"): Logit = -1.45  (unwahrscheinlich, dass cat hier wiederholt wird)
+Token 198 ("\n"):   Logit = 3.12   (einen neuen Absatz beginnen)
+Token 50256 ("<|endoftext|>"): Logit = 4.56  (das Dokument beenden)
+```
+
+Der höchste Score ist 4.56 für das End-of-Text-Token. Das Modell hält
+den Satz für abgeschlossen. Der zweithöchste ist 3.12 für einen
+Zeilenumbruch. Der dritte ist 2.34 für das Wort *and*.
+
+Verwenden wir Greedy Sampling, wählen wir den höchsten Wert. Das Modell
+gibt das End-of-Text-Token aus. Die Generierung stoppt. Der Satz ist
+fertig.
+
+Verwenden wir eine Temperature von 0.8, streuen die Wahrscheinlichkeiten
+stärker. Das Modell könnte stattdessen *and* wählen. Die Geschichte geht
+weiter.
 
 ```
 "The cat sat on the mat. And then it stretched and yawned..."
 ```
 
-If we use temperature 1.5 with top-k 50 the model gets creative.
+Verwenden wir eine Temperature von 1.5 mit Top-k 50, wird das Modell
+kreativ.
 
 ```
 "The cat sat on the mat. Quietly watching the birds through the window..."
 ```
 
-The choice of next word depends on the sampling parameters. But the
-model's raw prediction the logits is always the same. The model always
-thinks the most likely continuation is to end the sentence. The sampling
-knobs decide whether to follow that advice or explore alternatives.
+Die Wahl des nächsten Wortes hängt von den Sampling-Parametern ab. Aber
+die rohe Vorhersage des Modells, die Logits, ist immer dieselbe. Das
+Modell hält es immer für am wahrscheinlichsten, dass der Satz endet. Die
+Sampling-Regler entscheiden, ob diesem Rat gefolgt oder Alternativen
+erkundet werden.
 
-## What just happened
+## Was gerade passiert ist
 
-One sentence. Seven tokens. Through tokenization. Through embedding.
-Through twelve transformer blocks each containing attention and feed
-forward layers. Through final normalization. Through the output
-projection. The model read the sentence understood it and predicted what
-comes next.
+Ein Satz. Sieben Tokens. Durch die Tokenisierung. Durch das Embedding.
+Durch zwölf Transformer-Blöcke, von denen jeder Attention- und
+Feed-Forward-Layer enthält. Durch die finale Normalisierung. Durch die
+Ausgabeprojektion. Das Modell hat den Satz gelesen, verstanden und
+vorhergesagt, was als Nächstes kommt.
 
-The prediction was made possible by attention. The verb *sat* understood
-its subject *cat* and its object *mat* because attention let it look at
-every word that came before. The feed forward networks refined that
-understanding. The residual connections kept the gradient flowing.
+Die Vorhersage wurde durch Attention ermöglicht. Das Verb *sat*
+verstand sein Subjekt *cat* und sein Objekt *mat*, weil Attention es
+jedes vorangegangene Wort betrachten ließ. Die Feed-Forward-Netzwerke
+verfeinerten dieses Verständnis. Die Residual Connections hielten den
+Gradienten am Fließen.
 
-Every step we traced is the same whether the model has twelve layers or
-ninety six. Whether the embedding dimension is 768 or 12288. The math
-does not change. The numbers just get bigger. This sentence. These seven
-tokens. This is what every modern language model does billions of times
-every day.
+Jeder Schritt, den wir nachvollzogen haben, ist derselbe, egal ob das
+Modell zwölf Layer hat oder sechsundneunzig. Egal ob die
+Embedding-Dimension 768 oder 12288 beträgt. Die Mathematik ändert sich
+nicht. Nur die Zahlen werden größer. Dieser Satz. Diese sieben Tokens.
+Das ist es, was jedes moderne Sprachmodell milliardenfach jeden Tag tut.
 
-## What the model learned
+## Was das Modell gelernt hat
 
-After training on billions of sentences the model's embeddings are no
-longer random. The vector for *cat* has moved close to *dog* and *pet*
-and *feline*. The vector for *sat* has moved close to *rested* and
-*perched* and *settled*. The embedding space has organized itself into
-neighborhoods of meaning.
+Nach dem Training mit Milliarden von Sätzen sind die Embeddings des
+Modells nicht mehr zufällig. Der Vektor für *cat* hat sich nahe an
+*dog* und *pet* und *feline* bewegt. Der Vektor für *sat* hat sich nahe
+an *rested* und *perched* und *settled* bewegt. Der Embedding-Raum hat
+sich in Bedeutungsnachbarschaften organisiert.
 
-The attention patterns have specialized. Some heads always look backward
-to find the subject of a verb. Other heads track which nouns have been
-mentioned recently. Other heads focus on punctuation to understand
-sentence boundaries. These patterns emerge from the training data. No
-one programmed them. The model discovered them because they help predict
-the next word.
+Die Attention-Muster haben sich spezialisiert. Manche Heads schauen
+immer rückwärts, um das Subjekt eines Verbs zu finden. Andere Heads
+verfolgen, welche Nomen zuletzt erwähnt wurden. Wieder andere Heads
+konzentrieren sich auf Satzzeichen, um Satzgrenzen zu erkennen. Diese
+Muster entstehen aus den Trainingsdaten. Niemand hat sie programmiert.
+Das Modell hat sie entdeckt, weil sie dabei helfen, das nächste Wort
+vorherzusagen.
 
-The feed forward networks have become knowledge stores. One part of the
-network might recognize that *cat* and *mat* often appear together.
-Another part might know that sentences about cats often involve sitting
-or sleeping or hunting. These associations are baked into the weights
-during training.
+Die Feed-Forward-Netzwerke sind zu Wissensspeichern geworden. Ein Teil
+des Netzwerks erkennt vielleicht, dass *cat* und *mat* häufig zusammen
+auftreten. Ein anderer Teil weiß vielleicht, dass Sätze über Katzen oft
+mit Sitzen, Schlafen oder Jagen zu tun haben. Diese Assoziationen werden
+während des Trainings in die Weights eingebrannt.
 
-## The takeaway
+## Das Fazit
 
-A language model is a prediction machine. Give it tokens and it guesses
-the next one. Everything else follows from that. The architecture is
-designed to make those predictions as accurate as possible. The training
-is designed to extract patterns from billions of sentences. The
-inference tricks are designed to make generation fast and controllable.
+Ein Sprachmodell ist eine Vorhersagemaschine. Gib ihm Tokens, und es
+errät das nächste. Alles andere folgt daraus. Die Architektur ist darauf
+ausgelegt, diese Vorhersagen so präzise wie möglich zu machen. Das
+Training ist darauf ausgelegt, Muster aus Milliarden von Sätzen zu
+extrahieren. Die Inference-Tricks sind darauf ausgelegt, die Generierung
+schnell und steuerbar zu machen.
 
-But at its core it is always the same story. Tokens in. Attention across.
-Feed forward through. Logits out. Pick one. Repeat. That is the entire
-secret of modern AI.
+Aber im Kern ist es immer dieselbe Geschichte. Tokens rein. Attention
+hindurch. Feed Forward durch. Logits raus. Eins auswählen. Wiederholen.
+Das ist das ganze Geheimnis moderner KI.

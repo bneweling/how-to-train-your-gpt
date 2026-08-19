@@ -1,64 +1,70 @@
 # LoRA: Low-Rank Adaptation
 
-## The short answer
+## Kurz gesagt
 
-LoRA fine-tunes a model without changing its original weights. It adds
-small trainable matrices to specific layers. At the end you have the
-original model plus a tiny adapter file. The adapter is usually a few
-megabytes. You can train adapters for different tasks and swap them
-instantly. One model. Many skills.
+LoRA passt ein Modell per Fine-Tuning an, ohne seine ursprünglichen
+Weights zu verändern. Es fügt kleine trainierbare Matrizen in bestimmte
+Layer ein. Am Ende hat man das ursprüngliche Modell plus eine winzige
+Adapter-Datei. Der Adapter ist meist nur wenige Megabyte groß. Man kann
+Adapter für unterschiedliche Aufgaben trainieren und sie sofort
+austauschen. Ein Modell. Viele Fähigkeiten.
 
-## Where it sits
+## Wo es ansetzt
 
-LoRA is inserted into the linear layers of the transformer. Typically
-the query and value projections in attention and sometimes the feed
-forward layers. The original weight matrix stays frozen. LoRA adds two
-small matrices that are trained from scratch.
+LoRA wird in die linearen Layer des Transformers eingefügt.
+Typischerweise in die Query- und Value-Projektionen der Attention und
+manchmal in die Feed-Forward-Layer. Die ursprüngliche Weight-Matrix
+bleibt eingefroren. LoRA fügt zwei kleine Matrizen hinzu, die von Grund
+auf trainiert werden.
 
 ```
-Without LoRA:
-  output = input @ W  (W is large, 768 × 768, 589,824 params)
+Ohne LoRA:
+  output = input @ W  (W ist groß, 768 × 768, 589,824 params)
 
-With LoRA:
+Mit LoRA:
   output = input @ W + input @ A @ B
                       ^^^^^^^^^^^^^^^^
-                      W is frozen. A and B are trained.
-                      A is 768 × 16 (12,288 params)
-                      B is 16 × 768 (12,288 params)
-                      LoRA adds only 24,576 params per layer
+                      W ist eingefroren. A und B werden trainiert.
+                      A ist 768 × 16 (12,288 params)
+                      B ist 16 × 768 (12,288 params)
+                      LoRA fügt nur 24,576 params pro Layer hinzu
 ```
 
-The rank r is small. Typically 8 16 or 32. Our example uses 16. The
-original weight matrix has rank up to 768. LoRA constrains the update
-to be low rank. The hypothesis is that fine-tuning updates are low rank
-anyway. You do not need the full rank to adapt a pretrained model to a
-new task. A small subspace is enough.
+Der Rank r ist klein. Typischerweise 8, 16 oder 32. Unser Beispiel
+verwendet 16. Die ursprüngliche Weight-Matrix hat einen Rank von bis zu
+768. LoRA beschränkt das Update auf einen niedrigen Rank. Die Hypothese
+ist, dass Fine-Tuning-Updates ohnehin einen niedrigen Rank haben. Um
+ein vortrainiertes Modell an eine neue Aufgabe anzupassen, braucht man
+nicht den vollen Rank. Ein kleiner Unterraum genügt.
 
-## Why it works
+## Warum es funktioniert
 
-Pretrained models have rich representations. The weights already encode
-the structure of language. Fine-tuning does not need to teach the model
-language again. It only needs to teach a new behavior on top of the
-existing understanding. Teaching a new behavior on top of a rich
-representation requires only small adjustments. LoRA captures those
-small adjustments in a compact form.
+Vortrainierte Modelle verfügen über reichhaltige Repräsentationen. Die
+Weights kodieren bereits die Struktur der Sprache. Fine-Tuning muss dem
+Modell nicht erneut Sprache beibringen. Es muss ihm nur ein neues
+Verhalten auf Basis des vorhandenen Verständnisses vermitteln. Ein
+neues Verhalten auf Basis einer reichhaltigen Repräsentation zu
+vermitteln erfordert nur kleine Anpassungen. LoRA erfasst diese kleinen
+Anpassungen in kompakter Form.
 
-The rank r controls the tradeoff. Higher rank means more capacity to
-learn complex patterns. But also more parameters and slower training.
-For most instruction tuning tasks a rank of 8 or 16 is sufficient.
-For tasks that require learning new formats or patterns a rank of 32
-or 64 might help.
+Der Rank r steuert diesen Tradeoff. Ein höherer Rank bedeutet mehr
+Kapazität, um komplexe Muster zu lernen. Aber auch mehr Parameter und
+langsameres Training. Für die meisten Instruction-Tuning-Aufgaben
+reicht ein Rank von 8 oder 16 aus. Für Aufgaben, die das Erlernen
+neuer Formate oder Muster erfordern, kann ein Rank von 32 oder 64
+helfen.
 
-## The math
+## Die Mathematik
 
-A full fine-tuning update to a weight matrix W is ΔW. The new weight
-is W + ΔW. ΔW has the same shape as W. For a 768 by 768 matrix ΔW
-has 589824 independent parameters.
+Ein vollständiges Fine-Tuning-Update einer Weight-Matrix W ist ΔW. Das
+neue Weight ist W + ΔW. ΔW hat dieselbe Shape wie W. Bei einer
+768-mal-768-Matrix hat ΔW 589824 unabhängige Parameter.
 
-LoRA approximates ΔW as the product of two smaller matrices A and B.
-A has shape 768 by r. B has shape r by 768. Their product A times B has
-shape 768 by 768 but only 2 times 768 times r independent parameters.
-For r equals 16 that is 24576 parameters. A compression ratio of 24.
+LoRA approximiert ΔW als das Produkt zweier kleinerer Matrizen A und B.
+A hat die Shape 768 mal r. B hat die Shape r mal 768. Ihr Produkt A mal
+B hat die Shape 768 mal 768, aber nur 2 mal 768 mal r unabhängige
+Parameter. Für r gleich 16 sind das 24576 Parameter. Ein
+Kompressionsverhältnis von 24.
 
 ```
 ΔW ≈ A × B
@@ -66,86 +72,91 @@ For r equals 16 that is 24576 parameters. A compression ratio of 24.
 ΔW[i][j] = sum over k from 0 to r-1: A[i][k] × B[k][j]
 ```
 
-During training W is frozen. Gradients flow only through A and B. A
-is initialized with random normal values. B is initialized to zero so
-that at the start of training the adapter does nothing. The model
-behaves exactly like the base model until A and B start learning.
+Während des Trainings ist W eingefroren. Gradients fließen nur durch A
+und B. A wird mit zufälligen, normalverteilten Werten initialisiert. B
+wird mit Null initialisiert, sodass der Adapter zu Beginn des
+Trainings nichts bewirkt. Das Modell verhält sich exakt wie das
+Basismodell, bis A und B zu lernen beginnen.
 
-## The alpha parameter
+## Der Alpha-Parameter
 
-LoRA has a scaling factor called alpha. The LoRA output is scaled by
-alpha divided by rank before being added to the original output.
+LoRA hat einen Skalierungsfaktor namens Alpha. Der LoRA-Output wird mit
+Alpha geteilt durch Rank skaliert, bevor er zum ursprünglichen Output
+addiert wird.
 
 ```
 output = input @ W + (alpha / r) × (input @ A @ B)
 ```
 
-Alpha controls how much influence the adapter has. A larger alpha means
-the adapter has more impact on the output. The standard value is twice
-the rank. So for rank 16 alpha is usually 32.
+Alpha steuert, wie viel Einfluss der Adapter hat. Ein größeres Alpha
+bedeutet, dass der Adapter mehr Auswirkung auf den Output hat. Der
+Standardwert ist das Doppelte des Rank. Für Rank 16 ist Alpha also
+üblicherweise 32.
 
-When you change the rank the alpha to rank ratio determines the
-effective learning rate of the adapter. Keeping alpha equal to twice
-the rank means the ratio stays 2 regardless of rank. This makes
-hyperparameter tuning transferable across rank values.
+Ändert man den Rank, bestimmt das Verhältnis von Alpha zu Rank die
+effektive Learning Rate des Adapters. Hält man Alpha gleich dem
+Doppelten des Rank, bleibt das Verhältnis unabhängig vom Rank bei 2.
+Das macht das Hyperparameter-Tuning über verschiedene Rank-Werte hinweg
+übertragbar.
 
-## The dropout
+## Der Dropout
 
-LoRA adapters usually include a small dropout on the A matrix output.
-Dropout is 0.05 or 0.1. It prevents the adapter from overfitting to
-the limited fine-tuning data. The base model provides regularization
-because its weights are frozen. The adapter needs its own small
-regularization.
+LoRA-Adapter enthalten meist ein kleines Dropout auf dem Output der
+A-Matrix. Der Dropout-Wert liegt bei 0,05 oder 0,1. Das verhindert,
+dass der Adapter auf den begrenzten Fine-Tuning-Daten overfittet. Das
+Basismodell sorgt für Regularisierung, weil seine Weights eingefroren
+sind. Der Adapter benötigt eine eigene, kleine Regularisierung.
 
-## Which layers to adapt
+## Welche Layer angepasst werden
 
-The standard choice is query and value projections in every attention
-layer. Some configurations also adapt the output projection and the
-feed forward layers. More adapted layers means more capacity but also
-more parameters.
-
-```
-Minimal (recommended for most tasks):
-  Query projection (W_q)
-  Value projection (W_v)
-
-Standard (good for instruction tuning):
-  Query projection (W_q)
-  Value projection (W_v)
-  Key projection (W_k)
-  Output projection (W_o)
-
-Full (maximum capacity):
-  All linear layers including feed forward
-```
-
-For our model with 12 layers the minimal configuration adds about 0.3
-million parameters on top of 152 million frozen parameters. The adapter
-is about 2 megabytes. A full fine-tuning checkpoint would be 600
-megabytes for the same model.
-
-## Merging adapters
-
-At inference time you have two choices. Keep the adapter separate and
-compute the LoRA update on the fly. Or merge the adapter into the base
-weights for faster inference.
+Die Standardwahl sind Query- und Value-Projektionen in jedem
+Attention-Layer. Manche Konfigurationen passen auch die
+Output-Projektion und die Feed-Forward-Layer an. Mehr angepasste Layer
+bedeuten mehr Kapazität, aber auch mehr Parameter.
 
 ```
-Separate (training and experimentation):
+Minimal (für die meisten Aufgaben empfohlen):
+  Query-Projektion (W_q)
+  Value-Projektion (W_v)
+
+Standard (gut für Instruction-Tuning):
+  Query-Projektion (W_q)
+  Value-Projektion (W_v)
+  Key-Projektion (W_k)
+  Output-Projektion (W_o)
+
+Full (maximale Kapazität):
+  Alle linearen Layer inklusive Feed-Forward
+```
+
+Für unser Modell mit 12 Layern fügt die minimale Konfiguration etwa 0,3
+Millionen Parameter zu 152 Millionen eingefrorenen Parametern hinzu.
+Der Adapter ist etwa 2 Megabyte groß. Ein vollständiger
+Fine-Tuning-Checkpoint wäre bei demselben Modell 600 Megabyte groß.
+
+## Adapter mergen
+
+Zur Inferenzzeit gibt es zwei Möglichkeiten. Den Adapter getrennt
+halten und das LoRA-Update zur Laufzeit berechnen. Oder den Adapter
+für schnellere Inference in die Base-Weights mergen.
+
+```
+Separate (Training und Experimente):
   output = input @ W + input @ A @ B
-  Flexible. Easy to swap adapters. Slightly slower inference.
+  Flexibel. Adapter lassen sich leicht austauschen. Etwas langsamere Inference.
 
-Merged (deployment):
+Merged (Deployment):
   W_merged = W + A @ B
   output = input @ W_merged
-  No extra computation. No slowdown. Permanent.
+  Kein zusätzlicher Rechenaufwand. Keine Verlangsamung. Permanent.
 ```
 
-Merging is a one way operation. After merging you cannot separate the
-adapter from the base weights. But inference is as fast as the original
-model. Most deployments merge before serving.
+Merging ist eine Einwegoperation. Nach dem Mergen lässt sich der
+Adapter nicht mehr von den Base-Weights trennen. Aber die Inference
+ist genauso schnell wie beim ursprünglichen Modell. Die meisten
+Deployments mergen vor dem Serving.
 
-## A tiny code example
+## Ein kleines Code-Beispiel
 
 ```python
 import torch
@@ -172,7 +183,7 @@ class LoRALinear(nn.Module):
         lora = self.lora_b(self.lora_a(x)) * (self.alpha / self.rank)
         return base + lora
 
-# Replace a 768x768 linear layer with LoRA
+# Ersetzt einen 768x768 Linear-Layer durch LoRA
 layer = LoRALinear(768, 768, rank=16)
 
 frozen_params = sum(p.numel() for p in layer.parameters() if not p.requires_grad)
@@ -183,11 +194,13 @@ print(f"Trainable parameters: {trainable_params:,}")
 print(f"Compression ratio: {frozen_params / trainable_params:.0f}x")
 ```
 
-## What you need to remember
+## Was man sich merken sollte
 
-LoRA adds small trainable matrices to frozen pretrained layers. The
-update is constrained to be low rank. The rank controls capacity versus
-parameter count. The alpha parameter scales the adapter influence.
-Adapters are tiny files that can be swapped at will. Merging eliminates
-inference overhead. LoRA makes fine-tuning accessible on consumer GPUs
-while maintaining most of the quality of full fine-tuning.
+LoRA fügt kleine trainierbare Matrizen zu eingefrorenen, vortrainierten
+Layern hinzu. Das Update ist auf einen niedrigen Rank beschränkt. Der
+Rank steuert das Verhältnis von Kapazität zu Parameteranzahl. Der
+Alpha-Parameter skaliert den Einfluss des Adapters. Adapter sind
+winzige Dateien, die sich beliebig austauschen lassen. Merging
+eliminiert den Overhead bei der Inference. LoRA macht Fine-Tuning auf
+Consumer-GPUs zugänglich und erhält dabei den Großteil der Qualität
+von vollständigem Fine-Tuning.

@@ -1,10 +1,10 @@
-# Cheatsheet: Everything You Need in One Place
+# Cheatsheet: Alles Wichtige auf einen Blick
 
-## Model sizes
+## Modellgrößen
 
-| Model | Layers | d_model | Heads | Head Dim | Params |
+| Modell | Layer | d_model | Heads | Head Dim | Parameter |
 |---|---|---|---|---|---|
-| Tiny (our default) | 4 | 256 | 4 | 64 | 17.1M |
+| Tiny (unser Standard) | 4 | 256 | 4 | 64 | 17.1M |
 | GPT-2 Small | 12 | 768 | 12 | 64 | 124M |
 | GPT-2 Medium | 24 | 1024 | 16 | 64 | 350M |
 | GPT-2 Large | 36 | 1280 | 20 | 64 | 774M |
@@ -15,60 +15,60 @@
 | LLaMA 13B | 40 | 5120 | 40 | 128 | 13B |
 | LLaMA 70B | 80 | 8192 | 64 | 128 | 70B |
 
-## Parameter count formula
+## Formel für die Parameteranzahl
 
-For our model with SwiGLU and weight tying:
+Für unser Modell mit SwiGLU und Weight Tying:
 
 ```
 Embedding:        vocab_size × d_model
-Per block QKV:    3 × d_model × d_model
-Per block Output: d_model × d_model
-Per block SwiGLU: 3 × d_model × (4 × d_model)
-Per block Norms:  2 × d_model
-LM Head:          0 (weight tied with embedding)
+Pro Block QKV:    3 × d_model × d_model
+Pro Block Output: d_model × d_model
+Pro Block SwiGLU: 3 × d_model × (4 × d_model)
+Pro Block Norms:  2 × d_model
+LM Head:          0 (Weight Tying mit dem Embedding)
 ```
 
-For GPT-2 Small equivalent (768 dims, 12 layers, 50257 vocab):
+Für das GPT-2-Small-Äquivalent (768 Dimensionen, 12 Layer, 50257 Vokabular):
 ```
-152M total = 38.6M (embedding) + 113.3M (12 blocks) + 768 (norm)
+152M gesamt = 38.6M (Embedding) + 113.3M (12 Blöcke) + 768 (Norm)
 ```
 
-## Training hyperparameters
+## Trainings-Hyperparameter
 
-| Parameter | Our Default | Range | Notes |
+| Parameter | Unser Standard | Bereich | Hinweise |
 |---|---|---|---|
-| Learning rate | 3e-4 | 1e-5 to 5e-4 | Lower for fine-tuning (1e-5 to 5e-5) |
-| Weight decay | 0.1 | 0.01 to 0.3 | Only on 2D+ params. Not norms/biases |
-| Betas | (0.9, 0.95) | : | LLaMA defaults. Don't change |
-| Epsilon | 1e-8 | : | Never needs tuning |
-| Warmup steps | 2000 | 500 to 5000 | ~5% of total steps |
-| Max steps | 100K | Depends on data | More data = more steps |
-| Batch size | 8 (× 4 accum) | As large as fits | Effective batch = 32 |
-| Grad clip | 1.0 | 0.5 to 2.0 | 1.0 is standard |
-| Dropout | 0.1 | 0.0 to 0.3 | Higher = more regularization |
+| Learning Rate | 3e-4 | 1e-5 bis 5e-4 | Niedriger für Fine-Tuning (1e-5 bis 5e-5) |
+| Weight Decay | 0.1 | 0.01 bis 0.3 | Nur bei 2D+-Parametern. Nicht bei Norms/Biases |
+| Betas | (0.9, 0.95) | : | LLaMA-Standardwerte. Nicht ändern |
+| Epsilon | 1e-8 | : | Muss nie angepasst werden |
+| Warmup-Steps | 2000 | 500 bis 5000 | ~5 % der Gesamtschritte |
+| Max Steps | 100K | Abhängig von den Daten | Mehr Daten = mehr Steps |
+| Batch Size | 8 (× 4 Accum) | So groß wie möglich | Effektive Batch Size = 32 |
+| Grad Clip | 1.0 | 0.5 bis 2.0 | 1.0 ist Standard |
+| Dropout | 0.1 | 0.0 bis 0.3 | Höher = mehr Regularisierung |
 
-## Sampling parameters
+## Sampling-Parameter
 
-| Parameter | Default | Use Case |
+| Parameter | Standard | Anwendungsfall |
 |---|---|---|
-| temperature | 0.8 | General. Lower = focused (0.3-0.5), higher = creative (1.2-1.5) |
-| top_k | 50 | Eliminate nonsense tokens. 0 = disabled |
-| top_p | 0.9 | Adaptive cutoff. 1.0 = disabled |
-| max_new_tokens | 100 | Depends on task. Longer for stories, shorter for answers |
+| temperature | 0.8 | Allgemein. Niedriger = fokussiert (0.3-0.5), höher = kreativ (1.2-1.5) |
+| top_k | 50 | Eliminiert unsinnige Token. 0 = deaktiviert |
+| top_p | 0.9 | Adaptiver Cutoff. 1.0 = deaktiviert |
+| max_new_tokens | 100 | Abhängig von der Aufgabe. Länger für Geschichten, kürzer für Antworten |
 
-## Key formulas
+## Wichtige Formeln
 
 ### Embedding
 ```
 output = self.embed(token_ids)
-No scaling with RoPE (LLaMA convention)
+Keine Skalierung bei RoPE (LLaMA-Konvention)
 ```
 
-### RoPE rotation angles
+### RoPE-Rotationswinkel
 ```
 θ_i = p / (10000^(2i / d_head))
-cos_cached = cos(θ_i)  for all p and i
-sin_cached = sin(θ_i)  for all p and i
+cos_cached = cos(θ_i)  für alle p und i
+sin_cached = sin(θ_i)  für alle p und i
 x_rotated = x * cos + rotate_half(x) * sin
 ```
 
@@ -82,11 +82,11 @@ Q_rot = RoPE(Q, seq_len)
 K_rot = RoPE(K, seq_len)
 
 scores = Q_rot @ K_rot^T / sqrt(head_dim)   [batch, heads, seq, seq]
-scores = masks(scores)                        (causal: upper triangle = -inf)
-weights = softmax(scores, dim=-1)              (row sum = 1.0)
+scores = masks(scores)                        (kausal: obere Dreiecksmatrix = -inf)
+weights = softmax(scores, dim=-1)              (Zeilensumme = 1.0)
 output = weights @ V                          [batch, heads, seq, head_dim]
 
-concat heads → [batch, seq, d_model]
+Heads konkatenieren → [batch, seq, d_model]
 output = concat @ W_o
 ```
 
@@ -96,20 +96,20 @@ rms = sqrt(mean(x^2) + eps)
 output = x / rms * weight
 ```
 
-### SwiGLU FFN
+### SwiGLU-FFN
 ```
 h = SiLU(input @ W1)     [batch, seq, 4×d_model]
 g = input @ W2           [batch, seq, 4×d_model]
 output = (h * g) @ W3     [batch, seq, d_model]
 ```
 
-### Cross entropy loss
+### Cross-Entropy-Loss
 ```
 loss = -log(P_model(true_token))
-For random model: loss ≈ ln(vocab_size) = ln(50257) ≈ 10.82
+Für ein zufälliges Modell: loss ≈ ln(vocab_size) = ln(50257) ≈ 10.82
 ```
 
-### AdamW update
+### AdamW-Update
 ```
 momentum = β1 × momentum + (1 - β1) × gradient
 velocity = β2 × velocity + (1 - β2) × gradient^2
@@ -117,11 +117,11 @@ velocity = β2 × velocity + (1 - β2) × gradient^2
 m_hat = momentum / (1 - β1^step)
 v_hat = velocity / (1 - β2^step)
 
-weight = weight * (1 - lr * weight_decay)     (decoupled)
+weight = weight * (1 - lr * weight_decay)     (entkoppelt)
 weight = weight - lr * m_hat / (sqrt(v_hat) + ε)
 ```
 
-### Cosine warmup schedule
+### Cosine-Warmup-Schedule
 ```
 if step < warmup:
     lr = max_lr * step / warmup
@@ -130,87 +130,87 @@ else:
     lr = min_lr + (max_lr - min_lr) * 0.5 * (1 + cos(π * progress))
 ```
 
-### Gradient clipping
+### Gradient Clipping
 ```
 total_norm = sqrt(Σ grad_i^2)
 if total_norm > max_norm:
     scale = max_norm / total_norm
-    grad_i *= scale for all i
+    grad_i *= scale für alle i
 ```
 
-## Memory requirements (approximate)
+## Speicherbedarf (ungefähr)
 
-| Model Size | bfloat16 Weights | Optimizer (AdamW) | Total (no batch) |
+| Modellgröße | bfloat16-Weights | Optimizer (AdamW) | Gesamt (ohne Batch) |
 |---|---|---|---|
-| 17M (tiny) | 34 MB | 136 MB | 170 MB |
-| 152M (GPT-2 small) | 304 MB | 1.2 GB | 1.5 GB |
+| 17M (Tiny) | 34 MB | 136 MB | 170 MB |
+| 152M (GPT-2 Small) | 304 MB | 1.2 GB | 1.5 GB |
 | 7B (LLaMA) | 14 GB | 56 GB | 70 GB |
 | 70B (LLaMA) | 140 GB | 560 GB | 700 GB |
 
-Optimizer states = 2 × params × 4 bytes (float32). Gradients = params × 4 bytes.
-Total training memory ≈ 2×weights + 2×optimizer + gradients + activations.
-With bfloat16 weights: ~8 bytes per parameter for full training.
+Optimizer-States = 2 × params × 4 Bytes (float32). Gradients = params × 4 Bytes.
+Gesamter Trainingsspeicher ≈ 2×weights + 2×optimizer + gradients + activations.
+Bei bfloat16-Weights: ~8 Bytes pro Parameter für vollständiges Training.
 
-## Shape conventions
+## Shape-Konventionen
 
-| Component | Input Shape | Output Shape |
+| Komponente | Input-Shape | Output-Shape |
 |---|---|---|
-| Tokenizer | text | [batch, seq] |
+| Tokenizer | Text | [batch, seq] |
 | Embedding | [batch, seq] | [batch, seq, d_model] |
-| RoPE | [batch, heads, seq, head_dim] | Same |
-| Attention (internal Q/K/V) | [batch, heads, seq, head_dim] | Same |
-| Attention (external) | [batch, seq, d_model] | [batch, seq, d_model] |
-| RMSNorm | [batch, seq, d_model] | Same |
-| SwiGLU | [batch, seq, d_model] | Same |
-| TransformerBlock | [batch, seq, d_model] | Same |
+| RoPE | [batch, heads, seq, head_dim] | Gleich |
+| Attention (intern Q/K/V) | [batch, heads, seq, head_dim] | Gleich |
+| Attention (extern) | [batch, seq, d_model] | [batch, seq, d_model] |
+| RMSNorm | [batch, seq, d_model] | Gleich |
+| SwiGLU | [batch, seq, d_model] | Gleich |
+| TransformerBlock | [batch, seq, d_model] | Gleich |
 | LM Head | [batch, seq, d_model] | [batch, seq, vocab_size] |
-| Loss | logits + targets | scalar |
+| Loss | logits + targets | Skalar |
 
-## What a good loss looks like
+## Wie ein guter Loss aussieht
 
 ```
-10.8: Random. Model knows nothing
-9.0:  Starting to learn word frequencies
-7.0:  Learning basic grammar
-5.0:  Coherent phrases emerging
-3.0:  Decent sentences. Still makes mistakes
-2.0:  Good model. Plausible text
-1.5:  Very good. Near production quality
-<1.0: Overfitting or memorization (on small datasets)
+10.8: Zufällig. Modell weiß noch nichts
+9.0:  Beginnt, Wortfrequenzen zu lernen
+7.0:  Lernt grundlegende Grammatik
+5.0:  Kohärente Phrasen entstehen
+3.0:  Passable Sätze. Macht noch Fehler
+2.0:  Gutes Modell. Plausibler Text
+1.5:  Sehr gut. Nahe an Produktionsqualität
+<1.0: Overfitting oder Auswendiglernen (bei kleinen Datensätzen)
 ```
 
-## Dataset sizes
+## Datensatzgrößen
 
-| Dataset | Documents | Tokens | Size |
+| Dataset | Dokumente | Token | Größe |
 |---|---|---|---|
 | WikiText-103 | 28,475 | 103M | 516 MB |
 | BookCorpus | ~11,000 | 985M | 5 GB |
 | C4 | 364M | 156B | 305 GB |
 | The Pile | : | 825B | 825 GB |
 
-## Common error messages
+## Häufige Fehlermeldungen
 
-| Error | Meaning |
+| Fehler | Bedeutung |
 |---|---|
-| `CUDA out of memory` | Batch too big or model too big. Reduce batch size or use gradient accumulation |
-| `nan in loss` | Learning rate too high or gradients exploded. Lower LR or add gradient clipping |
-| `loss = 10.82` | Model is random. Normal at step 0. If it stays there check optimizer and loss function |
-| `size mismatch` | Shape error. Check batch/seq/head dimensions. Common bug in reshape/permute |
-| `weights_only load failed` | PyTorch 2.6+ requires `weights_only=False` for checkpoints with custom classes |
+| `CUDA out of memory` | Batch zu groß oder Modell zu groß. Batch Size reduzieren oder Gradient Accumulation verwenden |
+| `nan in loss` | Learning Rate zu hoch oder Gradients explodiert. LR senken oder Gradient Clipping hinzufügen |
+| `loss = 10.82` | Modell ist zufällig. Normal bei Step 0. Bleibt es dort, Optimizer und Loss-Funktion prüfen |
+| `size mismatch` | Shape-Fehler. Batch-/Seq-/Head-Dimensionen prüfen. Häufiger Bug bei reshape/permute |
+| `weights_only load failed` | PyTorch 2.6+ benötigt `weights_only=False` für Checkpoints mit benutzerdefinierten Klassen |
 
-## Key files in the repo
+## Wichtige Dateien im Repo
 
 ```
 📦 how-to-train-your-gpt/
-├── main.py                         ← Single file training. Run this.
-├── requirements.txt                ← Dependencies
-├── chapters/                       ← 12 chapter textbook
-├── notebooks/                      ← 8 chapter notebooks + attention viz + colab
-├── fine-tuning/                    ← 7 files on fine-tuning + LoRA notebook
-├── explanations and examples WIP/  ← 18 topic deep dives
-│   ├── attention.md                ← Most popular. 363 lines, worked example
-│   ├── the_complete_story.md       ← 1166 lines. Everything connected
-│   ├── a_tokens_journey.md         ← 301 lines. Follow one sentence
-│   └── ... (15 more topics)
+├── main.py                         ← Training in einer einzigen Datei. Diese ausführen.
+├── requirements.txt                ← Abhängigkeiten
+├── chapters/                       ← Lehrbuch mit 12 Kapiteln
+├── notebooks/                      ← 8 Kapitel-Notebooks + Attention-Visualisierung + Colab
+├── fine-tuning/                    ← 7 Dateien zu Fine-Tuning + LoRA-Notebook
+├── explanations and examples WIP/  ← 18 Themen-Deep-Dives
+│   ├── attention.md                ← Am beliebtesten. 363 Zeilen, durchgerechnetes Beispiel
+│   ├── the_complete_story.md       ← 1166 Zeilen. Alles verbunden
+│   ├── a_tokens_journey.md         ← 301 Zeilen. Ein Satz wird verfolgt
+│   └── ... (15 weitere Themen)
 └── README.md
 ```
