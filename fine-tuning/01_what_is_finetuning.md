@@ -1,130 +1,141 @@
-# What Is Fine-Tuning
+# Was ist Fine-Tuning
 
-## The short answer
+## Die kurze Antwort
 
-Fine-tuning takes a model that already knows language and teaches it
-a specific skill. The model arrives knowing grammar and facts and
-conversation patterns from pretraining. Fine-tuning adds a new layer
-of training on a focused dataset. The result is a model that follows
-instructions or classifies sentiment or translates languages or any
-other task you can describe with examples.
+Fine-Tuning nimmt ein Modell, das bereits Sprache beherrscht, und bringt
+ihm eine bestimmte Fähigkeit bei. Das Modell verfügt bereits über
+Grammatik, Fakten und Gesprächsmuster aus dem Pretraining. Fine-Tuning
+fügt eine zusätzliche Trainingsebene auf einem fokussierten Datensatz
+hinzu. Das Ergebnis ist ein Modell, das Anweisungen befolgt, Stimmungen
+klassifiziert, Sprachen übersetzt oder jede andere Aufgabe erfüllt, die
+sich mit Beispielen beschreiben lässt.
 
-## Where it sits in the pipeline
+## Wo es in der Pipeline steht
 
 ```
-Raw text from the internet
-  → Pretraining (expensive, general)
-    → Base model (knows language, not chat)
-      → Fine-tuning (cheaper, focused)
-        → Chat model (helpful, follows instructions)
+Rohtext aus dem Internet
+  → Pretraining (teuer, allgemein)
+    → Basismodell (kennt Sprache, aber keinen Chat)
+      → Fine-Tuning (günstiger, fokussiert)
+        → Chat-Modell (hilfreich, befolgt Anweisungen)
 ```
 
-Pretraining takes weeks on thousands of GPUs. Fine-tuning takes hours
-on a single GPU. The base model does the heavy lifting. Fine-tuning just
-points it in the right direction.
+Pretraining dauert Wochen auf Tausenden von GPUs. Fine-Tuning dauert
+Stunden auf einer einzigen GPU. Das Basismodell leistet die eigentliche
+Schwerarbeit. Fine-Tuning lenkt es lediglich in die richtige Richtung.
 
-## Why we need it
+## Warum wir es brauchen
 
-A base model can complete text. Feed it *The capital of France is* and
-it finishes with *Paris.* Feed it *Summarize this article* and it
-finishes with *in a few sentences* instead of actually summarizing. The
-base model does not know it is supposed to follow instructions. It was
-trained to predict the next word in internet text. Internet text
-contains examples of people asking for summaries but also contains
-examples of people writing completions for *Summarize this article.* The
-model learned to complete. Not to follow.
+Ein Basismodell kann Text vervollständigen. Gib ihm *Die Hauptstadt von
+Frankreich ist* ein und es vervollständigt mit *Paris.* Gib ihm *Fasse
+diesen Artikel zusammen* ein und es vervollständigt mit *in ein paar
+Sätzen* statt tatsächlich zusammenzufassen. Das Basismodell weiß nicht,
+dass es Anweisungen befolgen soll. Es wurde darauf trainiert, das
+nächste Wort in Internettext vorherzusagen. Internettext enthält
+Beispiele von Menschen, die um Zusammenfassungen bitten, aber auch
+Beispiele von Menschen, die Vervollständigungen für *Fasse diesen
+Artikel zusammen* schreiben. Das Modell hat gelernt zu vervollständigen.
+Nicht zu befolgen.
 
-Fine-tuning teaches the model to distinguish between the two. By
-training on examples of instructions paired with the desired responses
-the model learns to recognize when it is being asked to do something
-and how to produce the correct output.
+Fine-Tuning bringt dem Modell bei, zwischen beidem zu unterscheiden.
+Durch das Training mit Beispielen von Anweisungen, gepaart mit den
+gewünschten Antworten, lernt das Modell zu erkennen, wann es
+aufgefordert wird, etwas zu tun, und wie es die korrekte Ausgabe
+erzeugt.
 
-## The three approaches
+## Die drei Ansätze
 
-| Approach | What happens | Hardware needed | How long |
+| Ansatz | Was passiert | Benötigte Hardware | Wie lange |
 |---|---|---|---|
-| Full fine-tuning | Update every weight in the model | 4-8 A100 GPUs | Hours to days |
-| LoRA | Train small adapter matrices. Original weights frozen | Single 3090/4090 | Minutes to hours |
-| QLoRA | Quantize the base model to 4-bit. Train LoRA adapters | Single laptop GPU | Hours |
+| Full Fine-Tuning | Aktualisiert jedes Gewicht im Modell | 4-8 A100-GPUs | Stunden bis Tage |
+| LoRA | Trainiert kleine Adaptermatrizen. Ursprüngliche Gewichte eingefroren | Einzelne 3090/4090 | Minuten bis Stunden |
+| QLoRA | Quantisiert das Basismodell auf 4-Bit. Trainiert LoRA-Adapter | Einzelne Laptop-GPU | Stunden |
 
-Full fine-tuning updates all 152 million weights. This is the most
-powerful approach but requires hardware that most people do not own.
-The model is fully adapted to the new task but the original model is
-lost. You must store a separate full copy of the model for each task
-you fine-tune for.
+Full Fine-Tuning aktualisiert alle 152 Millionen Gewichte. Dies ist der
+leistungsfähigste Ansatz, erfordert aber Hardware, die die meisten
+Menschen nicht besitzen. Das Modell wird vollständig an die neue
+Aufgabe angepasst, aber das ursprüngliche Modell geht dabei verloren.
+Du musst für jede Aufgabe, für die du fine-tunst, eine separate
+vollständige Kopie des Modells speichern.
 
-LoRA does not change the original weights. It adds small trainable
-matrices alongside them. At the end you have the original model plus
-tiny adapter files that are a few megabytes each. You can swap adapters
-in and out like changing a lens on a camera. One base model. Many
-adapters. Each adapter makes the model good at a different thing.
+LoRA verändert die ursprünglichen Gewichte nicht. Es fügt kleine
+trainierbare Matrizen neben ihnen hinzu. Am Ende hast du das
+ursprüngliche Modell plus winzige Adapterdateien, die jeweils nur
+wenige Megabyte groß sind. Du kannst Adapter austauschen wie das
+Wechseln eines Objektivs an einer Kamera. Ein Basismodell. Viele
+Adapter. Jeder Adapter macht das Modell in etwas anderem gut.
 
-QLoRA is LoRA with one extra trick. It compresses the base model to
-four bits per weight before applying LoRA. The compression reduces the
-memory needed to load the model by four to eight times. A seven billion
-parameter model that normally needs fourteen gigabytes can run in under
-four gigabytes with QLoRA. This makes fine-tuning accessible on
-consumer hardware.
+QLoRA ist LoRA mit einem zusätzlichen Kniff. Es komprimiert das
+Basismodell auf vier Bit pro Gewicht, bevor LoRA angewendet wird. Die
+Komprimierung reduziert den Speicherbedarf zum Laden des Modells um
+das Vier- bis Achtfache. Ein Modell mit sieben Milliarden Parametern,
+das normalerweise vierzehn Gigabyte benötigt, läuft mit QLoRA in unter
+vier Gigabyte. Das macht Fine-Tuning auf Consumer-Hardware zugänglich.
 
-## When to use which
+## Wann welchen Ansatz verwenden
 
-If you have access to a cluster of GPUs and need maximum performance
-for a mission critical task use full fine-tuning.
+Wenn du Zugriff auf einen Cluster von GPUs hast und maximale
+Performance für eine geschäftskritische Aufgabe brauchst, verwende
+Full Fine-Tuning.
 
-If you have a single good GPU and want to teach the model a new skill
-use LoRA. This covers almost everyone building applications. Chatbots
-customer support agents code assistants and content generators are all
-routinely built with LoRA.
+Wenn du eine einzelne gute GPU hast und dem Modell eine neue Fähigkeit
+beibringen willst, verwende LoRA. Das deckt fast alle ab, die
+Anwendungen bauen. Chatbots, Kundensupport-Agenten, Code-Assistenten
+und Content-Generatoren werden routinemäßig mit LoRA gebaut.
 
-If you have a laptop or an older GPU and still want to fine-tune use
-QLoRA. The quality is slightly lower than LoRA but the model still
-learns the task successfully. The difference shrinks as base models
-get better.
+Wenn du einen Laptop oder eine ältere GPU hast und trotzdem fine-tunen
+willst, verwende QLoRA. Die Qualität ist etwas geringer als bei LoRA,
+aber das Modell lernt die Aufgabe trotzdem erfolgreich. Der Unterschied
+schrumpft, je besser die Basismodelle werden.
 
-## The data format
+## Das Datenformat
 
-Fine-tuning data is simple. You provide prompt and response pairs.
+Fine-Tuning-Daten sind einfach. Du stellst Prompt-Antwort-Paare bereit.
 
 ```
 {
-  "instruction": "Translate to French: Hello, how are you?",
+  "instruction": "Übersetze ins Französische: Hallo, wie geht es dir?",
   "response": "Bonjour, comment allez-vous?"
 }
 ```
 
-Every example teaches the model one thing. Given this input produce this
-output. After seeing thousands of examples the model generalizes and can
-produce correct outputs for inputs it has never seen before.
+Jedes Beispiel bringt dem Modell eine Sache bei. Bei dieser Eingabe
+diese Ausgabe erzeugen. Nachdem es Tausende von Beispielen gesehen hat,
+generalisiert das Modell und kann korrekte Ausgaben für Eingaben
+erzeugen, die es noch nie gesehen hat.
 
-The format varies by task but the principle is the same. Show the model
-what to do. Let it figure out the pattern. Do not tell it the rules
-explicitly. Let it learn from examples like it learned language from
-sentences.
+Das Format variiert je nach Aufgabe, aber das Prinzip bleibt gleich.
+Zeige dem Modell, was zu tun ist. Lass es das Muster selbst
+herausfinden. Erkläre ihm die Regeln nicht explizit. Lass es aus
+Beispielen lernen, so wie es Sprache aus Sätzen gelernt hat.
 
-## What fine-tuning cannot do
+## Was Fine-Tuning nicht kann
 
-Fine-tuning cannot teach the model new knowledge that was not in its
-pretraining data. If the model was never trained on medical records it
-cannot suddenly become a doctor. Fine-tuning can only rearrange and
-apply knowledge the model already has.
+Fine-Tuning kann dem Modell kein neues Wissen beibringen, das nicht in
+seinen Pretraining-Daten enthalten war. Wenn das Modell nie mit
+medizinischen Unterlagen trainiert wurde, kann es nicht plötzlich zum
+Arzt werden. Fine-Tuning kann nur Wissen, das das Modell bereits
+besitzt, neu anordnen und anwenden.
 
-Fine-tuning cannot fix fundamental architectural limitations. A model
-with a small context window stays small. A model that hallucinates will
-still hallucinate. Fine-tuning can reduce certain failure modes but
-cannot eliminate them.
+Fine-Tuning kann grundlegende architektonische Einschränkungen nicht
+beheben. Ein Modell mit einem kleinen Kontextfenster bleibt klein. Ein
+Modell, das halluziniert, wird weiterhin halluzinieren. Fine-Tuning
+kann bestimmte Fehlermodi reduzieren, aber nicht eliminieren.
 
-Fine-tuning cannot make a bad model good. The base model must already
-be competent. Fine-tuning on a tiny incompetent model produces a tiny
-competent model. The gap between base models of different sizes
-persists after fine-tuning. A fine-tuned 7B model never catches a
-fine-tuned 70B model.
+Fine-Tuning kann aus einem schlechten Modell kein gutes machen. Das
+Basismodell muss bereits kompetent sein. Fine-Tuning auf einem winzigen,
+inkompetenten Modell erzeugt ein winziges, kompetentes Modell. Der
+Abstand zwischen Basismodellen unterschiedlicher Größe bleibt auch nach
+dem Fine-Tuning bestehen. Ein fine-getuntes 7B-Modell holt ein
+fine-getuntes 70B-Modell nie ein.
 
-## What you need to remember
+## Was du dir merken solltest
 
-Fine-tuning adapts a pretrained model to a specific task. It is cheaper
-and faster than pretraining because it starts from a model that already
-knows language. LoRA is the standard approach because it is fast and
-efficient and produces tiny adapter files. QLoRA extends LoRA to run
-on consumer hardware. The data format is simple instruction response
-pairs. Fine-tuning does not add new knowledge. It rearranges existing
-knowledge to follow patterns.
+Fine-Tuning passt ein vortrainiertes Modell an eine bestimmte Aufgabe
+an. Es ist günstiger und schneller als Pretraining, weil es von einem
+Modell ausgeht, das bereits Sprache beherrscht. LoRA ist der
+Standardansatz, weil es schnell und effizient ist und winzige
+Adapterdateien erzeugt. QLoRA erweitert LoRA, sodass es auf
+Consumer-Hardware läuft. Das Datenformat besteht aus einfachen
+Instruktion-Antwort-Paaren. Fine-Tuning fügt kein neues Wissen hinzu.
+Es ordnet vorhandenes Wissen so an, dass es Mustern folgt.

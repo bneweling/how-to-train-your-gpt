@@ -1,146 +1,154 @@
-# Pre-Norm vs Post-Norm: Where to Normalize
+# Pre-Norm vs. Post-Norm: Wo normalisiert wird
 
-## What is it
+## Was ist das
 
-Pre-norm and post-norm are two ways to place normalization inside
-a transformer block. Pre-norm normalizes before each sublayer.
-Post-norm normalizes after each sublayer. The difference is one
-line of code but the impact on training is enormous.
+Pre-Norm und Post-Norm sind zwei Möglichkeiten, die Normalisierung
+innerhalb eines Transformer-Blocks zu platzieren. Pre-Norm
+normalisiert vor jedem Sublayer. Post-Norm normalisiert nach jedem
+Sublayer. Der Unterschied besteht aus einer einzigen Codezeile, aber
+die Auswirkung auf das Training ist enorm.
 
-Pre-norm (modern):
+Pre-Norm (modern):
 ```
 x = x + Attention(Norm(x))
 x = x + FFN(Norm(x))
 ```
 
-Post-norm (original):
+Post-Norm (Original):
 ```
 x = Norm(x + Attention(x))
 x = Norm(x + FFN(x))
 ```
 
-Think of it like editing a document. Pre-norm cleans the messy
-draft before you make changes. You start with a clear base. Post-
-norm makes changes to a messy draft and then cleans the result.
-The edits might be based on noise.
+Man kann es sich wie das Bearbeiten eines Dokuments vorstellen.
+Pre-Norm bereinigt den unordentlichen Entwurf, bevor Änderungen
+vorgenommen werden. Man startet mit einer klaren Basis. Post-Norm
+nimmt Änderungen an einem unordentlichen Entwurf vor und bereinigt
+anschließend das Ergebnis. Die Änderungen könnten auf Rauschen
+basieren.
 
-## Where is it used
+## Wo wird es verwendet
 
-The choice between pre-norm and post-norm affects every
-transformer block in the model. For a twelve block model the
-choice is made twenty four times per forward pass.
+Die Wahl zwischen Pre-Norm und Post-Norm betrifft jeden
+Transformer-Block im Modell. Bei einem Modell mit zwölf Blöcken wird
+diese Wahl vierundzwanzig Mal pro Forward Pass getroffen.
 
-## Why pre-norm won
+## Warum sich Pre-Norm durchgesetzt hat
 
-The original transformer paper used post-normalization. The
-authors normalized the output of each sublayer. This worked for
-models with six layers. When researchers tried to scale to more
-layers training became unstable. The model would not converge
-past about twelve layers.
+Das ursprüngliche Transformer-Paper verwendete
+Post-Normalisierung. Die Autoren normalisierten den Output jedes
+Sublayers. Das funktionierte bei Modellen mit sechs Layern. Als
+Forscher versuchten, auf mehr Layer zu skalieren, wurde das Training
+instabil. Das Modell konvergierte jenseits von etwa zwölf Layern
+nicht mehr.
 
-The problem was the residual connection. In post-norm the
-residual path goes through normalization. This means the gradient
-flowing back through the residual connection is also normalized.
-Normalization squashes the gradient magnitude. After many layers
-the gradient becomes too small to train the early layers.
+Das Problem war die Residual Connection. Bei Post-Norm verläuft der
+Residual-Pfad durch die Normalisierung. Das bedeutet, dass auch der
+Gradient, der durch die Residual Connection zurückfließt,
+normalisiert wird. Normalisierung staucht die Gradientenmagnitude.
+Nach vielen Layern wird der Gradient zu klein, um die frühen Layer
+zu trainieren.
 
-In pre-norm the residual path skips the normalization entirely.
-The gradient flowing back through the residual connection is
-never normalized. It arrives at the early layers with full
-strength. This is why pre-norm enables training models with
-ninety six layers or more.
-
-```
-Post-norm gradient path:
-  loss → Norm → Sublayer → Norm → Sublayer → ... → input
-  Each Norm compresses the gradient.
-  After N layers the gradient is 0.5^N smaller.
-
-Pre-norm gradient path:
-  loss → + → ... → + → input (through residual connections)
-  No normalization on the residual path.
-  Gradient arrives at full strength regardless of depth.
-```
-
-## When was it discovered
-
-Pre-norm was proposed in 2019 by researchers at Google studying
-why deep transformers were hard to train. They found that
-swapping the normalization position made training stable at any
-depth. GPT-3 adopted pre-norm in 2020. Every model since has
-used pre-norm. Post-norm is now only found in legacy code and
-historical comparisons.
-
-## How they differ step by step
-
-Let us trace a single token through one block with both
-approaches.
-
-### Pre-norm (what we use)
+Bei Pre-Norm umgeht der Residual-Pfad die Normalisierung
+vollständig. Der Gradient, der durch die Residual Connection
+zurückfließt, wird nie normalisiert. Er erreicht die frühen Layer
+mit voller Stärke. Deshalb ermöglicht Pre-Norm das Training von
+Modellen mit sechsundneunzig Layern oder mehr.
 
 ```
-x = some vector [0.5, -0.3, 0.8, -0.1]
+Post-Norm-Gradientenpfad:
+  Loss → Norm → Sublayer → Norm → Sublayer → ... → Input
+  Jede Norm komprimiert den Gradienten.
+  Nach N Layern ist der Gradient um 0.5^N kleiner.
 
-Step 1: norm(x) = [0.6, -0.4, 1.0, -0.1]  (rescaled to be cleaner)
-Step 2: attention(norm(x)) = [0.1, 0.0, -0.2, 0.3]
-Step 3: x + attention = [0.6, -0.3, 0.6, 0.2]
-Step 4: norm(step3_result) = [0.8, -0.4, 0.8, 0.3]
-Step 5: ffn(norm(step4_result)) = [-0.1, 0.2, 0.0, 0.1]
-Step 6: step3_result + ffn = [0.5, -0.1, 0.6, 0.3]
+Pre-Norm-Gradientenpfad:
+  Loss → + → ... → + → Input (über Residual Connections)
+  Keine Normalisierung auf dem Residual-Pfad.
+  Der Gradient kommt unabhängig von der Tiefe in voller Stärke an.
 ```
 
-The output [0.5, -0.1, 0.6, 0.3] is similar to the input [0.5,
--0.3, 0.8, -0.1]. The model made small adjustments to a clean
-base.
+## Wann wurde es entdeckt
 
-### Post-norm (original paper)
+Pre-Norm wurde 2019 von Forschern bei Google vorgeschlagen, die
+untersuchten, warum tiefe Transformer schwer zu trainieren waren.
+Sie fanden heraus, dass das Vertauschen der Normalisierungsposition
+das Training bei jeder Tiefe stabil machte. GPT-3 übernahm Pre-Norm
+im Jahr 2020. Seitdem verwendet jedes Modell Pre-Norm. Post-Norm
+findet sich heute nur noch in Legacy-Code und historischen
+Vergleichen.
+
+## Wie sie sich Schritt für Schritt unterscheiden
+
+Verfolgen wir ein einzelnes Token durch einen Block mit beiden
+Ansätzen.
+
+### Pre-Norm (was wir verwenden)
 
 ```
-x = some vector [0.5, -0.3, 0.8, -0.1]
+x = ein Vektor [0.5, -0.3, 0.8, -0.1]
 
-Step 1: attention(x) = [2.5, -0.1, -1.8, 0.9]  (big outputs)
-Step 2: x + attention = [3.0, -0.4, -1.0, 0.8]
-Step 3: norm(step2_result) = [1.5, -0.2, -0.5, 0.4]  (squashed)
-Step 4: ffn(step3_result) = [-0.8, 1.2, -0.3, 0.7]
-Step 5: step3_result + ffn = [0.7, 1.0, -0.8, 1.1]
-Step 6: norm(step5_result) = [0.4, 0.6, -0.5, 0.7]
+Schritt 1: norm(x) = [0.6, -0.4, 1.0, -0.1]  (neu skaliert, um sauberer zu sein)
+Schritt 2: attention(norm(x)) = [0.1, 0.0, -0.2, 0.3]
+Schritt 3: x + attention = [0.6, -0.3, 0.6, 0.2]
+Schritt 4: norm(step3_result) = [0.8, -0.4, 0.8, 0.3]
+Schritt 5: ffn(norm(step4_result)) = [-0.1, 0.2, 0.0, 0.1]
+Schritt 6: step3_result + ffn = [0.5, -0.1, 0.6, 0.3]
 ```
 
-The output is more different from the input because the
-normalization at each step changes everything. This sounds good
-in theory. More transformation. But in practice the constant
-normalization interferes with gradient flow and makes deep
-networks untrainable.
+Der Output [0.5, -0.1, 0.6, 0.3] ähnelt dem Input [0.5, -0.3, 0.8,
+-0.1]. Das Modell hat kleine Anpassungen an einer sauberen Basis
+vorgenommen.
 
-## The gradient argument
+### Post-Norm (Originalpaper)
 
-Imagine a network with ninety six layers. Each layer has two
-normalization operations. In post-norm the gradient flows through
-one hundred and ninety two normalization operations on its way
-back to the first layer. Each normalization compresses the
-gradient slightly. After one hundred and ninety two compressions
-the gradient at layer one is effectively zero.
+```
+x = ein Vektor [0.5, -0.3, 0.8, -0.1]
 
-In pre-norm the residual connections bypass the normalization.
-The gradient flows straight down the residual highway. It never
-passes through normalization on the shortcut path. Only the
-path through the sublayers goes through normalization. The
-shortcut path provides a strong gradient signal to every layer.
+Schritt 1: attention(x) = [2.5, -0.1, -1.8, 0.9]  (große Outputs)
+Schritt 2: x + attention = [3.0, -0.4, -1.0, 0.8]
+Schritt 3: norm(step2_result) = [1.5, -0.2, -0.5, 0.4]  (gestaucht)
+Schritt 4: ffn(step3_result) = [-0.8, 1.2, -0.3, 0.7]
+Schritt 5: step3_result + ffn = [0.7, 1.0, -0.8, 1.1]
+Schritt 6: norm(step5_result) = [0.4, 0.6, -0.5, 0.7]
+```
 
-This is why pre-norm is a hard requirement for deep transformers.
-It is not a preference. It is a necessary condition for training
-to work at all beyond a certain depth.
+Der Output unterscheidet sich stärker vom Input, da die
+Normalisierung bei jedem Schritt alles verändert. Das klingt in der
+Theorie gut. Mehr Transformation. Aber in der Praxis stört die
+ständige Normalisierung den Gradientenfluss und macht tiefe
+Netzwerke untrainierbar.
 
-## What you need to remember
+## Das Gradientenargument
 
-Pre-norm normalizes the input before each sublayer. Post-norm
-normalizes the output after each sublayer. Pre-norm enables
-training deep networks because the residual connections bypass
-normalization and preserve the gradient signal. Post-norm
-restricts training to shallow networks because the normalization
-squashes the gradients.
+Stellen wir uns ein Netzwerk mit sechsundneunzig Layern vor. Jeder
+Layer hat zwei Normalisierungsoperationen. Bei Post-Norm fließt der
+Gradient auf seinem Weg zurück zum ersten Layer durch
+einhundertzweiundneunzig Normalisierungsoperationen. Jede
+Normalisierung komprimiert den Gradienten ein wenig. Nach
+einhundertzweiundneunzig Kompressionen ist der Gradient bei Layer
+eins praktisch null.
 
-Every modern language model uses pre-norm. If you see post-norm
-in a codebase it is either a bug or a historical artifact. The
-original transformer paper was wrong about this one detail. The
-fix was discovered a year later and has been standard ever since.
+Bei Pre-Norm umgehen die Residual Connections die Normalisierung.
+Der Gradient fließt direkt über den Residual-Highway. Auf dem
+Shortcut-Pfad durchläuft er nie eine Normalisierung. Nur der Pfad
+durch die Sublayer durchläuft die Normalisierung. Der Shortcut-Pfad
+liefert jedem Layer ein starkes Gradientensignal.
+
+Deshalb ist Pre-Norm eine harte Anforderung für tiefe Transformer.
+Es ist keine Präferenz. Es ist eine notwendige Bedingung dafür, dass
+das Training jenseits einer bestimmten Tiefe überhaupt funktioniert.
+
+## Was man sich merken muss
+
+Pre-Norm normalisiert den Input vor jedem Sublayer. Post-Norm
+normalisiert den Output nach jedem Sublayer. Pre-Norm ermöglicht das
+Training tiefer Netzwerke, weil die Residual Connections die
+Normalisierung umgehen und das Gradientensignal erhalten. Post-Norm
+beschränkt das Training auf flache Netzwerke, weil die
+Normalisierung die Gradienten staucht.
+
+Jedes moderne Sprachmodell verwendet Pre-Norm. Wenn man in einer
+Codebasis auf Post-Norm stößt, handelt es sich entweder um einen Bug
+oder um ein historisches Artefakt. Das ursprüngliche
+Transformer-Paper lag in diesem einen Detail falsch. Die Lösung
+wurde ein Jahr später entdeckt und ist seitdem Standard.

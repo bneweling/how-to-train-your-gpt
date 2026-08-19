@@ -1,120 +1,126 @@
-# SwiGLU: The Smart Activation Function
+# SwiGLU: Die intelligente Aktivierungsfunktion
 
-## What is it
+## Was ist es
 
-SwiGLU is the activation function used inside the feed forward
-network of modern transformers. An activation function decides
-how much information passes through a layer. Old activation
-functions were simple on or off switches. SwiGLU is smarter. It
-has a second path that acts like a gate. The gate learns when to
-let information through and when to block it.
+SwiGLU ist die Aktivierungsfunktion, die im Feed-Forward-Netzwerk
+moderner Transformer verwendet wird. Eine Aktivierungsfunktion
+entscheidet, wie viel Information durch eine Layer hindurchgelassen
+wird. Alte Aktivierungsfunktionen waren einfache Ein-/Aus-Schalter.
+SwiGLU ist intelligenter. Sie hat einen zweiten Pfad, der wie ein
+Gate wirkt. Das Gate lernt, wann es Information durchlassen und
+wann es sie blockieren soll.
 
-Think of it like a water faucet. ReLU is a faucet that is either
-fully open or fully closed. Nothing in between. SwiGLU is a
-faucet you can turn to any position. A little open for a trickle.
-Half open for moderate flow. Fully open when you need everything.
-The model learns the right position for every input.
+Stell es dir wie einen Wasserhahn vor. ReLU ist ein Wasserhahn, der
+entweder ganz auf oder ganz zu ist. Nichts dazwischen. SwiGLU ist
+ein Wasserhahn, den du in jede beliebige Position drehen kannst.
+Ein wenig geöffnet für ein Rinnsal. Halb geöffnet für einen
+mäßigen Fluss. Ganz geöffnet, wenn du alles brauchst. Das Modell
+lernt die richtige Position für jede Eingabe.
 
-## Where is it used
+## Wo wird es verwendet
 
-SwiGLU lives inside every transformer block. It replaces the
-older activation functions inside the feed forward network. Every
-time the model processes a token through the FFN layer SwiGLU
-decides what information to keep and what to throw away.
+SwiGLU steckt in jedem Transformer-Block. Es ersetzt die älteren
+Aktivierungsfunktionen im Feed-Forward-Netzwerk. Jedes Mal, wenn
+das Modell einen Token durch die FFN-Layer verarbeitet, entscheidet
+SwiGLU, welche Information behalten und welche verworfen wird.
 
 ```
 Transformer Block:
   x → RMSNorm → Attention → +x
     → RMSNorm → SwiGLU FFN → +x
                    ^^^^^^
-                   This part
+                   Dieser Teil
 ```
 
-LLaMA PaLM Gemini and most models built since 2022 use SwiGLU.
-GPT-2 and GPT-3 used GELU which was the previous best. SwiGLU
-beats GELU at every scale.
+LLaMA, PaLM, Gemini und die meisten seit 2022 entwickelten Modelle
+verwenden SwiGLU. GPT-2 und GPT-3 verwendeten GELU, das zuvor die
+beste Wahl war. SwiGLU übertrifft GELU auf jeder Skalierungsstufe.
 
-## Why we use it instead of ReLU or GELU
+## Warum wir es anstelle von ReLU oder GELU verwenden
 
-ReLU is the simplest activation. It outputs zero for negative
-numbers and does nothing for positive numbers.
+ReLU ist die einfachste Aktivierung. Sie gibt für negative Zahlen
+null aus und tut bei positiven Zahlen nichts.
 
 ```
 ReLU(x): max(0, x)
 
-ReLU(-3.2) = 0    (blocked)
-ReLU(0.5)  = 0.5  (passed)
-ReLU(4.1)  = 4.1  (passed)
+ReLU(-3.2) = 0    (blockiert)
+ReLU(0.5)  = 0.5  (durchgelassen)
+ReLU(4.1)  = 4.1  (durchgelassen)
 ```
 
-The problem with ReLU is the hard cutoff at zero. Any negative
-value is completely killed. The information is gone forever. This
-is called the dying ReLU problem. Neurons that receive only
-negative inputs never activate again. They become dead weight.
+Das Problem bei ReLU ist der harte Schnitt bei null. Jeder negative
+Wert wird vollständig ausgelöscht. Die Information ist für immer
+verloren. Man nennt das das Dying-ReLU-Problem. Neuronen, die nur
+negative Eingaben erhalten, aktivieren sich nie wieder. Sie werden
+zu totem Gewicht.
 
-GELU fixes this by making the cutoff smooth. Instead of a hard
-zero GELU outputs very small values for negative inputs.
+GELU behebt das, indem es den Schnitt weich macht. Anstelle einer
+harten Null gibt GELU für negative Eingaben sehr kleine Werte aus.
 
 ```
-GELU(-3.2) ≈ -0.002  (mostly blocked but not dead)
-GELU(0.5)  ≈ 0.346   (partially passed)
-GELU(4.1)  ≈ 4.100   (mostly passed)
+GELU(-3.2) ≈ -0.002  (größtenteils blockiert, aber nicht tot)
+GELU(0.5)  ≈ 0.346   (teilweise durchgelassen)
+GELU(4.1)  ≈ 4.100   (größtenteils durchgelassen)
 ```
 
-GELU is better than ReLU but still has one decision point. Every
-input gets the same treatment. There is no way for the model to
-decide *this* input should pass through more than *that* input.
+GELU ist besser als ReLU, hat aber immer noch nur einen
+Entscheidungspunkt. Jede Eingabe wird gleich behandelt. Das Modell
+hat keine Möglichkeit zu entscheiden, dass *diese* Eingabe mehr
+durchgelassen werden soll als *jene* Eingabe.
 
-SwiGLU adds a gate. The input splits into two paths. One path
-computes values like a normal activation. The other path computes
-how much of those values to keep. The gate and the values are
-computed from the same input using different learned weights.
+SwiGLU fügt ein Gate hinzu. Die Eingabe wird in zwei Pfade
+aufgeteilt. Ein Pfad berechnet Werte wie eine normale Aktivierung.
+Der andere Pfad berechnet, wie viel von diesen Werten behalten
+werden soll. Das Gate und die Werte werden aus derselben Eingabe
+mit unterschiedlichen gelernten Gewichten berechnet.
 
 ```
 SwiGLU(x) = (SiLU(x × W₁)) × (x × W₂)
 
-Path 1 (values): SiLU(x × W₁) → the information
-Path 2 (gate):   x × W₂       → how much information to pass
+Pfad 1 (Werte): SiLU(x × W₁) → die Information
+Pfad 2 (Gate):  x × W₂       → wie viel Information durchgelassen wird
 ```
 
-The gate can output any number. If the gate outputs 0.1 the value
-path is reduced to ten percent. If the gate outputs 5.0 the value
-path is amplified five times. The model learns what to amplify
-and what to suppress. This is why SwiGLU outperforms both ReLU
-and GELU at large scale.
+Das Gate kann eine beliebige Zahl ausgeben. Gibt das Gate 0.1 aus,
+wird der Wertepfad auf zehn Prozent reduziert. Gibt das Gate 5.0
+aus, wird der Wertepfad um das Fünffache verstärkt. Das Modell
+lernt, was verstärkt und was unterdrückt werden soll. Deshalb
+übertrifft SwiGLU sowohl ReLU als auch GELU bei großem Maßstab.
 
-## When was it invented
+## Wann wurde es erfunden
 
-The paper that introduced SwiGLU was published in 2020 by Noam
-Shazeer a well known researcher who also co invented the
-transformer. The paper compared many activation variants and
-found that gated linear units consistently won. PaLM adopted it
-in 2022. LLaMA adopted it in 2023. Now it is the standard.
+Das Paper, das SwiGLU einführte, wurde 2020 von Noam Shazeer
+veröffentlicht, einem bekannten Forscher, der den Transformer mit
+erfunden hat. Das Paper verglich viele Aktivierungsvarianten und
+stellte fest, dass Gated Linear Units durchgängig gewannen. PaLM
+übernahm es 2022. LLaMA übernahm es 2023. Heute ist es der
+Standard.
 
-## How it works step by step
+## Wie es Schritt für Schritt funktioniert
 
-Let us trace a single number flowing through SwiGLU.
+Verfolgen wir, wie eine einzelne Zahl durch SwiGLU fließt.
 
-### The setup
+### Der Ausgangspunkt
 
 ```
-Input x = 1.5
+Eingabe x = 1.5
 
-Weights (learned during training):
-W₁ = 0.8   (for the value path)
-W₂ = 2.0   (for the gate path)
+Gewichte (gelernt während des Trainings):
+W₁ = 0.8   (für den Wertepfad)
+W₂ = 2.0   (für den Gate-Pfad)
 ```
 
-### Path 1: compute the value
+### Pfad 1: den Wert berechnen
 
-First multiply the input by W₁.
+Zuerst wird die Eingabe mit W₁ multipliziert.
 
 ```
 x × W₁ = 1.5 × 0.8 = 1.2
 ```
 
-Then apply SiLU. SiLU is also called the Swish function. It is
-x multiplied by the sigmoid of x.
+Dann wird SiLU angewendet. SiLU wird auch Swish-Funktion genannt.
+Es ist x multipliziert mit dem Sigmoid von x.
 
 ```
 SiLU(1.2) = 1.2 × sigmoid(1.2)
@@ -127,59 +133,59 @@ sigmoid(1.2) = 1 / (1 + e^(-1.2))
 SiLU(1.2) = 1.2 × 0.769 = 0.922
 ```
 
-SiLU gives 0.922. This is the processed value.
+SiLU ergibt 0.922. Das ist der verarbeitete Wert.
 
-### Path 2: compute the gate
+### Pfad 2: das Gate berechnen
 
-Simply multiply the input by W₂.
+Einfach die Eingabe mit W₂ multiplizieren.
 
 ```
 x × W₂ = 1.5 × 2.0 = 3.0
 ```
 
-The gate value is 3.0. This means let three times the information
-through. The gate is open wide.
+Der Gate-Wert ist 3.0. Das bedeutet, dreimal so viel Information
+durchzulassen. Das Gate ist weit geöffnet.
 
-### Combine the two paths
+### Die beiden Pfade kombinieren
 
-Multiply the value by the gate.
+Den Wert mit dem Gate multiplizieren.
 
 ```
 output = 0.922 × 3.0 = 2.766
 ```
 
-If the gate had been smaller like 0.1 the output would have been
-0.092. If the gate had been zero the output would have been zero.
-The gate controls everything.
+Wäre das Gate kleiner gewesen, etwa 0.1, wäre die Ausgabe 0.092
+gewesen. Wäre das Gate null gewesen, wäre die Ausgabe null
+gewesen. Das Gate kontrolliert alles.
 
-### What about negative inputs
+### Was ist mit negativen Eingaben
 
-Let us try an input of -2.0.
+Versuchen wir es mit einer Eingabe von -2.0.
 
 ```
 x = -2.0
 
-Path 1 (value):
+Pfad 1 (Wert):
   x × W₁ = -2.0 × 0.8 = -1.6
   SiLU(-1.6) = -1.6 × sigmoid(-1.6)
   sigmoid(-1.6) = 1 / (1 + e^1.6) = 1 / 5.953 = 0.168
   SiLU(-1.6) = -1.6 × 0.168 = -0.269
 
-Path 2 (gate):
+Pfad 2 (Gate):
   x × W₂ = -2.0 × 2.0 = -4.0
 
-Combine:
+Kombinieren:
   output = -0.269 × (-4.0) = 1.076
 ```
 
-Even though the input was negative the output is positive. That
-is because both the value path and the gate path became negative
-and negative times negative equals positive. The gating mechanism
-gives the model extra flexibility to transform negative signals
-into positive ones when needed. ReLU would have just output zero
-and lost all information.
+Obwohl die Eingabe negativ war, ist die Ausgabe positiv. Das
+liegt daran, dass sowohl der Wertepfad als auch der Gate-Pfad
+negativ wurden, und negativ mal negativ ergibt positiv. Der
+Gating-Mechanismus gibt dem Modell zusätzliche Flexibilität,
+negative Signale bei Bedarf in positive umzuwandeln. ReLU hätte
+einfach null ausgegeben und alle Information verloren.
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import torch
@@ -195,14 +201,14 @@ class SwiGLU(nn.Module):
         self.w3 = nn.Linear(hidden_dim, d_model, bias=False)
 
     def forward(self, x):
-        # Path 1: values processed by SiLU
+        # Pfad 1: Werte, verarbeitet durch SiLU
         values = F.silu(self.w1(x))
-        # Path 2: gates controlling how much passes
+        # Pfad 2: Gates, die steuern, wie viel durchgelassen wird
         gates = self.w2(x)
-        # Combine and project back to original size
+        # Kombinieren und zurück auf die ursprüngliche Größe projizieren
         return self.w3(values * gates)
 
-# Test with random input
+# Test mit zufälliger Eingabe
 d_model = 4
 ffn = SwiGLU(d_model)
 x = torch.tensor([[1.5, -2.0, 0.3, 4.1]])
@@ -213,7 +219,7 @@ print(f"Output: {output}")
 print(f"Shape preserved: {x.shape == output.shape}")
 ```
 
-Running this code you will see something like:
+Wenn du diesen Code ausführst, siehst du etwa Folgendes:
 
 ```
 Input:  tensor([[ 1.5000, -2.0000,  0.3000,  4.1000]])
@@ -221,40 +227,45 @@ Output: tensor([[-1.234,  0.567, -0.891,  2.345]])
 Shape preserved: True
 ```
 
-## Why the expansion factor matters
+## Warum der Expansionsfaktor wichtig ist
 
-Notice the hidden dimension in the code is four times larger than
-the input dimension. This is the expansion factor. The network
-goes from d_model to four times d_model and back again.
+Beachte, dass die versteckte Dimension im Code viermal so groß ist
+wie die Eingabedimension. Das ist der Expansionsfaktor. Das
+Netzwerk geht von d_model auf das Vierfache von d_model und wieder
+zurück.
 
 ```
 768 → 3072 → 768
 ```
 
-This expand then contract pattern gives the network room to
-transform information. In the middle layer there are many more
-neurons than at the input or output. This is like widening a pipe
-to let more water flow through before narrowing it again. The
-extra width lets the model learn more complex transformations.
+Dieses Muster aus Erweitern und dann Verengen gibt dem Netzwerk
+Raum, um Information zu transformieren. In der mittleren Layer
+gibt es viel mehr Neuronen als am Eingang oder Ausgang. Das ist,
+als würde man ein Rohr verbreitern, damit mehr Wasser hindurch-
+fließen kann, bevor man es wieder verengt. Die zusätzliche Breite
+erlaubt es dem Modell, komplexere Transformationen zu lernen.
 
-SwiGLU uses three weight matrices instead of the two that ReLU
-or GELU networks use. The extra matrix is for the gate. This
-makes SwiGLU about fifty percent larger than a standard FFN at
-the same expansion factor. For our GPT-2 scale model this adds
-about twenty eight million extra parameters. Every one of those
-parameters contributes to better performance.
+SwiGLU verwendet drei Gewichtsmatrizen statt der zwei, die ReLU-
+oder GELU-Netzwerke verwenden. Die zusätzliche Matrix ist für das
+Gate. Dadurch wird SwiGLU bei gleichem Expansionsfaktor etwa
+fünfzig Prozent größer als ein Standard-FFN. Für unser Modell im
+GPT-2-Maßstab bedeutet das etwa achtundzwanzig Millionen
+zusätzliche Parameter. Jeder einzelne dieser Parameter trägt zu
+besserer Leistung bei.
 
-## What you need to remember
+## Was du dir merken solltest
 
-SwiGLU is a gated activation function. It splits the feed forward
-network into a value path and a gate path. The gate controls how
-much of each value passes through. This is more flexible than
-ReLU or GELU which treat every input the same way.
+SwiGLU ist eine Gate-gesteuerte Aktivierungsfunktion. Sie teilt
+das Feed-Forward-Netzwerk in einen Wertepfad und einen Gate-Pfad
+auf. Das Gate steuert, wie viel von jedem Wert durchgelassen wird.
+Das ist flexibler als ReLU oder GELU, die jede Eingabe gleich
+behandeln.
 
-The SiLU function on the value path provides smooth non linearity.
-The gate on the control path provides adaptive filtering. Together
-they outperform every older activation function at large scale.
+Die SiLU-Funktion auf dem Wertepfad sorgt für eine glatte
+Nichtlinearität. Das Gate auf dem Kontrollpfad sorgt für adaptive
+Filterung. Zusammen übertreffen sie jede ältere Aktivierungs-
+funktion bei großem Maßstab.
 
-Every modern language model uses SwiGLU. It is one extra matrix
-multiplication per forward pass for a measurable improvement in
-every metric that matters.
+Jedes moderne Sprachmodell verwendet SwiGLU. Es ist eine
+zusätzliche Matrixmultiplikation pro Forward Pass für eine
+messbare Verbesserung in jeder Metrik, die zählt.

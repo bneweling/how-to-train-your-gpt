@@ -1,69 +1,77 @@
-# Mixture of Experts: How to Scale Without Scaling Everything
+# Mixture of Experts: Wie man skaliert, ohne alles mitzuskalieren
 
-## The short answer
+## Die kurze Antwort
 
-A Mixture of Experts model has many feed forward networks instead of
-one. Each token is routed to only a few of them. The model has far
-more total parameters than a standard model but uses only a fraction
-of them for any given token. This is how models like Mixtral 8x7B
-and GPT-4 achieve the performance of much larger models while keeping
-the compute cost of much smaller ones.
+Ein Mixture-of-Experts-Modell hat viele Feed-Forward-Netzwerke statt
+eines einzigen. Jedes Token wird nur an wenige davon geroutet. Das
+Modell hat weit mehr Parameter insgesamt als ein Standardmodell,
+nutzt aber für jedes einzelne Token nur einen Bruchteil davon. So
+erreichen Modelle wie Mixtral 8x7B und GPT-4 die Leistung deutlich
+größerer Modelle bei den Rechenkosten deutlich kleinerer.
 
-Think of it like a hospital. A standard model has one doctor who
-treats every patient. An MoE model has many specialist doctors. Each
-patient is sent to the two or three doctors most qualified to handle
-their case. The hospital has more total expertise but each patient
-only spends time with the relevant specialists.
+Man kann es sich wie ein Krankenhaus vorstellen. Ein Standardmodell
+hat einen einzigen Arzt, der jeden Patienten behandelt. Ein
+MoE-Modell hat viele Fachärzte. Jeder Patient wird zu den zwei oder
+drei Ärzten geschickt, die für seinen Fall am besten qualifiziert
+sind. Das Krankenhaus verfügt insgesamt über mehr Fachwissen, aber
+jeder Patient verbringt nur Zeit mit den jeweils relevanten
+Spezialisten.
 
-## Where it sits
+## Wo es einzuordnen ist
 
-MoE replaces the feed forward network in each transformer block.
-Attention stays the same. Normalization stays the same. Only the
-FFN changes from a single dense network to a collection of experts
-with a router that decides which experts to use.
+MoE ersetzt das Feed-Forward-Netzwerk in jedem Transformer-Block.
+Attention bleibt gleich. Normalisierung bleibt gleich. Nur die FFN
+ändert sich von einem einzelnen dichten Netzwerk zu einer Sammlung
+von Experts mit einem Router, der entscheidet, welche Experts
+verwendet werden.
 
 ```
-Standard transformer block:
+Standard-Transformer-Block:
   x → RMSNorm → Attention → +x
     → RMSNorm → FFN → +x
 
-MoE transformer block:
+MoE-Transformer-Block:
   x → RMSNorm → Attention → +x
-    → RMSNorm → Router → Expert 1 (used 30% of the time)
-                      → Expert 2 (used 25%)
-                      → Expert 3 (used 20%)
+    → RMSNorm → Router → Expert 1 (in 30 % der Fälle genutzt)
+                      → Expert 2 (25 % genutzt)
+                      → Expert 3 (20 % genutzt)
                       → ...
-                      → Expert 8 (used 5%)
-                                → Combine outputs → +x
+                      → Expert 8 (5 % genutzt)
+                                → Ausgaben kombinieren → +x
 ```
 
-Each expert is an entire feed forward network. Same architecture as
-our standard FFN with SwiGLU. Same input and output dimensions. The
-difference is that there are eight of them instead of one.
+Jeder Expert ist ein vollständiges Feed-Forward-Netzwerk. Dieselbe
+Architektur wie unsere Standard-FFN mit SwiGLU. Dieselben Eingabe-
+und Ausgabedimensionen. Der Unterschied ist, dass es acht davon
+gibt statt einem.
 
-## Why MoE works
+## Warum MoE funktioniert
 
-Dense models use every parameter for every token. This is wasteful.
-Some parameters handle grammar. Some handle facts. Some handle
-reasoning. For any given token only a subset of parameters is
-actually useful. The rest contribute noise or are effectively dead.
+Dense-Modelle nutzen jeden Parameter für jedes Token. Das ist
+verschwenderisch. Manche Parameter kümmern sich um Grammatik. Manche
+um Fakten. Manche um logisches Schließen. Für ein gegebenes Token
+ist tatsächlich nur eine Teilmenge der Parameter nützlich. Der Rest
+trägt Rauschen bei oder ist praktisch inaktiv.
 
-MoE lets different tokens use different paths through the model. A
-token representing a verb might use experts that specialize in verb
-conjugation and argument structure. A token representing a noun
-might use experts that specialize in entity recognition and coreference.
-The router learns to send each token to the right experts.
+MoE erlaubt es unterschiedlichen Tokens, unterschiedliche Pfade
+durch das Modell zu nehmen. Ein Token, das ein Verb repräsentiert,
+könnte Experts nutzen, die sich auf Verbkonjugation und
+Argumentstruktur spezialisiert haben. Ein Token, das ein Nomen
+repräsentiert, könnte Experts nutzen, die sich auf Entity Recognition
+und Koreferenz spezialisiert haben. Der Router lernt, jedes Token an
+die richtigen Experts zu senden.
 
-The total parameter count is larger because experts are duplicated.
-But the compute cost per token is roughly the same because only a
-few experts are activated. The model gets more capacity without more
-compute. This is capacity with low active parameters.
+Die Gesamtzahl der Parameter ist größer, weil Experts dupliziert
+werden. Aber die Rechenkosten pro Token bleiben ungefähr gleich, weil
+nur wenige Experts aktiviert werden. Das Modell erhält mehr Kapazität
+ohne mehr Rechenaufwand. Das ist Kapazität bei niedrigen aktiven
+Parametern.
 
-## The router
+## Der Router
 
-The router is a small linear layer. It takes the hidden state of a
-token and outputs a score for each expert. The token is sent to the
-experts with the highest scores.
+Der Router ist ein kleiner linearer Layer. Er nimmt den Hidden State
+eines Tokens entgegen und gibt für jeden Expert einen Score aus. Das
+Token wird an die Experts mit den höchsten Scores gesendet.
 
 ```python
 class Router(nn.Module):
@@ -77,101 +85,108 @@ class Router(nn.Module):
         # x: [batch, seq, d_model]
         logits = self.gate(x)  # [batch, seq, num_experts]
 
-        # Select top-k experts per token
+        # Top-k Experts pro Token auswählen
         top_k_logits, top_k_indices = torch.topk(logits, self.top_k, dim=-1)
         top_k_weights = F.softmax(top_k_logits, dim=-1)
 
         return top_k_indices, top_k_weights
 ```
 
-For each token the router selects the top two experts. It also
-outputs weights for each selected expert. The weights determine
-how much each expert contributes to the final output. The weights
-are computed by applying softmax to the top-k logits so they sum
-to one.
+Für jedes Token wählt der Router die beiden besten Experts aus. Er
+gibt außerdem Gewichte für jeden ausgewählten Expert aus. Die
+Gewichte bestimmen, wie stark jeder Expert zur finalen Ausgabe
+beiträgt. Die Gewichte werden berechnet, indem Softmax auf die
+Top-k-Logits angewendet wird, sodass sie sich zu eins summieren.
 
-## Top-k selection
+## Top-k-Auswahl
 
-The model does not use all experts. It uses only the top two per
-token. This is the key to MoE efficiency. With eight experts and
-top-2 selection only 25 percent of the FFN parameters are active
-for each token. The model has 8x the FFN parameters of a dense
-model but only 2x the compute.
+Das Modell nutzt nicht alle Experts. Es verwendet pro Token nur die
+besten zwei. Das ist der Schlüssel zur Effizienz von MoE. Bei acht
+Experts und Top-2-Auswahl sind nur 25 Prozent der FFN-Parameter für
+jedes Token aktiv. Das Modell hat die 8-fache Menge an
+FFN-Parametern eines Dense-Modells, aber nur die 2-fache Rechenlast.
 
 ```
-Dense model FFN:    768 → 3072 → 768   (7.1M params per block)
-MoE model FFN:      8 × (768 → 3072 → 768) = 56.7M params per block
-Active per token:   2 × (768 → 3072 → 768) = 14.2M params used
+Dense-Modell-FFN:    768 → 3072 → 768   (7,1 Mio. Parameter pro Block)
+MoE-Modell-FFN:      8 × (768 → 3072 → 768) = 56,7 Mio. Parameter pro Block
+Aktiv pro Token:     2 × (768 → 3072 → 768) = 14,2 Mio. genutzte Parameter
 
-Total FFN params:   8× larger
-Active compute:     2× larger (top-2 of 8)
+FFN-Parameter gesamt: 8× größer
+Aktive Rechenlast:     2× größer (Top-2 von 8)
 ```
 
-You get 8x the capacity for 2x the compute. This ratio improves as
-the number of experts grows. With 64 experts and top-2 selection you
-get 64× capacity for 2× compute.
+Man erhält die 8-fache Kapazität für die 2-fache Rechenlast. Dieses
+Verhältnis verbessert sich, je mehr Experts es gibt. Mit 64 Experts
+und Top-2-Auswahl erhält man die 64-fache Kapazität für die 2-fache
+Rechenlast.
 
-## Load balancing
+## Load Balancing
 
-The router can learn to always send tokens to the same expert. Expert
-1 gets 80 percent of the tokens. Experts 2 through 8 are idle. The
-model becomes effectively a dense model with seven wasted experts.
+Der Router kann lernen, Tokens immer an denselben Expert zu senden.
+Expert 1 erhält 80 Prozent der Tokens. Die Experts 2 bis 8 bleiben
+untätig. Das Modell wird effektiv zu einem Dense-Modell mit sieben
+verschwendeten Experts.
 
-Preventing this requires a load balancing loss. The loss encourages
-the router to distribute tokens evenly across experts. Each expert
-should receive roughly the same number of tokens over the course of
-training.
+Um das zu verhindern, ist ein Load-Balancing-Loss erforderlich. Der
+Loss ermutigt den Router, Tokens gleichmäßig auf die Experts zu
+verteilen. Jeder Expert sollte im Verlauf des Trainings ungefähr die
+gleiche Anzahl an Tokens erhalten.
 
 ```python
 def load_balancing_loss(router_logits, expert_mask, num_experts):
     """
-    router_logits: [batch * seq, num_experts] : raw router scores
-    expert_mask:   [batch * seq, num_experts] : 1 if expert was selected
+    router_logits: [batch * seq, num_experts] : rohe Router-Scores
+    expert_mask:   [batch * seq, num_experts] : 1, wenn der Expert ausgewählt wurde
 
-    Returns a scalar loss that penalizes uneven routing.
-    The loss is zero when every expert receives equal tokens.
+    Gibt einen skalaren Loss zurück, der ungleichmäßiges Routing bestraft.
+    Der Loss ist null, wenn jeder Expert gleich viele Tokens erhält.
     """
-    # Fraction of tokens routed to each expert
+    # Anteil der Tokens, die an jeden Expert geroutet werden
     fraction_per_expert = expert_mask.float().mean(dim=0)
 
-    # Average router probability for each expert
+    # Durchschnittliche Router-Wahrscheinlichkeit für jeden Expert
     router_probs = F.softmax(router_logits, dim=-1)
     avg_prob_per_expert = router_probs.mean(dim=0)
 
-    # Loss = num_experts * sum(fraction × probability)
-    # Minimized when fractions and probabilities are uniform
+    # Loss = num_experts * sum(Anteil × Wahrscheinlichkeit)
+    # Minimal, wenn Anteile und Wahrscheinlichkeiten gleichverteilt sind
     return num_experts * (fraction_per_expert * avg_prob_per_expert).sum()
 ```
 
-The load balancing loss is added to the main language modeling loss
-with a small coefficient typically 0.01. It pushes the router toward
-uniform usage without dominating the training objective.
+Der Load-Balancing-Loss wird mit einem kleinen Koeffizienten,
+typischerweise 0,01, zum eigentlichen Language-Modeling-Loss
+addiert. Er drängt den Router in Richtung gleichmäßiger Nutzung,
+ohne das Trainingsziel zu dominieren.
 
-## Expert capacity
+## Expert-Kapazität
 
-Even with load balancing some experts may receive more tokens than
-others in a given batch. To prevent memory spikes each expert has a
-capacity limit. If more tokens are routed to an expert than its
-capacity the overflow tokens are dropped. They pass through the
-residual connection unchanged.
+Selbst mit Load Balancing können manche Experts in einem gegebenen
+Batch mehr Tokens erhalten als andere. Um Speicherspitzen zu
+verhindern, hat jeder Expert ein Kapazitätslimit. Werden mehr Tokens
+an einen Expert geroutet, als seine Kapazität zulässt, werden die
+überschüssigen Tokens verworfen. Sie durchlaufen die Residual
+Connection unverändert.
 
 ```
-Expert capacity = (tokens_per_batch / num_experts) × capacity_factor
+Expert-Kapazität = (Tokens_pro_Batch / Anzahl_Experts) × Kapazitätsfaktor
 
-capacity_factor = 1.25 means each expert can handle 25% more tokens
-than its fair share. Overflow tokens above this limit are dropped.
+Kapazitätsfaktor = 1,25 bedeutet, dass jeder Expert 25 % mehr Tokens
+verarbeiten kann als sein fairer Anteil. Überschüssige Tokens über
+diesem Limit werden verworfen.
 ```
 
-The capacity factor is typically 1.0 to 1.5. Higher values waste
-compute because experts are allocated for tokens they never receive.
-Lower values increase the chance of dropping tokens which degrades
-model quality.
+Der Kapazitätsfaktor liegt typischerweise zwischen 1,0 und 1,5.
+Höhere Werte verschwenden Rechenleistung, weil Experts für Tokens
+vorgehalten werden, die sie nie erhalten. Niedrigere Werte erhöhen
+die Wahrscheinlichkeit, dass Tokens verworfen werden, was die
+Modellqualität verschlechtert.
 
-Dropped tokens are not a complete loss. The residual connection
-still carries the token's information forward. The token skips the
-FFN for this layer and gets processed by the next layer's experts.
+Verworfene Tokens sind kein vollständiger Verlust. Die Residual
+Connection trägt die Information des Tokens weiterhin voran. Das
+Token überspringt die FFN in diesem Layer und wird von den Experts
+des nächsten Layers verarbeitet.
 
-## The full MoE transformer block
+## Der vollständige MoE-Transformer-Block
 
 ```python
 class MoETransformerBlock(nn.Module):
@@ -181,7 +196,7 @@ class MoETransformerBlock(nn.Module):
         self.attention = MultiHeadAttention(d_model, num_heads)
         self.norm2 = RMSNorm(d_model)
 
-        # MoE replaces the single FFN
+        # MoE ersetzt die einzelne FFN
         self.router = nn.Linear(d_model, num_experts, bias=False)
         self.experts = nn.ModuleList([
             SwiGLU(d_model) for _ in range(num_experts)
@@ -195,115 +210,122 @@ class MoETransformerBlock(nn.Module):
         # Attention
         x = x + self.attention(self.norm1(x), mask)
 
-        # MoE FFN
+        # MoE-FFN
         residual = x
         x = self.norm2(x)
 
-        # Route tokens to experts
+        # Tokens an Experts routen
         logits = self.router(x)  # [batch, seq, num_experts]
         top_k_logits, top_k_indices = torch.topk(logits, self.top_k, dim=-1)
         top_k_weights = F.softmax(top_k_logits, dim=-1)  # [batch, seq, top_k]
 
-        # Process tokens through selected experts
+        # Tokens durch die ausgewählten Experts verarbeiten
         output = torch.zeros_like(x)
         for expert_idx in range(self.num_experts):
-            # Find tokens routed to this expert
+            # Tokens finden, die an diesen Expert geroutet wurden
             expert_mask = (top_k_indices == expert_idx).any(dim=-1)
             if not expert_mask.any():
                 continue
 
-            # Get the tokens for this expert
+            # Die Tokens für diesen Expert holen
             tokens = x[expert_mask]  # [num_routed, d_model]
 
-            # Run through the expert
+            # Durch den Expert laufen lassen
             expert_output = self.experts[expert_idx](tokens)
 
-            # Weight by the router weight for this expert
+            # Mit dem Router-Gewicht für diesen Expert gewichten
             weight_idx = (top_k_indices == expert_idx).float().argmax(dim=-1)
             weights = top_k_weights[expert_mask]
             weights = weights.gather(-1, weight_idx.unsqueeze(-1))
 
-            # Accumulate weighted output
+            # Gewichtete Ausgabe akkumulieren
             output[expert_mask] += weights * expert_output
 
         x = residual + output
         return x
 ```
 
-The forward pass loops over experts. This is slow in pure Python
-but fast in optimized implementations that batch all expert
-computations into a single matrix multiplication. Libraries like
-Megablocks and DeepSpeed MoE handle this efficiently.
+Der Forward Pass läuft in einer Schleife über die Experts. In
+reinem Python ist das langsam, aber in optimierten Implementierungen
+schnell, die alle Expert-Berechnungen zu einer einzigen
+Matrixmultiplikation bündeln. Bibliotheken wie Megablocks und
+DeepSpeed MoE übernehmen das effizient.
 
-## Which models use MoE
+## Welche Modelle MoE verwenden
 
-| Model | Total Params | Active Params | Experts per Layer | Top-k |
+| Modell | Parameter gesamt | Aktive Parameter | Experts pro Layer | Top-k |
 |---|---|---|---|---|
-| Mixtral 8x7B | 46.7B | 12.9B | 8 | 2 |
-| Mixtral 8x22B | 141B | 39B | 8 | 2 |
-| GPT-4 (rumored) | ~1.7T | ~280B | 8 or 16 | 2 |
-| Gemini 1.5 (rumored) | Unknown | Unknown | Unknown | Unknown |
-| Switch Transformer | 1.6T | 1.6T | 2048 | 1 |
-| GLaM | 1.2T | 96B | 64 | 2 |
+| Mixtral 8x7B | 46,7 Mrd. | 12,9 Mrd. | 8 | 2 |
+| Mixtral 8x22B | 141 Mrd. | 39 Mrd. | 8 | 2 |
+| GPT-4 (Gerücht) | ~1,7 Bio. | ~280 Mrd. | 8 oder 16 | 2 |
+| Gemini 1.5 (Gerücht) | Unbekannt | Unbekannt | Unbekannt | Unbekannt |
+| Switch Transformer | 1,6 Bio. | 1,6 Bio. | 2048 | 1 |
+| GLaM | 1,2 Bio. | 96 Mrd. | 64 | 2 |
 
-The active parameters column is what matters for inference speed.
-Mixtral 8x7B has 46.7 billion parameters on disk but only 12.9
-billion are active per token. It runs roughly as fast as a 13
-billion parameter dense model while matching the quality of a much
-larger one.
+Die Spalte der aktiven Parameter ist entscheidend für die
+Inferenzgeschwindigkeit. Mixtral 8x7B hat 46,7 Milliarden Parameter
+auf der Festplatte, aber nur 12,9 Milliarden sind pro Token aktiv.
+Es läuft ungefähr so schnell wie ein Dense-Modell mit 13 Milliarden
+Parametern und erreicht dabei die Qualität eines deutlich größeren.
 
-Switch Transformer used top-1 routing which sends each token to
-exactly one expert. This maximizes efficiency but hurts quality
-because tokens cannot benefit from multiple specialists. Most
-modern MoE models use top-2 as the sweet spot.
+Switch Transformer nutzte Top-1-Routing, bei dem jedes Token an
+genau einen Expert gesendet wird. Das maximiert die Effizienz,
+schadet aber der Qualität, weil Tokens nicht von mehreren
+Spezialisten profitieren können. Die meisten modernen MoE-Modelle
+nutzen Top-2 als optimalen Kompromiss.
 
-## Why not use MoE everywhere
+## Warum man MoE nicht überall einsetzt
 
-MoE has downsides. The model is physically larger requiring more
-memory to store. Inference memory is dominated by the KV cache not
-the model weights for long sequences so this matters less than it
-seems. But loading a 47 billion parameter model still requires more
-VRAM than loading a 13 billion parameter one even if they run at
-similar speeds.
+MoE hat Nachteile. Das Modell ist physisch größer und benötigt mehr
+Speicher zur Ablage. Der Inferenzspeicher wird bei langen Sequenzen
+vom KV-Cache dominiert, nicht von den Modellgewichten, daher spielt
+das eine geringere Rolle, als es scheint. Aber das Laden eines
+Modells mit 47 Milliarden Parametern erfordert immer noch mehr VRAM
+als das Laden eines mit 13 Milliarden Parametern, selbst wenn sie
+mit ähnlicher Geschwindigkeit laufen.
 
-Training is harder. The load balancing loss and expert capacity
-constraints add complexity. The router can collapse to always using
-the same expert which requires monitoring and intervention. MoE
-models are more prone to training instability than dense models.
+Das Training ist schwieriger. Der Load-Balancing-Loss und die
+Kapazitätsbeschränkungen der Experts erhöhen die Komplexität. Der
+Router kann kollabieren und immer denselben Expert nutzen, was
+Überwachung und Eingriffe erfordert. MoE-Modelle neigen stärker zu
+Trainingsinstabilität als Dense-Modelle.
 
-Fine-tuning MoE models is trickier. With LoRA you need to decide
-whether to adapt the experts or the router or both. The interactions
-between experts and router are not yet as well understood as standard
-transformer components.
+Fine-Tuning von MoE-Modellen ist trickreicher. Mit LoRA muss man
+entscheiden, ob man die Experts, den Router oder beides anpasst. Die
+Wechselwirkungen zwischen Experts und Router sind noch nicht so gut
+verstanden wie bei Standard-Transformer-Komponenten.
 
-## Should we add MoE to our model
+## Sollten wir MoE zu unserem Modell hinzufügen
 
-Our model is too small to benefit from MoE. The expert count should
-exceed the number of useful specializations. With only 4 layers and
-152 million parameters there are not enough distinct linguistic
-patterns for experts to specialize in. A single FFN per layer is
-sufficient.
+Unser Modell ist zu klein, um von MoE zu profitieren. Die Anzahl
+der Experts sollte die Anzahl der sinnvollen Spezialisierungen
+übersteigen. Mit nur 4 Layern und 152 Millionen Parametern gibt es
+nicht genug unterschiedliche sprachliche Muster, auf die sich
+Experts spezialisieren könnten. Eine einzelne FFN pro Layer reicht
+aus.
 
-MoE starts to help around the 1 billion parameter mark. Below that
-the overhead of routing and load balancing outweighs the benefit of
-additional capacity. The sweet spot for MoE is models with 10 billion
-or more parameters where the compute savings from sparse activation
-are substantial.
+MoE beginnt sich etwa ab der Marke von 1 Milliarde Parametern zu
+lohnen. Darunter überwiegt der Overhead von Routing und Load
+Balancing den Nutzen der zusätzlichen Kapazität. Der Sweet Spot für
+MoE liegt bei Modellen mit 10 Milliarden oder mehr Parametern, bei
+denen die Rechenersparnis durch sparse Aktivierung erheblich ist.
 
-## What you need to remember
+## Was man sich merken sollte
 
-A Mixture of Experts model replaces each feed forward network with
-multiple expert networks. A router sends each token to the top one
-or two experts. The model has more total parameters but uses only a
-fraction per token. This gives the capacity of a large model at the
-compute cost of a smaller one.
+Ein Mixture-of-Experts-Modell ersetzt jedes Feed-Forward-Netzwerk
+durch mehrere Expert-Netzwerke. Ein Router sendet jedes Token an den
+einen oder die zwei besten Experts. Das Modell hat mehr Parameter
+insgesamt, nutzt aber pro Token nur einen Bruchteil davon. Das
+verschafft die Kapazität eines großen Modells zu den Rechenkosten
+eines kleineren.
 
-Load balancing ensures all experts get used rather than collapsing
-to a single favored expert. Expert capacity limits prevent memory
-spikes from uneven routing. The router and experts are trained
-jointly with the rest of the model.
+Load Balancing stellt sicher, dass alle Experts genutzt werden,
+statt auf einen einzigen bevorzugten Expert zu kollabieren.
+Kapazitätslimits der Experts verhindern Speicherspitzen durch
+ungleichmäßiges Routing. Router und Experts werden gemeinsam mit dem
+Rest des Modells trainiert.
 
-MoE is the likely architecture behind GPT-4 and Gemini. It is the
-most practical way to scale models beyond the point where dense
-training becomes prohibitively expensive. Understanding MoE is
-understanding how the largest AI systems are built.
+MoE ist vermutlich die Architektur hinter GPT-4 und Gemini. Es ist
+der praktikabelste Weg, Modelle über den Punkt hinaus zu skalieren,
+an dem Dense-Training unerschwinglich teuer wird. MoE zu verstehen
+bedeutet zu verstehen, wie die größten KI-Systeme gebaut werden.

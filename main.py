@@ -11,7 +11,7 @@ from datasets import load_dataset
 import matplotlib.pyplot as plt
 
 
-# ===== DEVICE SELECTION =====
+# ===== GERÄTEAUSWAHL =====
 def find_device():
     if torch.cuda.is_available():
         print(f"GPU: {torch.cuda.get_device_name(0)}")
@@ -55,7 +55,7 @@ def create_causal_mask(seq_len, device):
     return mask.view(1, 1, seq_len, seq_len)
 
 
-# ===== RMS NORMALIZATION =====
+# ===== RMS-NORMALISIERUNG =====
 class RMSNorm(nn.Module):
     def __init__(self, d_model, eps=1e-6):
         super().__init__()
@@ -115,7 +115,7 @@ class MultiHeadAttention(nn.Module):
         return output
 
 
-# ===== TRANSFORMER BLOCK =====
+# ===== TRANSFORMER-BLOCK =====
 class TransformerBlock(nn.Module):
     def __init__(self, d_model, num_heads, dropout=0.1):
         super().__init__()
@@ -130,7 +130,7 @@ class TransformerBlock(nn.Module):
         return x
 
 
-# ===== GPT CONFIGURATION =====
+# ===== GPT-KONFIGURATION =====
 @dataclass
 class GPTConfig:
     vocab_size: int = 50257
@@ -150,7 +150,7 @@ class GPTConfig:
     eps: float = 1e-8
 
 
-# ===== GPT MODEL =====
+# ===== GPT-MODELL =====
 class GPT(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -379,18 +379,18 @@ def plot_loss(loss_history, save_path="loss_curve.png"):
     print(f"Loss curve saved to {save_path}")
 
 
-# ===== MAIN =====
+# ===== HAUPTPROGRAMM =====
 def main():
     print("How to Train Your GPT\n")
 
-    # TINY MODEL (works on CPU, ~2-5 minutes)
+    # WINZIGES MODELL (funktioniert auf der CPU, ca. 2-5 Minuten)
     config = GPTConfig(
         d_model=256, num_heads=4, num_layers=4, max_seq_len=128,
         batch_size=4, grad_accum_steps=2, max_steps=500,
         warmup_steps=50, learning_rate=3e-4,
     )
 
-    # SMALL MODEL (GPT-2 scale, needs GPU)
+    # KLEINES MODELL (GPT-2-Größenordnung, benötigt GPU)
     # config = GPTConfig(
     #     d_model=768, num_heads=12, num_layers=12, max_seq_len=1024,
     #     batch_size=4, grad_accum_steps=8, max_steps=50000,

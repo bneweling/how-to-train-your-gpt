@@ -1,224 +1,241 @@
-# Attention : How Words Talk To Each Other
+# Attention : Wie Wörter miteinander sprechen
 
-## What is it
+## Was ist das
 
-Attention is how a language model decides which words are
-important when it reads a sentence.
+Attention ist die Art und Weise, wie ein Sprachmodell entscheidet,
+welche Wörter wichtig sind, wenn es einen Satz liest.
 
-Imagine you are at a loud party. Ten people are talking at the
-same time. You are trying to understand one person. You do not
-listen to everyone equally. You pay more attention to the person
-you are talking to. You pay less attention to the person across
-the room. Your brain naturally focuses on what matters.
+Stell dir vor, du bist auf einer lauten Party. Zehn Leute reden
+gleichzeitig. Du versuchst, eine Person zu verstehen. Du hörst
+nicht allen gleich gut zu. Du schenkst der Person, mit der du
+sprichst, mehr Aufmerksamkeit. Der Person auf der anderen Seite des
+Raums schenkst du weniger Aufmerksamkeit. Dein Gehirn konzentriert
+sich ganz natürlich auf das, was wichtig ist.
 
-Attention does the same thing for words. When the model reads a
-sentence it looks at all the words at once. Then it decides how
-much to care about each word. The word it cares about most gets
-the most weight. The word it cares about least gets almost no
-weight. Then it combines all the words together with these
-weights. The result is a new understanding of the current word
-that includes information from every other word that matters.
+Attention macht dasselbe mit Wörtern. Wenn das Modell einen Satz
+liest, betrachtet es alle Wörter auf einmal. Dann entscheidet es,
+wie sehr es sich um jedes Wort kümmern soll. Das Wort, um das es
+sich am meisten kümmert, bekommt das meiste Gewicht. Das Wort, um
+das es sich am wenigsten kümmert, bekommt fast kein Gewicht. Dann
+kombiniert es alle Wörter zusammen mit diesen Gewichten. Das
+Ergebnis ist ein neues Verständnis des aktuellen Wortes, das
+Informationen von jedem anderen wichtigen Wort enthält.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-Attention is the heart of every transformer model. It sits inside
-each transformer block. The model runs attention once per block.
-If the model has twelve blocks it runs attention twelve times.
-Each time the words get better at understanding each other.
+Attention ist das Herzstück jedes Transformer-Modells. Es sitzt in
+jedem Transformer-Block. Das Modell führt Attention einmal pro
+Block aus. Wenn das Modell zwölf Blöcke hat, führt es Attention
+zwölfmal aus. Jedes Mal werden die Wörter besser darin, einander zu
+verstehen.
 
 ```
-Sentence → Embeddings → [Attention → FFN] × 12 → Output
+Satz → Embeddings → [Attention → FFN] × 12 → Ausgabe
 ```
 
-## Why we need it
+## Warum wir es brauchen
 
-Before attention existed models read words one at a time from
-left to right. By the time they reached the end of a sentence
-they had forgotten what was at the start. Like a person who
-forgets the beginning of a story by the time you finish telling
-it. Attention fixes this by letting the model look at every word
-at the same time. No forgetting. No fading memory.
+Bevor es Attention gab, lasen Modelle Wörter eines nach dem anderen
+von links nach rechts. Bis sie das Ende eines Satzes erreichten,
+hatten sie vergessen, was am Anfang stand. Wie ein Mensch, der den
+Anfang einer Geschichte vergisst, bis man mit dem Erzählen fertig
+ist. Attention behebt das, indem es dem Modell erlaubt, jedes Wort
+gleichzeitig zu betrachten. Kein Vergessen. Kein verblassendes
+Gedächtnis.
 
-Here is a concrete example:
+Hier ist ein konkretes Beispiel:
 
 ```
 "The cat sat on the mat because it was warm"
 ```
 
-What does *it* mean here. A human knows it means the mat. Not the
-cat. How do we know. Because warmth is a property of objects like
-mats. Not of animals like cats. We connect the word *warm* with
-the word *mat* and ignore the word *cat*. We do this without
-thinking. It is automatic.
+Was bedeutet *it* in diesem Fall. Ein Mensch weiß, dass es die
+*mat* meint. Nicht die *cat*. Woher wissen wir das. Weil Wärme eine
+Eigenschaft von Objekten wie Matten ist. Nicht von Tieren wie
+Katzen. Wir verbinden das Wort *warm* mit dem Wort *mat* und
+ignorieren das Wort *cat*. Wir tun das, ohne nachzudenken. Es
+passiert automatisch.
 
-A model without attention reads left to right. By the time it
-reaches the word *it* the word *mat* was six words ago. The signal
-has faded. The model cannot remember. It might think *it* refers
-to *cat* which makes no sense with the word *warm*.
+Ein Modell ohne Attention liest von links nach rechts. Wenn es das
+Wort *it* erreicht, liegt das Wort *mat* schon sechs Wörter zurück.
+Das Signal ist verblasst. Das Modell kann sich nicht erinnern. Es
+könnte denken, dass sich *it* auf *cat* bezieht, was mit dem Wort
+*warm* keinen Sinn ergibt.
 
-With attention the word *it* can look back at every word that
-came before. It sees *mat* and notices that *mat* is connected to
-*warm*. It sees *cat* and notices that *cat* is less connected to
-*warm*. It puts more weight on *mat*. The model resolves the
-meaning correctly.
+Mit Attention kann das Wort *it* auf jedes vorangegangene Wort
+zurückblicken. Es sieht *mat* und bemerkt, dass *mat* mit *warm*
+verbunden ist. Es sieht *cat* und bemerkt, dass *cat* weniger mit
+*warm* verbunden ist. Es legt mehr Gewicht auf *mat*. Das Modell
+löst die Bedeutung korrekt auf.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Attention was introduced in 2017 in a paper called Attention Is
-All You Need. The title was bold. The authors claimed you do not
-need any other mechanism. Just attention is enough. They were
-right. Every major language model since 2018 has been built
-entirely on attention.
+Attention wurde 2017 in einem Paper namens Attention Is All You
+Need eingeführt. Der Titel war kühn. Die Autoren behaupteten, man
+brauche keinen anderen Mechanismus. Attention allein reiche aus.
+Sie hatten recht. Jedes bedeutende Sprachmodell seit 2018 baut
+vollständig auf Attention auf.
 
-## How it works : a step by step story
+## Wie es funktioniert : eine Schritt-für-Schritt-Geschichte
 
-Let us trace through a real example with three words and real
-numbers. You can follow along and see every calculation.
+Lass uns ein echtes Beispiel mit drei Wörtern und echten Zahlen
+durchgehen. Du kannst mitverfolgen und jede Berechnung
+nachvollziehen.
 
-### The setup
+### Die Ausgangslage
 
-We have three words in our sentence. The model gave each word a
-vector of four numbers. These numbers represent the meaning.
-
-```
-Word 0 ("I"):    [ 0.5,  0.2, -0.3,  0.8]
-Word 1 ("love"): [ 0.1, -0.5,  0.7, -0.2]
-Word 2 ("dogs"): [ 0.9,  0.3, -0.1, -0.5]
-```
-
-The model wants to understand the word *dogs*. But it should think
-about *I* and *love* too because they give context. *I love dogs*
-is different from *I fear dogs*. The words around *dogs* matter.
-
-### Step 1 : Create three things for each word
-
-The model takes each word and multiplies it by three learned
-matrices. The result is three new vectors called Query Key and
-Value. Every word gets its own Q K V.
+Wir haben drei Wörter in unserem Satz. Das Modell hat jedem Wort
+einen Vektor aus vier Zahlen zugewiesen. Diese Zahlen repräsentieren
+die Bedeutung.
 
 ```
-Query = "What am I looking for?"
-Key   = "What do I have to offer?"
-Value = "This is my actual content"
+Wort 0 ("I"):    [ 0.5,  0.2, -0.3,  0.8]
+Wort 1 ("love"): [ 0.1, -0.5,  0.7, -0.2]
+Wort 2 ("dogs"): [ 0.9,  0.3, -0.1, -0.5]
 ```
 
-Think of it like a dating app. The Query is your profile saying
-what you want. The Key is everyone else saying what they offer.
-When your Query matches someone's Key you pay attention to them.
+Das Modell will das Wort *dogs* verstehen. Aber es sollte auch an
+*I* und *love* denken, weil sie Kontext liefern. *I love dogs* ist
+etwas anderes als *I fear dogs*. Die Wörter rund um *dogs* sind
+wichtig.
 
-After the matrix multiplication our three words become:
+### Schritt 1 : Erzeuge drei Dinge für jedes Wort
+
+Das Modell nimmt jedes Wort und multipliziert es mit drei gelernten
+Matrizen. Das Ergebnis sind drei neue Vektoren namens Query, Key
+und Value. Jedes Wort bekommt sein eigenes Q K V.
 
 ```
-Word    | Query              | Key                | Value
+Query = "Wonach suche ich?"
+Key   = "Was habe ich zu bieten?"
+Value = "Das ist mein tatsächlicher Inhalt"
+```
+
+Stell es dir wie eine Dating-App vor. Die Query ist dein Profil,
+das sagt, was du willst. Der Key ist das, was alle anderen über
+sich sagen, was sie bieten. Wenn deine Query zum Key von jemandem
+passt, schenkst du dieser Person Aufmerksamkeit.
+
+Nach der Matrixmultiplikation werden unsere drei Wörter zu:
+
+```
+Wort    | Query              | Key                | Value
 "I"     | [ 0.8,  0.1]      | [ 0.6, -0.3]      | [ 0.4,  0.9]
 "love"  | [-0.2,  0.7]      | [ 0.1,  0.5]      | [-0.3,  0.2]
 "dogs"  | [ 0.5, -0.4]      | [-0.4,  0.8]      | [ 0.7, -0.1]
 ```
 
-Each vector has only two numbers here to keep things simple. Real
-models use 64 numbers per head.
+Jeder Vektor hat hier nur zwei Zahlen, um es einfach zu halten.
+Echte Modelle verwenden 64 Zahlen pro Head.
 
-### Step 2 : Score every pair of words
+### Schritt 2 : Bewerte jedes Wortpaar
 
-Now we compare every Query with every Key. We take the dot
-product. The dot product measures how well they match. A high
-score means the Query really wants what that Key offers.
+Jetzt vergleichen wir jede Query mit jedem Key. Wir bilden das
+Skalarprodukt (Dot Product). Das Skalarprodukt misst, wie gut sie
+zusammenpassen. Ein hoher Score bedeutet, dass die Query wirklich
+das will, was dieser Key bietet.
 
-Let us compute how much *dogs* wants to attend to every word.
+Lass uns berechnen, wie sehr *dogs* jedem Wort Aufmerksamkeit
+schenken will.
 
 ```
-dogs looking at I:
+dogs betrachtet I:
   Q_dogs · K_I = (0.5 × 0.6) + (-0.4 × -0.3)
                = 0.30 + 0.12
                = 0.42
 
-dogs looking at love:
+dogs betrachtet love:
   Q_dogs · K_love = (0.5 × 0.1) + (-0.4 × 0.5)
                   = 0.05 + (-0.20)
                   = -0.15
 
-dogs looking at dogs (itself):
+dogs betrachtet dogs (sich selbst):
   Q_dogs · K_dogs = (0.5 × -0.4) + (-0.4 × 0.8)
                   = -0.20 + (-0.32)
                   = -0.52
 ```
 
-The scores tell us: *dogs* matches *I* best (score is 0.42 which
-is positive). *dogs* matches *love* somewhat (score is -0.15 which
-is close to zero). *dogs* does not match itself well (score is
--0.52 which is quite negative).
+Die Scores sagen uns: *dogs* passt am besten zu *I* (der Score ist
+0.42, also positiv). *dogs* passt einigermaßen zu *love* (der Score
+ist -0.15, also nahe null). *dogs* passt nicht gut zu sich selbst
+(der Score ist -0.52, also deutlich negativ).
 
-### Step 3 : Scale the scores
+### Schritt 3 : Skaliere die Scores
 
-We divide every score by the square root of the dimension size.
-Our vectors have two dimensions. The square root of two is about
-1.4. This scaling keeps the numbers from getting too big.
+Wir teilen jeden Score durch die Quadratwurzel der Dimensionsgröße.
+Unsere Vektoren haben zwei Dimensionen. Die Quadratwurzel von zwei
+ist etwa 1.4. Diese Skalierung verhindert, dass die Zahlen zu groß
+werden.
 
 ```
-Scaled scores: [0.42/1.4, -0.15/1.4, -0.52/1.4]
+Skalierte Scores: [0.42/1.4, -0.15/1.4, -0.52/1.4]
              = [0.30, -0.11, -0.37]
 ```
 
-Why do we scale. Without scaling the scores can get very large
-when we use bigger vectors like 64 dimensions. Large scores make
-the next step produce extreme results where one word gets all the
-attention and everything else gets zero. Scaling keeps things
-balanced.
+Warum skalieren wir. Ohne Skalierung können die Scores sehr groß
+werden, wenn wir größere Vektoren wie 64 Dimensionen verwenden.
+Große Scores führen im nächsten Schritt zu extremen Ergebnissen,
+bei denen ein Wort die gesamte Attention bekommt und alles andere
+null bekommt. Skalierung sorgt für Ausgewogenheit.
 
-### Step 4 : Apply the causal mask
+### Schritt 4 : Wende die Causal Mask an
 
-During training each word can only see words that came before it.
-Words that come after are hidden. This is like reading a book.
-You do not know what is on the next page until you turn it.
+Während des Trainings kann jedes Wort nur Wörter sehen, die vor ihm
+kamen. Wörter, die danach kommen, sind verborgen. Das ist wie beim
+Lesen eines Buchs. Du weißt nicht, was auf der nächsten Seite
+steht, bevor du sie umblätterst.
 
-In our example *I* can only see itself. *love* can see *I* and
-itself. *dogs* can see all three. Words that should be hidden get
-a score of negative infinity. After the next step negative
-infinity becomes zero. Those words are completely ignored.
-
-```
-I can see:    [I, hidden, hidden]
-love can see: [I, love, hidden]
-dogs can see: [I, love, dogs]
-```
-
-### Step 5 : Turn scores into percentages (softmax)
-
-Softmax takes our scores and turns them into percentages that
-add up to 100 percent. This gives us attention weights.
+In unserem Beispiel kann *I* nur sich selbst sehen. *love* kann *I*
+und sich selbst sehen. *dogs* kann alle drei sehen. Wörter, die
+verborgen bleiben sollen, bekommen einen Score von minus unendlich.
+Nach dem nächsten Schritt wird minus unendlich zu null. Diese
+Wörter werden vollständig ignoriert.
 
 ```
-For dogs looking at all words:
+I kann sehen:    [I, versteckt, versteckt]
+love kann sehen: [I, love, versteckt]
+dogs kann sehen: [I, love, dogs]
+```
+
+### Schritt 5 : Verwandle Scores in Prozentwerte (Softmax)
+
+Softmax nimmt unsere Scores und verwandelt sie in Prozentwerte, die
+sich zu 100 Prozent aufsummieren. Das ergibt unsere
+Attention-Gewichte.
+
+```
+Für dogs beim Betrachten aller Wörter:
 Scores: [0.30, -0.11, -0.37]
 
-Step 1 : Take e to the power of each score:
+Schritt 1 : Erhebe e in die Potenz jedes Scores:
          e^0.30 = 1.35
          e^-0.11 = 0.90
          e^-0.37 = 0.69
 
-Step 2 : Sum them up:
+Schritt 2 : Addiere sie:
          1.35 + 0.90 + 0.69 = 2.94
 
-Step 3 : Divide each by the sum:
-         1.35 / 2.94 = 0.46  (46 percent attention to I)
-         0.90 / 2.94 = 0.31  (31 percent to love)
-         0.69 / 2.94 = 0.23  (23 percent to itself)
+Schritt 3 : Teile jeden durch die Summe:
+         1.35 / 2.94 = 0.46  (46 Prozent Attention auf I)
+         0.90 / 2.94 = 0.31  (31 Prozent auf love)
+         0.69 / 2.94 = 0.23  (23 Prozent auf sich selbst)
 
-Final attention weights for dogs: [0.46, 0.31, 0.23]
+Finale Attention-Gewichte für dogs: [0.46, 0.31, 0.23]
 ```
 
-When reading the word *dogs* the model pays 46 percent attention
-to *I* 31 percent to *love* and 23 percent to *dogs* itself.
+Beim Lesen des Wortes *dogs* schenkt das Modell *I* 46 Prozent
+Aufmerksamkeit, *love* 31 Prozent und *dogs* selbst 23 Prozent.
 
-### Step 6 : Mix the values using the attention weights
+### Schritt 6 : Mische die Values mithilfe der Attention-Gewichte
 
-Now we have weights. We use them to mix the Value vectors. Words
-we care about more get their Values multiplied by a bigger weight.
+Jetzt haben wir Gewichte. Wir verwenden sie, um die Value-Vektoren
+zu mischen. Wörter, die uns wichtiger sind, bekommen ihre Values
+mit einem größeren Gewicht multipliziert.
 
 ```
-New representation of dogs = (0.46 × Value of I)
-                            + (0.31 × Value of love)
-                            + (0.23 × Value of dogs)
+Neue Repräsentation von dogs = (0.46 × Value von I)
+                            + (0.31 × Value von love)
+                            + (0.23 × Value von dogs)
 
 = 0.46 × [0.4, 0.9] + 0.31 × [-0.3, 0.2] + 0.23 × [0.7, -0.1]
 
@@ -227,73 +244,78 @@ New representation of dogs = (0.46 × Value of I)
 = [0.252, 0.453]
 ```
 
-The new vector for *dogs* is [0.252, 0.453]. This is no longer
-just the meaning of *dogs*. It now contains information about *I*
-and *love* weighted by how much they matter. The word *dogs* now
-knows about the words around it. It has context.
+Der neue Vektor für *dogs* lautet [0.252, 0.453]. Das ist nicht
+mehr nur die Bedeutung von *dogs*. Er enthält jetzt Informationen
+über *I* und *love*, gewichtet danach, wie wichtig sie sind. Das
+Wort *dogs* weiß jetzt über die Wörter um es herum Bescheid. Es hat
+Kontext.
 
-## The full attention matrix
+## Die vollständige Attention-Matrix
 
-Here is what all three words see after attention. Each row is a
-word. Each column is what that word attends to.
+Hier ist, was alle drei Wörter nach der Attention sehen. Jede Zeile
+ist ein Wort. Jede Spalte ist das, worauf dieses Wort Attention
+richtet.
 
 ```
            I       love    dogs
-I         1.00    0.00    0.00     ← I can only see itself
-love      0.45    0.55    0.00     ← love sees I and itself
-dogs      0.46    0.31    0.23     ← dogs sees all three
+I         1.00    0.00    0.00     ← I kann nur sich selbst sehen
+love      0.45    0.55    0.00     ← love sieht I und sich selbst
+dogs      0.46    0.31    0.23     ← dogs sieht alle drei
 ```
 
-The upper right corner is all zeros. That is the causal mask at
-work. No word can see the future. This is how the model learns to
-predict the next word without cheating.
+Die obere rechte Ecke besteht komplett aus Nullen. Das ist die
+Causal Mask am Werk. Kein Wort kann die Zukunft sehen. So lernt das
+Modell, das nächste Wort vorherzusagen, ohne zu schummeln.
 
-## Multi head attention
+## Multi-Head Attention
 
-Why stop at one attention calculation. Different aspects of
-language need different kinds of attention. One head might focus
-on grammar. Another head might focus on meaning. Another might
-focus on whether words refer to the same thing.
+Warum bei einer einzigen Attention-Berechnung aufhören.
+Verschiedene Aspekte von Sprache brauchen verschiedene Arten von
+Attention. Ein Head könnte sich auf Grammatik konzentrieren. Ein
+anderer Head könnte sich auf Bedeutung konzentrieren. Ein weiterer
+könnte sich darauf konzentrieren, ob Wörter sich auf dasselbe
+beziehen.
 
-In our real model we do attention twelve times in parallel. Each
-time with different learned matrices for Q K and V. Each head
-specializes in something different. Then we combine all twelve
-heads back together.
+In unserem echten Modell führen wir Attention zwölfmal parallel
+aus. Jedes Mal mit unterschiedlichen gelernten Matrizen für Q, K
+und V. Jeder Head spezialisiert sich auf etwas anderes. Dann
+kombinieren wir alle zwölf Heads wieder miteinander.
 
 ```
-Input → Head 1: grammar focus     ↘
-        Head 2: meaning focus     →  Combine → Output
-        Head 3: pronoun resolution ↗
+Eingabe → Head 1: Fokus auf Grammatik     ↘
+        Head 2: Fokus auf Bedeutung     →  Kombinieren → Ausgabe
+        Head 3: Pronomenauflösung ↗
         ...
-        Head 12: positional focus
+        Head 12: Fokus auf Position
 ```
 
-Each head works in a smaller space. If the model has 768
-dimensions and 12 heads each head works with 64 dimensions. This
-is like having twelve experts each looking at the same text
-through a different lens. Their insights get combined.
+Jeder Head arbeitet in einem kleineren Raum. Wenn das Modell 768
+Dimensionen und 12 Heads hat, arbeitet jeder Head mit 64
+Dimensionen. Das ist, als hätte man zwölf Experten, die alle
+denselben Text durch eine andere Linse betrachten. Ihre
+Erkenntnisse werden kombiniert.
 
-## A tiny code example you can run
+## Ein winziges Codebeispiel zum Ausprobieren
 
 ```python
 import torch
 import torch.nn.functional as F
 import math
 
-# Three words with four dimensions each
+# Drei Wörter mit jeweils vier Dimensionen
 words = torch.tensor([[
     [0.5,  0.2, -0.3,  0.8],   # I
     [0.1, -0.5,  0.7, -0.2],   # love
     [0.9,  0.3, -0.1, -0.5],   # dogs
 ]])
 
-# Create random Q K V matrices (normally these are learned)
+# Erstelle zufällige Q K V Matrizen (normalerweise werden diese gelernt)
 d_model = 4
 W_q = torch.randn(d_model, d_model)
 W_k = torch.randn(d_model, d_model)
 W_v = torch.randn(d_model, d_model)
 
-# Project to Q K V
+# Projiziere auf Q K V
 Q = words @ W_q
 K = words @ W_k
 V = words @ W_v
@@ -302,20 +324,20 @@ print("Query vectors:")
 print(Q)
 print()
 
-# Compute attention scores
+# Berechne Attention-Scores
 head_dim = 4
 scores = (Q @ K.transpose(-2, -1)) / math.sqrt(head_dim)
 
-# Create causal mask
+# Erstelle Causal Mask
 seq_len = 3
 mask = torch.tril(torch.ones(seq_len, seq_len))
 mask = mask.view(1, 1, seq_len, seq_len)
 scores = scores.masked_fill(mask == 0, float('-inf'))
 
-# Softmax to get weights
+# Softmax, um Gewichte zu erhalten
 weights = F.softmax(scores, dim=-1)
 
-# Apply weights to values
+# Wende Gewichte auf Values an
 output = weights @ V
 
 print("Attention weights:")
@@ -330,34 +352,39 @@ print("The first row shows Token 0 attending only to itself.")
 print("The last row shows Token 2 attending to all three tokens.")
 ```
 
-## The big picture
+## Das große Ganze
 
-Attention is like giving every word a flashlight. The word shines
-its light on other words. Brighter light means more attention. The
-model learns where to shine the light during training. After
-enough training it knows that pronouns should light up the noun
-they refer to. It knows that verbs should light up their subjects.
-It knows that adjectives should light up the nouns they describe.
+Attention ist, als würde man jedem Wort eine Taschenlampe geben.
+Das Wort lässt sein Licht auf andere Wörter scheinen. Helleres
+Licht bedeutet mehr Attention. Das Modell lernt während des
+Trainings, wohin es das Licht richten soll. Nach ausreichend
+Training weiß es, dass Pronomen das Nomen beleuchten sollten, auf
+das sie sich beziehen. Es weiß, dass Verben ihre Subjekte
+beleuchten sollten. Es weiß, dass Adjektive die Nomen beleuchten
+sollten, die sie beschreiben.
 
-This is why attention is the secret sauce of modern AI. It lets
-words understand each other instead of existing in isolation. A
-sentence becomes a web of connections. Not just a list of words
-in order.
+Deshalb ist Attention die geheime Zutat moderner KI. Sie lässt
+Wörter einander verstehen, statt isoliert zu existieren. Ein Satz
+wird zu einem Netz aus Verbindungen. Nicht nur eine Liste von
+Wörtern in einer Reihenfolge.
 
-## What you need to remember
+## Was du dir merken musst
 
-Every word creates a Query a Key and a Value. The Query of one
-word compares itself to the Keys of all other words. The match
-scores become attention weights. The weights are used to mix the
-Values. The result is a new understanding of each word that knows
-about every other word that matters.
+Jedes Wort erzeugt eine Query, einen Key und einen Value. Die Query
+eines Wortes vergleicht sich mit den Keys aller anderen Wörter. Die
+Übereinstimmungs-Scores werden zu Attention-Gewichten. Die Gewichte
+werden verwendet, um die Values zu mischen. Das Ergebnis ist ein
+neues Verständnis jedes Wortes, das über jedes andere wichtige Wort
+Bescheid weiß.
 
-During training words cannot see the future. The causal mask
-blocks them. This forces the model to predict what comes next
-using only what came before. The same way you predict the ending
-of a sentence when someone pauses mid thought.
+Während des Trainings können Wörter die Zukunft nicht sehen. Die
+Causal Mask blockiert sie. Das zwingt das Modell, vorherzusagen,
+was als Nächstes kommt, und dabei nur zu verwenden, was vorher kam.
+Genauso, wie du das Ende eines Satzes vorhersagst, wenn jemand
+mitten im Gedanken innehält.
 
-Attention runs in parallel with multiple heads. Each head learns
-a different pattern. One head might connect pronouns to nouns.
-Another might connect verbs to subjects. The heads never talk to
-each other during computation. They combine only at the end.
+Attention läuft parallel mit mehreren Heads ab. Jeder Head lernt
+ein anderes Muster. Ein Head könnte Pronomen mit Nomen verbinden.
+Ein anderer könnte Verben mit Subjekten verbinden. Die Heads
+sprechen während der Berechnung nie miteinander. Sie werden erst am
+Ende kombiniert.

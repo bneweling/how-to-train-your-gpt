@@ -1,71 +1,74 @@
-# Perplexity: The One Number That Measures Your Model
+# Perplexity: Die eine Zahl, die dein Modell misst
 
-## The short answer
+## Die kurze Antwort
 
-Perplexity is a single number that tells you how good a language model
-is. Lower is better. A perplexity of 10 means the model is as confused
-as if it had to choose between 10 equally likely words at every step.
-A perplexity of 1 means the model knows exactly what word comes next
-every time. Real language models on real text usually have perplexity
-between 10 and 100.
+Perplexity ist eine einzelne Zahl, die dir sagt, wie gut ein Sprachmodell
+ist. Niedriger ist besser. Eine Perplexity von 10 bedeutet, dass das
+Modell bei jedem Schritt so verwirrt ist, als müsste es zwischen 10
+gleich wahrscheinlichen Wörtern wählen. Eine Perplexity von 1 bedeutet,
+dass das Modell jedes Mal genau weiß, welches Wort als Nächstes kommt.
+Reale Sprachmodelle liegen bei echtem Text meist bei einer Perplexity
+zwischen 10 und 100.
 
-Perplexity is not abstract. It is the exponentiated cross entropy loss.
-If your training loss is 3.0 your perplexity is e to the power of 3
-which is about 20. The model is as confused as if picking randomly
-among 20 options.
+Perplexity ist nicht abstrakt. Sie ist der exponenzierte Cross-Entropy-
+Loss. Wenn dein Trainings-Loss 3.0 beträgt, ist deine Perplexity e hoch
+3, also etwa 20. Das Modell ist so verwirrt, als würde es zufällig
+unter 20 Optionen wählen.
 
-## Where the number comes from
+## Woher die Zahl kommt
 
-Every time the model predicts the next word it assigns a probability to
-every token in the vocabulary. The correct token gets some probability
-P. The model is uncertain about that prediction. Cross entropy loss
-measures that uncertainty as negative log of P. Perplexity is e to the
-power of that loss.
+Jedes Mal, wenn das Modell das nächste Wort vorhersagt, weist es jedem
+Token im Vokabular eine Wahrscheinlichkeit zu. Das korrekte Token
+erhält eine Wahrscheinlichkeit P. Das Modell ist sich bei dieser
+Vorhersage unsicher. Der Cross-Entropy-Loss misst diese Unsicherheit
+als negativen Logarithmus von P. Perplexity ist e hoch dieser Loss.
 
 ```
-For a single prediction:
-  Model says P("mat") = 0.25
+Für eine einzelne Vorhersage:
+  Modell sagt P("mat") = 0.25
   Loss = -ln(0.25) = 1.386
   Perplexity = e^1.386 = 4.0
 
-Interpretation: The model was as uncertain as if it had to pick
-randomly among 4 equally likely options.
+Interpretation: Das Modell war so unsicher, als hätte es zufällig
+unter 4 gleich wahrscheinlichen Optionen wählen müssen.
 ```
 
-The magic of perplexity is that it translates an abstract loss number
-into something you can visualize. A loss of 1.386 means nothing to most
-people. A perplexity of 4 means the model is choosing among 4 options.
-That is tangible. You can imagine picking randomly from 4 words.
+Das Besondere an Perplexity ist, dass sie eine abstrakte Loss-Zahl in
+etwas Vorstellbares übersetzt. Ein Loss von 1.386 bedeutet den meisten
+Menschen nichts. Eine Perplexity von 4 bedeutet, dass das Modell unter
+4 Optionen wählt. Das ist greifbar. Du kannst dir vorstellen, zufällig
+aus 4 Wörtern zu wählen.
 
-## Perplexity versus loss
+## Perplexity versus Loss
 
-During training you watch the loss go down. The loss starts around 10.8
-for a model with 50257 vocabulary tokens. That is uninterpretable. But
-you can convert it.
+Während des Trainings beobachtest du, wie der Loss sinkt. Der Loss
+startet bei etwa 10.8 für ein Modell mit 50257 Vokabular-Tokens. Das
+ist nicht interpretierbar. Aber du kannst ihn umrechnen.
 
 ```
-loss = 10.82:  perplexity = e^10.82 ≈ 50,000  (random. Model knows nothing)
-loss = 7.0:    perplexity = e^7.0  ≈ 1,100    (learning word frequencies)
-loss = 5.0:    perplexity = e^5.0  ≈ 150      (learning basic grammar)
-loss = 3.0:    perplexity = e^3.0  ≈ 20       (decent language model)
-loss = 2.0:    perplexity = e^2.0  ≈ 7.4      (good language model)
-loss = 1.5:    perplexity = e^1.5  ≈ 4.5      (very good)
-loss = 1.0:    perplexity = e^1.0  ≈ 2.7      (excellent)
+loss = 10.82:  perplexity = e^10.82 ≈ 50,000  (zufällig. Modell weiß nichts)
+loss = 7.0:    perplexity = e^7.0  ≈ 1,100    (lernt Wörterfrequenzen)
+loss = 5.0:    perplexity = e^5.0  ≈ 150      (lernt grundlegende Grammatik)
+loss = 3.0:    perplexity = e^3.0  ≈ 20       (brauchbares Sprachmodell)
+loss = 2.0:    perplexity = e^2.0  ≈ 7.4      (gutes Sprachmodell)
+loss = 1.5:    perplexity = e^1.5  ≈ 4.5      (sehr gut)
+loss = 1.0:    perplexity = e^1.0  ≈ 2.7      (exzellent)
 ```
 
-Perplexity gives you a mental model for what the loss actually means.
-When your loss goes from 10.8 to 7.0 you have not just improved by
-3.8 units. You have gone from being as confused as 50000 options to
-being as confused as 1100 options. That is dramatic improvement.
+Perplexity gibt dir ein mentales Modell dafür, was der Loss
+tatsächlich bedeutet. Wenn dein Loss von 10.8 auf 7.0 sinkt, hast du
+dich nicht einfach nur um 3.8 Einheiten verbessert. Du bist von einer
+Verwirrung wie bei 50000 Optionen zu einer Verwirrung wie bei 1100
+Optionen übergegangen. Das ist eine dramatische Verbesserung.
 
-## How to compute it
+## Wie man sie berechnet
 
-In code perplexity is one line.
+Im Code ist Perplexity eine einzige Zeile.
 
 ```python
 import math
 
-loss = 3.0  # Your model's cross entropy loss
+loss = 3.0  # Der Cross-Entropy-Loss deines Modells
 perplexity = math.exp(loss)
 
 print(f"Loss: {loss:.4f}")
@@ -73,7 +76,8 @@ print(f"Perplexity: {perplexity:.2f}")
 print(f"The model is as uncertain as picking among {perplexity:.0f} options.")
 ```
 
-For a batch of predictions compute the average loss first then exponentiate.
+Für einen Batch von Vorhersagen berechnest du zuerst den
+durchschnittlichen Loss und exponenzierst ihn dann.
 
 ```python
 total_loss = 0
@@ -94,98 +98,106 @@ perplexity = math.exp(average_loss)
 print(f"Validation perplexity: {perplexity:.2f}")
 ```
 
-Always compute perplexity on data the model has not seen during
-training. Training perplexity can be misleadingly low because the model
-has memorized parts of the training data. Validation perplexity
-measures how well the model generalizes.
+Berechne Perplexity immer auf Daten, die das Modell während des
+Trainings nicht gesehen hat. Die Trainings-Perplexity kann irreführend
+niedrig sein, weil das Modell Teile der Trainingsdaten auswendig
+gelernt hat. Die Validierungs-Perplexity misst, wie gut das Modell
+generalisiert.
 
-## What different perplexity values mean
+## Was unterschiedliche Perplexity-Werte bedeuten
 
-### Perplexity around 50000
+### Perplexity um 50000
 
-Your model is random. It assigns equal probability to every token in
-the vocabulary. It has learned nothing. This is normal at step zero
-of training. If it stays here after thousands of steps something is
-broken. Check your loss function and optimizer.
+Dein Modell ist zufällig. Es weist jedem Token im Vokabular die
+gleiche Wahrscheinlichkeit zu. Es hat nichts gelernt. Das ist bei
+Schritt null des Trainings normal. Wenn es nach Tausenden von
+Schritten immer noch hier steht, ist etwas kaputt. Überprüfe deine
+Loss-Funktion und deinen Optimizer.
 
-### Perplexity around 1000
+### Perplexity um 1000
 
-The model has learned that some words are more common than others.
-It knows that *the* appears often and *xylophone* appears rarely. It
-uses these frequencies in its predictions. But it does not yet
-understand word order or grammar or meaning. The output is gibberish
-but the gibberish contains common words in roughly the right
-proportions.
+Das Modell hat gelernt, dass manche Wörter häufiger vorkommen als
+andere. Es weiß, dass *the* oft vorkommt und *xylophone* selten. Es
+nutzt diese Häufigkeiten in seinen Vorhersagen. Aber es versteht noch
+nicht Wortreihenfolge, Grammatik oder Bedeutung. Die Ausgabe ist
+Kauderwelsch, aber das Kauderwelsch enthält häufige Wörter in ungefähr
+den richtigen Proportionen.
 
-### Perplexity around 100
+### Perplexity um 100
 
-The model has learned basic grammar. It knows that articles precede
-nouns. It knows that verbs agree with subjects in number. It knows
-that periods end sentences. The output has recognizable sentence
-structure even if the content is nonsensical. This is where most small
-models plateau after limited training.
+Das Modell hat grundlegende Grammatik gelernt. Es weiß, dass Artikel
+vor Substantiven stehen. Es weiß, dass Verben im Numerus mit dem
+Subjekt übereinstimmen. Es weiß, dass Sätze mit einem Punkt enden. Die
+Ausgabe hat eine erkennbare Satzstruktur, auch wenn der Inhalt
+unsinnig ist. Hier stagnieren die meisten kleinen Modelle nach
+begrenztem Training.
 
-### Perplexity around 20
+### Perplexity um 20
 
-The model writes coherent text. Sentences have subjects and verbs and
-objects in the right order. The content is sometimes factual and
-sometimes invented. This is the level of GPT-1 from 2018. A model
-with 17 million parameters trained on 100 million tokens might reach
-this level.
+Das Modell schreibt zusammenhängenden Text. Sätze haben Subjekt, Verb
+und Objekt in der richtigen Reihenfolge. Der Inhalt ist manchmal
+faktisch korrekt und manchmal erfunden. Das ist das Niveau von GPT-1
+aus dem Jahr 2018. Ein Modell mit 17 Millionen Parametern, trainiert
+auf 100 Millionen Tokens, kann dieses Niveau erreichen.
 
-### Perplexity around 10
+### Perplexity um 10
 
-The model writes good text. The content is mostly factual. Few obvious
-errors. This is the level of GPT-2 from 2019. A model with 150 million
-parameters trained on billions of tokens can reach this.
+Das Modell schreibt guten Text. Der Inhalt ist größtenteils faktisch
+korrekt. Wenige offensichtliche Fehler. Das ist das Niveau von GPT-2
+aus dem Jahr 2019. Ein Modell mit 150 Millionen Parametern, trainiert
+auf Milliarden von Tokens, kann das erreichen.
 
-### Perplexity around 5
+### Perplexity um 5
 
-The model writes excellent text. Rarely makes factual errors. Handles
-complex reasoning. This is the level of GPT-3 from 2020 and modern
-small models like LLaMA 7B. Training these models costs millions of
-dollars.
+Das Modell schreibt exzellenten Text. Macht selten faktische Fehler.
+Bewältigt komplexes Reasoning. Das ist das Niveau von GPT-3 aus dem
+Jahr 2020 und modernen kleinen Modellen wie LLaMA 7B. Das Training
+dieser Modelle kostet Millionen von Dollar.
 
-### Perplexity below 3
+### Perplexity unter 3
 
-The model approaches human performance on language modeling. It
-predicts what a human would write with high accuracy. Models at this
-level are measured on harder tasks like question answering and code
-generation because perplexity stops being a useful metric. The
-difference between perplexity 2.5 and 2.3 is hard to feel but
-expensive to achieve.
+Das Modell nähert sich menschlicher Leistung beim Sprachmodellieren
+an. Es sagt mit hoher Genauigkeit vorher, was ein Mensch schreiben
+würde. Modelle auf diesem Niveau werden anhand schwierigerer Aufgaben
+wie Question Answering und Codegenerierung gemessen, weil Perplexity
+als Metrik ihre Aussagekraft verliert. Der Unterschied zwischen
+Perplexity 2.5 und 2.3 ist kaum spürbar, aber teuer zu erreichen.
 
-## Why perplexity is not everything
+## Warum Perplexity nicht alles ist
 
-Perplexity measures how well the model predicts the next word. It does
-not measure whether the model is helpful or truthful or safe or
-creative. A model can have great perplexity and still generate
-harmful content. It can have great perplexity and still hallucinate
-facts. It can have great perplexity and still be boring.
+Perplexity misst, wie gut das Modell das nächste Wort vorhersagt. Sie
+misst nicht, ob das Modell hilfreich, wahrheitsgetreu, sicher oder
+kreativ ist. Ein Modell kann eine hervorragende Perplexity haben und
+trotzdem schädliche Inhalte erzeugen. Es kann eine hervorragende
+Perplexity haben und trotzdem Fakten halluzinieren. Es kann eine
+hervorragende Perplexity haben und trotzdem langweilig sein.
 
-Perplexity also depends on the dataset. A model trained on children's
-books will have low perplexity on children's books and high perplexity
-on legal documents. Perplexity is always relative to the test data.
-Comparing perplexity between models is only meaningful when the models
-are evaluated on the same dataset with the same tokenizer.
+Perplexity hängt außerdem vom Datensatz ab. Ein Modell, das auf
+Kinderbüchern trainiert wurde, hat eine niedrige Perplexity bei
+Kinderbüchern und eine hohe Perplexity bei juristischen Dokumenten.
+Perplexity ist immer relativ zu den Testdaten. Ein Vergleich der
+Perplexity zwischen Modellen ist nur sinnvoll, wenn die Modelle auf
+demselben Datensatz mit demselben Tokenizer ausgewertet werden.
 
-Different tokenizers produce different perplexity values for the same
-model on the same data. A tokenizer with a larger vocabulary usually
-gives lower perplexity because each token encodes more information and
-there are fewer predictions to make per sentence. This is why you
-cannot compare perplexity between models that use different tokenizers.
+Unterschiedliche Tokenizer erzeugen unterschiedliche Perplexity-Werte
+für dasselbe Modell auf denselben Daten. Ein Tokenizer mit einem
+größeren Vokabular liefert meist eine niedrigere Perplexity, weil
+jedes Token mehr Information kodiert und pro Satz weniger Vorhersagen
+nötig sind. Deshalb kannst du Perplexity nicht zwischen Modellen
+vergleichen, die unterschiedliche Tokenizer verwenden.
 
-## The relationship to bits per character
+## Der Zusammenhang mit Bits pro Zeichen
 
-Perplexity can be converted to bits per character. Bits per character
-measures how many bits of information the model needs on average to
-encode each character of text. Lower is better. The relationship is:
+Perplexity lässt sich in Bits pro Zeichen umrechnen. Bits pro Zeichen
+misst, wie viele Bits an Information das Modell im Durchschnitt
+braucht, um jedes Zeichen des Textes zu kodieren. Niedriger ist
+besser. Der Zusammenhang lautet:
 
 ```
 bits_per_character = ln(perplexity) / (ln(2) × characters_per_token)
 ```
 
-For GPT-2 each token covers about 4 characters on average.
+Bei GPT-2 deckt jedes Token im Durchschnitt etwa 4 Zeichen ab.
 
 ```
 perplexity = 20:
@@ -195,48 +207,50 @@ perplexity = 10:
   bits_per_char = ln(10) / (0.693 × 4) ≈ 0.83 bits per character
 ```
 
-This tells you that the model needs about one bit of information per
-character to encode English text. The theoretical minimum entropy of
-English is about 0.6 to 1.0 bits per character. Models are approaching
-that limit. Further improvements in perplexity will require better
-understanding of meaning not just better statistics.
+Das zeigt dir, dass das Modell etwa ein Bit an Information pro Zeichen
+braucht, um englischen Text zu kodieren. Die theoretische
+Mindestentropie des Englischen liegt bei etwa 0.6 bis 1.0 Bits pro
+Zeichen. Modelle nähern sich dieser Grenze an. Weitere Verbesserungen
+der Perplexity erfordern ein besseres Verständnis von Bedeutung, nicht
+nur bessere Statistik.
 
-## Perplexity during training
+## Perplexity während des Trainings
 
-A good training run should show perplexity decreasing smoothly. The
-starting perplexity should be close to the vocabulary size. The final
-perplexity depends on model size and data quality and training
-duration.
-
-```
-Step       Loss    Perplexity
-0        10.82     50,257     Model knows nothing
-100       9.23     10,240     Learning frequencies
-500       7.45      1,720     Learning word patterns
-1,000     6.12        455     Emerging grammar
-5,000     4.23         69     Coherent phrases
-10,000    3.45         31     Decent sentences
-50,000    2.89         18     Good model
-```
-
-If perplexity stops decreasing before step 10000 something is limiting
-the model. The learning rate might be too low. The model capacity
-might be exhausted. The data might not contain enough patterns to learn
-from. Try increasing the learning rate or the model size or the dataset
-size.
-
-If perplexity decreases on training data but increases on validation
-data the model is overfitting. It is memorizing the training set
-instead of learning general patterns. The training and validation
-curves diverge. Add more dropout or weight decay or use early stopping.
-
-## Perplexity of famous models
-
-All numbers are approximate and depend on the evaluation dataset.
+Ein guter Trainingslauf sollte zeigen, wie die Perplexity gleichmäßig
+sinkt. Die Start-Perplexity sollte nahe an der Vokabulargröße liegen.
+Die finale Perplexity hängt von Modellgröße, Datenqualität und
+Trainingsdauer ab.
 
 ```
-Model                  Params     Perplexity (WikiText-103)
-Random baseline        :          50,257
+Schritt    Loss    Perplexity
+0        10.82     50,257     Modell weiß nichts
+100       9.23     10,240     Lernt Häufigkeiten
+500       7.45      1,720     Lernt Wortmuster
+1,000     6.12        455     Entstehende Grammatik
+5,000     4.23         69     Zusammenhängende Phrasen
+10,000    3.45         31     Brauchbare Sätze
+50,000    2.89         18     Gutes Modell
+```
+
+Wenn die Perplexity vor Schritt 10000 aufhört zu sinken, schränkt
+etwas das Modell ein. Die Learning Rate könnte zu niedrig sein. Die
+Modellkapazität könnte ausgeschöpft sein. Die Daten enthalten
+vielleicht nicht genug Muster zum Lernen. Versuche, die Learning Rate,
+die Modellgröße oder die Datensatzgröße zu erhöhen.
+
+Wenn die Perplexity auf den Trainingsdaten sinkt, aber auf den
+Validierungsdaten steigt, overfittet das Modell. Es lernt den
+Trainingsdatensatz auswendig, statt allgemeine Muster zu lernen. Die
+Trainings- und Validierungskurven laufen auseinander. Füge mehr
+Dropout oder Weight Decay hinzu oder nutze Early Stopping.
+
+## Perplexity bekannter Modelle
+
+Alle Zahlen sind Näherungswerte und hängen vom Evaluationsdatensatz ab.
+
+```
+Modell                 Params     Perplexity (WikiText-103)
+Zufalls-Baseline       :          50,257
 GPT-1 (2018)           117M       ~35
 GPT-2 Small (2019)     124M       ~19
 GPT-2 Medium            350M       ~15
@@ -250,28 +264,30 @@ LLaMA 13B                        ~6
 LLaMA 70B                        ~4
 ```
 
-Notice something. GPT-2 Small at 124 million parameters achieves
-perplexity 19. GPT-3 at 125 million parameters achieves perplexity
-18. Same architecture. Same size. Different training. GPT-3 was
-trained on more data for longer. The extra compute improved perplexity
-even without increasing model size. This is why data quality and
-training duration matter as much as model architecture.
+Beachte Folgendes. GPT-2 Small erreicht mit 124 Millionen Parametern
+eine Perplexity von 19. GPT-3 erreicht mit 125 Millionen Parametern
+eine Perplexity von 18. Gleiche Architektur. Gleiche Größe.
+Unterschiedliches Training. GPT-3 wurde auf mehr Daten und länger
+trainiert. Das zusätzliche Compute verbesserte die Perplexity, ohne
+die Modellgröße zu erhöhen. Deshalb sind Datenqualität und
+Trainingsdauer genauso wichtig wie die Modellarchitektur.
 
-## What you need to remember
+## Was du dir merken solltest
 
-Perplexity is the exponentiated cross entropy loss. A perplexity of N
-means the model is as uncertain as if it had to pick randomly among N
-options. Lower is better. Random models start at around the vocabulary
-size. Good models reach single digits.
+Perplexity ist der exponenzierte Cross-Entropy-Loss. Eine Perplexity
+von N bedeutet, dass das Modell so unsicher ist, als müsste es
+zufällig unter N Optionen wählen. Niedriger ist besser. Zufällige
+Modelle starten bei etwa der Vokabulargröße. Gute Modelle erreichen
+einstellige Werte.
 
-Perplexity translates the abstract loss number into something visual.
-When your loss drops from 10 to 5 your model has gone from being
-confused among 22000 options to being confused among 150 options.
-That is the difference between a model that knows nothing and a model
-that knows something.
+Perplexity übersetzt die abstrakte Loss-Zahl in etwas Anschauliches.
+Wenn dein Loss von 10 auf 5 sinkt, ist dein Modell von einer Verwirrung
+unter 22000 Optionen zu einer Verwirrung unter 150 Optionen
+übergegangen. Das ist der Unterschied zwischen einem Modell, das
+nichts weiß, und einem Modell, das etwas weiß.
 
-Perplexity does not measure helpfulness or truthfulness or safety.
-It only measures how well the model predicts the next word. For
-evaluating whether your model is useful you need other metrics. But
-for tracking whether your model is learning perplexity is the single
-most important number.
+Perplexity misst nicht Hilfsbereitschaft, Wahrheitsgehalt oder
+Sicherheit. Sie misst nur, wie gut das Modell das nächste Wort
+vorhersagt. Um zu beurteilen, ob dein Modell nützlich ist, brauchst du
+andere Metriken. Aber um zu verfolgen, ob dein Modell lernt, ist
+Perplexity die mit Abstand wichtigste Zahl.

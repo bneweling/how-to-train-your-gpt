@@ -1,86 +1,92 @@
-# Gradient Clipping: Preventing Training Explosions
+# Gradient Clipping: Trainingsexplosionen verhindern
 
-## What is it
+## Was ist das
 
-Gradient clipping is a safety net. During training the model
-calculates how to change each weight to reduce the loss. These
-change instructions are called gradients. Sometimes a gradient
-gets very large. One particular example in the training data
-sends a shockwave through the network. The weights take a massive
-jump and the model falls off the cliff into a region where the
-loss is astronomical. Training is ruined.
+Gradient Clipping ist ein Sicherheitsnetz. Während des Trainings
+berechnet das Modell, wie jedes Gewicht verändert werden muss, um
+den Loss zu verringern. Diese Änderungsanweisungen werden Gradients
+genannt. Manchmal wird ein Gradient sehr groß. Ein bestimmtes
+Beispiel in den Trainingsdaten schickt eine Schockwelle durch das
+Netzwerk. Die Gewichte machen einen gewaltigen Sprung, und das
+Modell stürzt von der Klippe in eine Region, in der der Loss
+astronomisch hoch ist. Das Training ist ruiniert.
 
-Gradient clipping says: no gradient can be larger than a certain
-limit. If the total magnitude of all gradients is too high we
-shrink them proportionally until they fit under the limit. The
-direction of the update stays the same. Only the step size is
-limited. The model takes small safe steps instead of wild leaps.
+Gradient Clipping sagt: Kein Gradient darf größer sein als eine
+bestimmte Grenze. Wenn die Gesamtgröße aller Gradients zu hoch ist,
+verkleinern wir sie proportional, bis sie unter diese Grenze
+passen. Die Richtung des Updates bleibt dabei gleich. Nur die
+Schrittgröße wird begrenzt. Das Modell macht kleine, sichere
+Schritte statt wilder Sprünge.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-Gradient clipping is applied right before the optimizer updates
-the weights. The gradients have already been computed. They are
-about to be used to change the model. At this moment gradient
-clipping checks them and reins in any that have grown too large.
+Gradient Clipping wird angewendet, unmittelbar bevor der Optimizer
+die Gewichte aktualisiert. Die Gradients wurden bereits berechnet.
+Sie sind kurz davor, benutzt zu werden, um das Modell zu verändern.
+In diesem Moment prüft Gradient Clipping sie und zügelt alle, die
+zu groß geworden sind.
 
 ```python
-loss.backward()  # Compute gradients
+loss.backward()  # Gradients berechnen
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-optimizer.step()  # Apply clipped gradients
+optimizer.step()  # Geclippte Gradients anwenden
 ```
 
-It is a single function call. One line of code that can save
-hours of wasted training time.
+Es ist ein einziger Funktionsaufruf. Eine Codezeile, die Stunden
+verschwendeter Trainingszeit sparen kann.
 
-## Why we need it
+## Warum wir es brauchen
 
-Language models are trained on text. Some text is unusual. A
-sentence might contain a very rare word. The model has never
-seen it before. The loss for that sentence is very high. The
-gradients that flow backward from that loss are very large. If
-the optimizer applies these large gradients the model's weights
-jump to a completely different configuration. Everything the
-model learned over the past thousand steps is wiped out by one
-unusual sentence.
+Sprachmodelle werden auf Text trainiert. Manche Texte sind
+ungewöhnlich. Ein Satz könnte ein sehr seltenes Wort enthalten. Das
+Modell hat es noch nie zuvor gesehen. Der Loss für diesen Satz ist
+sehr hoch. Die Gradients, die von diesem Loss zurückfließen, sind
+sehr groß. Wendet der Optimizer diese großen Gradients an, springen
+die Gewichte des Modells in eine völlig andere Konfiguration. Alles,
+was das Modell in den letzten tausend Schritten gelernt hat, wird
+durch einen einzigen ungewöhnlichen Satz ausgelöscht.
 
-Without gradient clipping the training loss curve has spikes.
-Long periods of steady improvement followed by sudden jumps where
-the loss doubles or triples. After each spike the model must
-recover. Sometimes it never recovers. The gradients were too
-large and the weights went to a place from which there is no
-return. The model produces only garbage from that point forward.
+Ohne Gradient Clipping weist die Trainings-Loss-Kurve Spitzen auf.
+Lange Phasen stetiger Verbesserung werden von plötzlichen Sprüngen
+unterbrochen, bei denen sich der Loss verdoppelt oder verdreifacht.
+Nach jeder Spitze muss sich das Modell erholen. Manchmal erholt es
+sich nie. Die Gradients waren zu groß, und die Gewichte gerieten an
+einen Ort, von dem es keine Rückkehr gibt. Von diesem Punkt an
+produziert das Modell nur noch Unsinn.
 
-With gradient clipping the loss curve is smooth. The unusual
-sentence still produces larger gradients than normal but those
-gradients are clipped to a safe size. The model takes a slightly
-larger than normal step in the right direction instead of a
-catastrophic leap. Training continues uninterrupted.
+Mit Gradient Clipping ist die Loss-Kurve glatt. Der ungewöhnliche
+Satz erzeugt zwar immer noch größere Gradients als normal, aber
+diese Gradients werden auf eine sichere Größe geclippt. Das Modell
+macht einen etwas größeren als normalen Schritt in die richtige
+Richtung, statt eines katastrophalen Sprungs. Das Training läuft
+ununterbrochen weiter.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Gradient clipping has been used since the early days of recurrent
-neural networks in the 1990s. RNNs were notorious for gradient
-explosion because they processed sequences one step at a time
-and the gradients multiplied at each step. The problem was
-solved by simply capping gradients at a maximum value. The same
-technique was carried forward to transformers even though
-transformers do not have the same multiplicative problem. It
-turns out that any deep network benefits from gradient clipping
-as a safety measure.
+Gradient Clipping wird bereits seit den frühen Tagen rekurrenter
+neuronaler Netze (RNNs) in den 1990er-Jahren eingesetzt. RNNs waren
+notorisch anfällig für explodierende Gradients, weil sie Sequenzen
+Schritt für Schritt verarbeiteten und sich die Gradients bei jedem
+Schritt multiplizierten. Das Problem wurde gelöst, indem Gradients
+einfach auf einen Maximalwert begrenzt wurden. Dieselbe Technik
+wurde auf Transformer übertragen, obwohl Transformer nicht dasselbe
+multiplikative Problem haben. Es stellt sich heraus, dass jedes
+tiefe Netzwerk von Gradient Clipping als Sicherheitsmaßnahme
+profitiert.
 
-## How it works
+## Wie es funktioniert
 
-Gradient clipping by norm is the standard method. Instead of
-clipping each gradient individually we measure the total size of
-all gradients together and clip them as a group. This preserves
-the relative sizes of different gradients. If one parameter
-needs a large update and another needs a small update the ratio
-between them is preserved even after clipping.
+Gradient Clipping nach Norm ist die Standardmethode. Statt jeden
+Gradient einzeln zu clippen, messen wir die Gesamtgröße aller
+Gradients zusammen und clippen sie als Gruppe. Das erhält die
+relativen Größenverhältnisse der verschiedenen Gradients. Braucht
+ein Parameter ein großes Update und ein anderer ein kleines, bleibt
+das Verhältnis zwischen ihnen auch nach dem Clipping erhalten.
 
-### Step 1: measure the total gradient magnitude
+### Schritt 1: Die gesamte Gradientengröße messen
 
-We compute the L2 norm of all gradients. This is the square root
-of the sum of all squared gradients.
+Wir berechnen die L2-Norm aller Gradients. Das ist die Quadratwurzel
+aus der Summe aller quadrierten Gradients.
 
 ```python
 total_norm = 0.0
@@ -90,14 +96,15 @@ for p in model.parameters():
 total_norm = total_norm ** 0.5
 ```
 
-If the model has a million parameters with an average gradient of
-0.01 the total norm would be about 100. A total norm of 100 is
-manageable. A total norm of 10000 is dangerous.
+Hat das Modell eine Million Parameter mit einem durchschnittlichen
+Gradient von 0.01, läge die Gesamtnorm bei etwa 100. Eine
+Gesamtnorm von 100 ist beherrschbar. Eine Gesamtnorm von 10000 ist
+gefährlich.
 
-### Step 2: clip if needed
+### Schritt 2: Bei Bedarf clippen
 
-If the total norm exceeds the maximum allowed we shrink every
-gradient by the same factor.
+Überschreitet die Gesamtnorm das erlaubte Maximum, verkleinern wir
+jeden Gradient um denselben Faktor.
 
 ```python
 max_norm = 1.0
@@ -108,32 +115,33 @@ if total_norm > max_norm:
             p.grad *= scale
 ```
 
-If the total norm was 100 and the maximum is 1 we divide every
-gradient by 100. The largest gradients become 0.01. The smallest
-gradients become even smaller. The direction of the update is
-unchanged. Only the step size changes.
+Lag die Gesamtnorm bei 100 und das Maximum bei 1, teilen wir jeden
+Gradient durch 100. Die größten Gradients werden zu 0.01. Die
+kleinsten Gradients werden noch kleiner. Die Richtung des Updates
+bleibt unverändert. Nur die Schrittgröße ändert sich.
 
-### Why max_norm of 1.0
+### Warum max_norm von 1.0
 
-The value 1.0 is the standard for transformer training. It was
-chosen empirically. Smaller values like 0.1 make training too
-slow because the model can only take tiny steps. Larger values
-like 10.0 provide little protection because most gradient norms
-are already below 10. A value of 1.0 catches the dangerous spikes
-without interfering with normal training steps.
+Der Wert 1.0 ist der Standard für das Training von Transformern. Er
+wurde empirisch ermittelt. Kleinere Werte wie 0.1 machen das
+Training zu langsam, weil das Modell nur winzige Schritte machen
+kann. Größere Werte wie 10.0 bieten wenig Schutz, weil die meisten
+Gradientennormen bereits unter 10 liegen. Ein Wert von 1.0 fängt
+die gefährlichen Spitzen ab, ohne normale Trainingsschritte zu
+beeinträchtigen.
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import torch
 import torch.nn as nn
 
-# Create a small model and some fake gradients
+# Ein kleines Modell und ein paar fiktive Gradients erstellen
 model = nn.Linear(10, 10)
 loss = model(torch.randn(1, 10)).sum()
 loss.backward()
 
-# Check the gradient norm before clipping
+# Die Gradientennorm vor dem Clipping prüfen
 total_norm = 0.0
 for p in model.parameters():
     if p.grad is not None:
@@ -142,10 +150,10 @@ total_norm = total_norm ** 0.5
 
 print(f"Gradient norm before clipping: {total_norm:.4f}")
 
-# Clip
+# Clippen
 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
 
-# Check after
+# Danach prüfen
 total_norm_after = 0.0
 for p in model.parameters():
     if p.grad is not None:
@@ -156,27 +164,30 @@ print(f"Gradient norm after clipping:  {total_norm_after:.4f}")
 print(f"Clipped: {total_norm > 1.0}")
 ```
 
-## What happens without it
+## Was ohne es passiert
 
-Training language models without gradient clipping is playing
-with fire. Most steps will be fine. The gradients will be small
-and the model will learn. But eventually the model will
-encounter a batch of text that produces large gradients. The
-loss will spike. If the model is lucky it will recover. If it is
-unlucky the spike will push the weights into a region where every
-subsequent step also produces large gradients. The loss will
-diverge to infinity and the training run will be lost.
+Sprachmodelle ohne Gradient Clipping zu trainieren bedeutet, mit
+dem Feuer zu spielen. Die meisten Schritte werden unproblematisch
+sein. Die Gradients werden klein sein, und das Modell wird lernen.
+Aber irgendwann wird das Modell auf einen Textbatch stoßen, der
+große Gradients erzeugt. Der Loss wird eine Spitze bilden. Hat das
+Modell Glück, erholt es sich wieder. Hat es Pech, drängt die Spitze
+die Gewichte in eine Region, in der auch jeder nachfolgende Schritt
+große Gradients erzeugt. Der Loss divergiert gegen unendlich, und
+der Trainingslauf ist verloren.
 
-Gradient clipping costs nothing in terms of model quality. It has
-no downside. It is a pure safety measure that prevents a rare but
-catastrophic failure mode. Every production training run uses it.
+Gradient Clipping kostet nichts in Bezug auf die Modellqualität. Es
+hat keinen Nachteil. Es ist eine reine Sicherheitsmaßnahme, die
+einen seltenen, aber katastrophalen Fehlermodus verhindert. Jeder
+produktive Trainingslauf nutzt es.
 
-## What you need to remember
+## Was man sich merken muss
 
-Gradient clipping limits how much the model's weights can change
-in a single training step. If gradients are too large they are
-scaled down proportionally to a maximum norm. The standard
-maximum is 1.0 for transformer training.
+Gradient Clipping begrenzt, wie stark sich die Gewichte des Modells
+in einem einzigen Trainingsschritt ändern können. Sind Gradients zu
+groß, werden sie proportional auf eine maximale Norm
+herunterskaliert. Der Standardwert für das Maximum ist 1.0 beim
+Training von Transformern.
 
-One function call. Zero downside. Infinite protection against a
-training killing failure mode. Use it always.
+Ein Funktionsaufruf. Kein Nachteil. Unendlicher Schutz vor einem
+trainingszerstörenden Fehlermodus. Immer verwenden.

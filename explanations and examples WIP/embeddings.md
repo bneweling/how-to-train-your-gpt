@@ -1,66 +1,68 @@
-# Embeddings: Giving Numbers Meaning
+# Embeddings: Zahlen eine Bedeutung geben
 
-## What is it
+## Was es ist
 
-An embedding is a list of numbers that captures the meaning of
-a word.
+Ein Embedding ist eine Liste von Zahlen, die die Bedeutung eines
+Wortes erfasst.
 
-After tokenization every word is just a number. *Cat* is 9246.
-*Dog* is 4821. These numbers are just labels. The number 9246
-means nothing by itself. The model cannot learn from a number
-like 9246 because 9246 is not closer to 4821 than it is to 279.
-They are just arbitrary IDs.
+Nach der Tokenisierung ist jedes Wort nur noch eine Zahl. *Cat* ist
+9246. *Dog* ist 4821. Diese Zahlen sind nur Labels. Die Zahl 9246
+bedeutet für sich genommen nichts. Das Modell kann aus einer Zahl
+wie 9246 nichts lernen, denn 9246 ist der Zahl 4821 nicht näher als
+der Zahl 279. Es sind einfach willkürliche IDs.
 
-An embedding turns that number into a vector. A vector is just
-a list of decimal numbers. For GPT-2 each word becomes a list of
-768 numbers. These numbers are not arbitrary. Words with similar
-meanings get similar lists. Words with different meanings get
-different lists.
-
-```
-Token ID 9246 ("cat") → [0.023, -0.451, 0.789, ..., -0.102]  (768 numbers)
-Token ID 4821 ("dog")  → [0.019, -0.443, 0.795, ..., -0.098]  (very similar!)
-Token ID 279  ("the")  → [0.891, 0.112, -0.334, ..., 0.567]   (very different!)
-```
-
-The key idea is that *cat* and *dog* are near each other in this
-number space because they are both animals. *The* is far away
-because it is a function word with a completely different role.
-
-## Where is it used
-
-The embedding layer sits right after the tokenizer and right
-before the attention layers. It is the bridge between the
-tokenizer's integer output and the transformer's floating point
-input.
+Ein Embedding verwandelt diese Zahl in einen Vektor. Ein Vektor ist
+einfach eine Liste von Dezimalzahlen. Bei GPT-2 wird jedes Wort zu
+einer Liste von 768 Zahlen. Diese Zahlen sind nicht willkürlich.
+Wörter mit ähnlicher Bedeutung erhalten ähnliche Listen. Wörter mit
+unterschiedlicher Bedeutung erhalten unterschiedliche Listen.
 
 ```
-Raw text: "The cat"
+Token ID 9246 ("cat") → [0.023, -0.451, 0.789, ..., -0.102]  (768 Zahlen)
+Token ID 4821 ("dog")  → [0.019, -0.443, 0.795, ..., -0.098]  (sehr ähnlich!)
+Token ID 279  ("the")  → [0.891, 0.112, -0.334, ..., 0.567]   (sehr unterschiedlich!)
+```
+
+Die Kernidee ist, dass *cat* und *dog* in diesem Zahlenraum nah
+beieinander liegen, weil beide Tiere sind. *The* liegt weit
+entfernt, weil es ein Funktionswort mit einer völlig anderen Rolle
+ist.
+
+## Wo es eingesetzt wird
+
+Die Embedding-Layer sitzt direkt nach dem Tokenizer und direkt vor
+den Attention-Layern. Sie ist die Brücke zwischen der
+Integer-Ausgabe des Tokenizers und der Fließkommazahl-Eingabe des
+Transformers.
+
+```
+Rohtext: "The cat"
     ↓
 Tokenizer: [1169, 3797]
     ↓
-Embedding layer: two vectors of 768 numbers each
+Embedding-Layer: zwei Vektoren mit je 768 Zahlen
     ↓
-Transformer blocks
+Transformer-Blöcke
 ```
 
-Every modern language model has an embedding layer. It is the
-very first learned component in the entire pipeline.
+Jedes moderne Sprachmodell besitzt eine Embedding-Layer. Sie ist die
+allererste gelernte Komponente in der gesamten Pipeline.
 
-## Why we need it
+## Warum wir es brauchen
 
-Without embeddings the model would be trying to do math on token
-IDs. Imagine adding two words together. The token for *king* is
-9246. The token for *queen* is 9247. If we added them we would get
-18493. That number means nothing. It does not correspond to a
-meaningful word. The model cannot learn from token IDs.
+Ohne Embeddings würde das Modell versuchen, mit Token-IDs zu
+rechnen. Stellen wir uns vor, wir addieren zwei Wörter. Der Token
+für *king* ist 9246. Der Token für *queen* ist 9247. Würden wir sie
+addieren, erhielten wir 18493. Diese Zahl bedeutet nichts. Sie
+entspricht keinem sinnvollen Wort. Das Modell kann aus Token-IDs
+nicht lernen.
 
-With embeddings the model works with continuous vectors. The
-vector for *king* is something like [0.3, -0.5, 0.8, ...]. The
-vector for *queen* is [0.2, -0.6, 0.7, ...]. These are close but
-not identical. The model can compute *king* minus *man* plus
-*woman* and get something very close to the vector for *queen*.
-This is called the embedding arithmetic property.
+Mit Embeddings arbeitet das Modell mit kontinuierlichen Vektoren.
+Der Vektor für *king* ist etwa [0.3, -0.5, 0.8, ...]. Der Vektor für
+*queen* ist [0.2, -0.6, 0.7, ...]. Diese sind nah beieinander, aber
+nicht identisch. Das Modell kann *king* minus *man* plus *woman*
+berechnen und erhält etwas, das dem Vektor für *queen* sehr nahe
+kommt. Das nennt man die Arithmetik-Eigenschaft von Embeddings.
 
 ```
 embedding(king)  ≈ [0.30, -0.50, 0.80]
@@ -71,93 +73,101 @@ embedding(queen) ≈ [0.27, -0.60, 0.75]
 king - man + woman = [0.27, -0.60, 0.75] ≈ queen!
 ```
 
-This was not programmed by a human. The model discovered that
-changing the gender of a word is like moving in a straight line
-through the embedding space. It learned this entirely from
-reading millions of sentences where *king* and *queen* appeared
-in similar contexts but with different pronouns.
+Das wurde nicht von einem Menschen programmiert. Das Modell hat
+selbst herausgefunden, dass das Ändern des Geschlechts eines Wortes
+einer geraden Linie durch den Embedding-Raum entspricht. Es hat
+das ausschließlich durch das Lesen von Millionen Sätzen gelernt, in
+denen *king* und *queen* in ähnlichen Kontexten, aber mit
+unterschiedlichen Pronomen auftauchten.
 
-## When was it invented
+## Wann es erfunden wurde
 
-The idea of word embeddings is old. A technique called Word2Vec
-was published by Google in 2013. It was the first to show that
-word vectors could capture meaning relationships. The embedding
-layer in transformers is a direct descendant of Word2Vec. The
-difference is that Word2Vec embeddings were precomputed and
-frozen. Transformer embeddings are learned from scratch during
-training. They adapt to the specific task the model is learning.
+Die Idee von Word-Embeddings ist alt. Eine Technik namens Word2Vec
+wurde 2013 von Google veröffentlicht. Sie war die erste, die zeigte,
+dass Wortvektoren Bedeutungsbeziehungen erfassen können. Die
+Embedding-Layer in Transformern ist ein direkter Nachfahre von
+Word2Vec. Der Unterschied besteht darin, dass Word2Vec-Embeddings
+vorab berechnet und dann eingefroren wurden. Transformer-Embeddings
+werden während des Trainings von Grund auf gelernt. Sie passen sich
+an die konkrete Aufgabe an, die das Modell lernt.
 
-## How it works: a giant lookup table
+## Wie es funktioniert: eine riesige Nachschlagetabelle
 
-Think of the embedding layer as a table with 50257 rows. Each row
-has 768 columns. Row zero is the vector for token zero. Row one
-is the vector for token one. Row 3797 is the vector for the word
-*cat*. The forward pass of the embedding layer is just looking up
-rows in this table.
+Man kann sich die Embedding-Layer als Tabelle mit 50257 Zeilen
+vorstellen. Jede Zeile hat 768 Spalten. Zeile null ist der Vektor
+für Token null. Zeile eins ist der Vektor für Token eins. Zeile 3797
+ist der Vektor für das Wort *cat*. Der Forward Pass der
+Embedding-Layer besteht einfach darin, Zeilen in dieser Tabelle
+nachzuschlagen.
 
 ```python
-# Given token IDs: [1169, 3797]
-# Look up row 1169 → vector for "The"  (768 numbers)
-# Look up row 3797 → vector for "cat"  (768 numbers)
-# Return both vectors
+# Gegeben Token-IDs: [1169, 3797]
+# Zeile 1169 nachschlagen → Vektor für "The"  (768 Zahlen)
+# Zeile 3797 nachschlagen → Vektor für "cat"  (768 Zahlen)
+# Beide Vektoren zurückgeben
 ```
 
-That is the entire forward pass of the embedding layer. No
-multiplication. No activation function. Just a table lookup.
+Das ist der gesamte Forward Pass der Embedding-Layer. Keine
+Multiplikation. Keine Aktivierungsfunktion. Nur ein
+Tabellen-Nachschlag.
 
-### How the table is built
+### Wie die Tabelle aufgebaut wird
 
-The table starts completely random. Every row is filled with
-numbers drawn from a normal distribution with mean 0 and standard
-deviation 0.02. At this point *cat* and *dog* are as close to
-each other as *cat* and *democracy*. Everything is random noise.
+Die Tabelle beginnt vollständig zufällig. Jede Zeile wird mit Zahlen
+gefüllt, die aus einer Normalverteilung mit Mittelwert 0 und
+Standardabweichung 0.02 gezogen werden. Zu diesem Zeitpunkt sind
+*cat* und *dog* einander genauso nah wie *cat* und *democracy*.
+Alles ist zufälliges Rauschen.
 
-Then training begins. The model reads a sentence like *The cat
-sat on the mat*. It predicts that *mat* should come next. If it
-predicts wrong the loss is high. Backpropagation sends a tiny
-signal back through the entire model including the embedding
-table. That signal says:
+Dann beginnt das Training. Das Modell liest einen Satz wie *The cat
+sat on the mat*. Es sagt voraus, dass als Nächstes *mat* kommen
+sollte. Liegt es falsch, ist der Loss hoch. Backpropagation schickt
+ein winziges Signal zurück durch das gesamte Modell, einschließlich
+der Embedding-Tabelle. Dieses Signal besagt:
 
-"The vector for *cat* should be nudged slightly toward the
-direction that helps predict *mat* next time."
+„Der Vektor für *cat* sollte ein Stück in die Richtung verschoben
+werden, die beim nächsten Mal hilft, *mat* vorherzusagen.“
 
-After millions of training steps the table transforms. Words that
-appear in similar contexts get pushed toward similar positions.
-The vector for *cat* moves close to *dog* and *pet* and *feline*.
-The vector for *car* moves close to *vehicle* and *drive* and
-*road*. The space organizes itself into neighborhoods of meaning.
+Nach Millionen von Trainingsschritten verwandelt sich die Tabelle.
+Wörter, die in ähnlichen Kontexten auftauchen, werden in ähnliche
+Positionen gedrängt. Der Vektor für *cat* rückt nah an *dog* und
+*pet* und *feline*. Der Vektor für *car* rückt nah an *vehicle* und
+*drive* und *road*. Der Raum organisiert sich selbst in Nachbarschaften
+von Bedeutung.
 
-### What the neighborhoods look like
+### Wie die Nachbarschaften aussehen
 
-After training the 768 dimensional space has natural structure.
-Some directions in this space correspond to real world concepts.
+Nach dem Training besitzt der 768-dimensionale Raum eine natürliche
+Struktur. Manche Richtungen in diesem Raum entsprechen realen
+Konzepten.
 
 ```
-Direction 1 (dimensions 0 through 63):    Living vs non living
-Direction 2 (dimensions 64 through 127):   Big vs small
-Direction 3 (dimensions 128 through 191):  Positive vs negative
-Direction 4 (dimensions 192 through 255):  Formal vs casual
-... and so on through all 768 dimensions
+Richtung 1 (Dimensionen 0 bis 63):     Lebendig vs. nicht lebendig
+Richtung 2 (Dimensionen 64 bis 127):   Groß vs. klein
+Richtung 3 (Dimensionen 128 bis 191):  Positiv vs. negativ
+Richtung 4 (Dimensionen 192 bis 255):  Formell vs. leger
+... und so weiter durch alle 768 Dimensionen
 ```
 
-These directions were never programmed. They emerged naturally
-because the model found it useful to organize words this way. When
-the model needs to know if something is alive or not it looks at
-a specific set of dimensions in the embedding vector.
+Diese Richtungen wurden nie programmiert. Sie sind auf natürliche
+Weise entstanden, weil das Modell es nützlich fand, Wörter auf diese
+Art zu organisieren. Wenn das Modell wissen muss, ob etwas lebendig
+ist oder nicht, schaut es sich einen bestimmten Satz von Dimensionen
+im Embedding-Vektor an.
 
-## A tiny code example
+## Ein winziges Codebeispiel
 
 ```python
 import torch
 import torch.nn as nn
 
-# Create a tiny embedding table
-vocab_size = 1000   # 1000 unique tokens
-d_model = 4         # 4 dimensional vectors (small for the example)
+# Eine kleine Embedding-Tabelle erstellen
+vocab_size = 1000   # 1000 eindeutige Token
+d_model = 4         # 4-dimensionale Vektoren (klein gehalten für das Beispiel)
 
 embedding = nn.Embedding(vocab_size, d_model)
 
-# Look up some token IDs
+# Ein paar Token-IDs nachschlagen
 token_ids = torch.tensor([[12, 45, 678]])
 vectors = embedding(token_ids)
 
@@ -174,7 +184,7 @@ print("capture meaning. Words with similar meanings will have")
 print("similar vectors.")
 ```
 
-Running this code you will see something like:
+Führt man diesen Code aus, sieht man etwa Folgendes:
 
 ```
 Token IDs: tensor([[ 12,  45, 678]])
@@ -185,51 +195,56 @@ Vector for token 45:  [-1.231, 0.789, 0.023, -0.441]
 Vector for token 678: [0.892, -0.334, 0.671, -0.128]
 ```
 
-These vectors are random right now. They have no meaning. After
-training on billions of sentences token 12 and token 45 will be
-near each other if they appear in similar contexts or far apart
-if they do not.
+Diese Vektoren sind im Moment zufällig. Sie haben keine Bedeutung.
+Nach dem Training auf Milliarden von Sätzen werden Token 12 und
+Token 45 nah beieinander liegen, wenn sie in ähnlichen Kontexten
+auftauchen, oder weit auseinander, wenn nicht.
 
-## The size of the embedding table
+## Die Größe der Embedding-Tabelle
 
-The embedding table is often the largest component in the model
-in terms of parameter count.
+Die Embedding-Tabelle ist oft die größte Komponente des Modells,
+gemessen an der Zahl der Parameter.
 
 ```
-GPT-2 Small:  50257 words × 768 dims  = 38.6 million numbers
-GPT-3:        50257 words × 12288 dims = 617 million numbers
+GPT-2 Small:  50257 Wörter × 768 Dimensionen  = 38.6 Millionen Zahlen
+GPT-3:        50257 Wörter × 12288 Dimensionen = 617 Millionen Zahlen
 ```
 
-This is why weight tying is important. The output layer also needs
-a matrix of the same size to project back from hidden states to
-vocabulary predictions. Instead of storing two giant matrices we
-share one. The embedding table is used for both input and output.
+Deshalb ist Weight Tying wichtig. Die Ausgabe-Layer benötigt
+ebenfalls eine Matrix derselben Größe, um von den Hidden States
+zurück auf Vorhersagen über das Vokabular zu projizieren. Statt zwei
+riesige Matrizen zu speichern, teilen wir uns eine. Die
+Embedding-Tabelle wird sowohl für die Eingabe als auch für die
+Ausgabe verwendet.
 
-## Embeddings for punctuation and special characters
+## Embeddings für Satzzeichen und Sonderzeichen
 
-Every token gets an embedding. Even punctuation and special
-symbols. The period gets an embedding. The comma gets an
-embedding. The end of text marker gets an embedding.
+Jeder Token erhält ein Embedding. Auch Satzzeichen und
+Sonderzeichen. Der Punkt bekommt ein Embedding. Das Komma bekommt
+ein Embedding. Der End-of-Text-Marker bekommt ein Embedding.
 
-These embeddings are just as important as word embeddings. The
-model learns that the embedding for a period is followed by the
-embedding for a capitalized word. It learns that the embedding
-for a question mark is followed by the embedding for an answer.
-The structure of language lives in these small token embeddings
-as much as it lives in the word embeddings.
+Diese Embeddings sind genauso wichtig wie Wort-Embeddings. Das
+Modell lernt, dass auf das Embedding für einen Punkt das Embedding
+für ein großgeschriebenes Wort folgt. Es lernt, dass auf das
+Embedding für ein Fragezeichen das Embedding für eine Antwort folgt.
+Die Struktur der Sprache steckt in diesen kleinen Token-Embeddings
+genauso wie in den Wort-Embeddings.
 
-## What you need to remember
+## Was du dir merken solltest
 
-An embedding is a list of numbers that represents a word's
-meaning. Words with similar meanings have similar lists. Words
-with different meanings have different lists.
+Ein Embedding ist eine Liste von Zahlen, die die Bedeutung eines
+Wortes repräsentiert. Wörter mit ähnlicher Bedeutung haben ähnliche
+Listen. Wörter mit unterschiedlicher Bedeutung haben unterschiedliche
+Listen.
 
-The embedding table starts random. Training moves words around
-based on the contexts they appear in. After enough training the
-space organizes itself. King minus man plus woman equals queen.
-This was not programmed. The model discovered it.
+Die Embedding-Tabelle beginnt zufällig. Das Training verschiebt
+Wörter je nach den Kontexten, in denen sie auftauchen. Nach
+genügend Training organisiert sich der Raum selbst. King minus man
+plus woman ergibt queen. Das wurde nicht programmiert. Das Modell
+hat es selbst herausgefunden.
 
-The embedding layer is just a lookup table. No math inside. Give
-it a token ID and it returns a vector. That vector is the word's
-coordinates in meaning space. Everything the model knows about a
-word is packed into those 768 numbers.
+Die Embedding-Layer ist nur eine Nachschlagetabelle. Keine Mathematik
+im Inneren. Man gibt ihr eine Token-ID, und sie gibt einen Vektor
+zurück. Dieser Vektor sind die Koordinaten des Wortes im
+Bedeutungsraum. Alles, was das Modell über ein Wort weiß, steckt in
+diesen 768 Zahlen.

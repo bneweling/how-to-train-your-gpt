@@ -1,52 +1,55 @@
 # Prompt Engineering versus Fine-Tuning
 
-## The short answer
+## Die kurze Antwort
 
-Both prompt engineering and fine-tuning change how a model behaves. The
-difference is where the change lives. Prompt engineering changes the
-input. Fine-tuning changes the model itself. Choose prompt engineering
-when you need quick results on a few use cases. Choose fine-tuning when
-you need consistent behavior at scale.
+Sowohl Prompt Engineering als auch Fine-Tuning verändern, wie sich ein
+Modell verhält. Der Unterschied liegt darin, wo diese Veränderung
+stattfindet. Prompt Engineering verändert den Input. Fine-Tuning
+verändert das Modell selbst. Wähle Prompt Engineering, wenn du schnelle
+Ergebnisse für wenige Anwendungsfälle brauchst. Wähle Fine-Tuning, wenn
+du konsistentes Verhalten in großem Maßstab brauchst.
 
-## Where they sit
+## Wo sie ansetzen
 
 ```
-Raw user input
-  → Prompt engineering adds context and instructions
-    → Base or fine-tuned model
-      → Response
+Roher Nutzer-Input
+  → Prompt Engineering fügt Kontext und Anweisungen hinzu
+    → Basis- oder fine-getuntes Modell
+      → Antwort
 ```
 
-Prompt engineering wraps the user's request in additional text that
-guides the model. The model weights never change. Every query gets the
-same prompt template. The model interprets the template and responds
-accordingly.
+Prompt Engineering verpackt die Anfrage des Nutzers in zusätzlichen
+Text, der das Modell lenkt. Die Modell-Weights ändern sich dabei nie.
+Jede Anfrage erhält dieselbe Prompt-Vorlage. Das Modell interpretiert
+die Vorlage und antwortet entsprechend.
 
-Fine-tuning bakes the guidance into the model's weights. The prompt can
-be simple because the model already knows how to behave. The behavior
-is consistent because it is encoded in the weights not in the prompt
-text.
+Fine-Tuning bäckt die Anleitung direkt in die Weights des Modells ein.
+Der Prompt kann einfach bleiben, weil das Modell bereits weiß, wie es
+sich verhalten soll. Das Verhalten ist konsistent, weil es in den
+Weights kodiert ist und nicht im Prompt-Text.
 
-## When to prompt engineer
+## Wann man Prompt Engineering einsetzt
 
-Prompt engineering is the first thing to try. It is free. It takes
-minutes. It works with any model through any API.
+Prompt Engineering ist das Erste, was man ausprobieren sollte. Es ist
+kostenlos. Es dauert Minuten. Es funktioniert mit jedem Modell über
+jede API.
 
-Use prompt engineering when:
-- You have a few well defined use cases
-- The behavior you want can be described in a few sentences
-- You do not need perfect consistency across hundreds of variations
-- You are prototyping and iterating quickly
-- You are using a hosted API and cannot modify the model
+Setze Prompt Engineering ein, wenn:
+- Du wenige gut definierte Anwendungsfälle hast
+- Sich das gewünschte Verhalten in wenigen Sätzen beschreiben lässt
+- Du keine perfekte Konsistenz über Hunderte von Variationen hinweg brauchst
+- Du prototypisch arbeitest und schnell iterierst
+- Du eine gehostete API nutzt und das Modell nicht verändern kannst
 
-Prompt engineering can achieve remarkable results. A well written system
-prompt can make a base chat model behave like a domain expert for
-medical questions or a creative writing coach or a code reviewer. The
-technique improves as base models get better. Each generation of models
-requires less prompting to achieve the same results.
+Prompt Engineering kann bemerkenswerte Ergebnisse erzielen. Ein gut
+geschriebener System-Prompt kann ein Basis-Chat-Modell dazu bringen,
+sich wie ein Fachexperte für medizinische Fragen, ein Coach für
+kreatives Schreiben oder ein Code-Reviewer zu verhalten. Die Technik
+wird besser, je besser die Basismodelle werden. Jede Modellgeneration
+braucht weniger Prompting, um dieselben Ergebnisse zu erzielen.
 
 ```python
-# Prompt engineering example
+# Beispiel für Prompt Engineering
 system_prompt = """
 You are a helpful medical assistant. Always:
 - Use simple language a patient can understand
@@ -61,39 +64,42 @@ full_prompt = f"{system_prompt}\n\nPatient: {user_question}\nAssistant:"
 response = model.generate(full_prompt)
 ```
 
-The prompt does all the work. The model is unchanged. Different prompts
-can be used for different use cases. A medical prompt for health
-questions. A legal prompt for contract review. A creative prompt for
-story generation. All running on the same base model.
+Der Prompt erledigt die ganze Arbeit. Das Modell bleibt unverändert.
+Für unterschiedliche Anwendungsfälle können unterschiedliche Prompts
+verwendet werden. Ein medizinischer Prompt für Gesundheitsfragen. Ein
+juristischer Prompt für die Vertragsprüfung. Ein kreativer Prompt für
+die Geschichten-Generierung. Alles läuft auf demselben Basismodell.
 
-## When to fine-tune
+## Wann man fine-tunt
 
-Prompt engineering has limits. Long prompts consume context window
-space. Complex behaviors are hard to describe in words. Some patterns
-are easier to demonstrate than to explain. Prompt injection attacks can
-override system prompts. Consistency across thousands of query
-variations is hard to guarantee.
+Prompt Engineering stößt an Grenzen. Lange Prompts verbrauchen Platz im
+Context Window. Komplexes Verhalten lässt sich schwer in Worten
+beschreiben. Manche Muster lassen sich leichter vorführen als erklären.
+Prompt-Injection-Angriffe können System-Prompts überschreiben.
+Konsistenz über Tausende von Anfragevariationen hinweg ist schwer zu
+garantieren.
 
-Fine-tuning addresses these limits. The model learns the desired
-behavior from examples. The context window is free for the actual
-user input. The behavior is encoded in the weights and cannot be
-overridden by a cleverly crafted user message. The consistency comes
-from thousands of training examples covering every edge case.
+Fine-Tuning begegnet diesen Grenzen. Das Modell lernt das gewünschte
+Verhalten anhand von Beispielen. Das Context Window bleibt frei für den
+eigentlichen Nutzer-Input. Das Verhalten ist in den Weights kodiert und
+kann nicht durch eine geschickt formulierte Nutzernachricht überschrieben
+werden. Die Konsistenz entsteht durch Tausende von Trainingsbeispielen,
+die jeden Grenzfall abdecken.
 
-Use fine-tuning when:
-- You have hundreds or thousands of examples of the desired behavior
-- The behavior is too complex to describe in a prompt
-- You need the context window for user input not instructions
-- You need consistent behavior that cannot be prompt injected
-- You are serving the model in production at scale
+Setze Fine-Tuning ein, wenn:
+- Du Hunderte oder Tausende Beispiele des gewünschten Verhaltens hast
+- Das Verhalten zu komplex ist, um es in einem Prompt zu beschreiben
+- Du das Context Window für Nutzer-Input statt für Anweisungen brauchst
+- Du konsistentes Verhalten brauchst, das nicht per Prompt Injection unterlaufen werden kann
+- Du das Modell in großem Maßstab produktiv betreibst
 
 ```python
-# Fine-tuning example with LoRA
+# Beispiel für Fine-Tuning mit LoRA
 training_data = [
     {"symptom": "headache and dizziness", "response": "These symptoms can have many causes..."},
     {"symptom": "chest pain", "response": "Chest pain should be evaluated by a doctor immediately..."},
     {"symptom": "sore throat", "response": "A sore throat is often caused by a viral infection..."},
-    # ... hundreds more examples
+    # ... Hunderte weitere Beispiele
 ]
 
 model = load_base_model()
@@ -105,81 +111,82 @@ for example in training_data:
     loss = compute_loss(model, prompt, response)
     loss.backward()
 
-# Now the model responds medically without any prompt instructions
+# Jetzt antwortet das Modell medizinisch, ganz ohne Prompt-Anweisungen
 response = model.generate("Patient: My head hurts and I feel dizzy.\nAssistant:")
 ```
 
-After fine-tuning the model produces medical responses without needing
-a system prompt. The behavior is in the weights. The context window is
-free for the patient's detailed description of symptoms.
+Nach dem Fine-Tuning erzeugt das Modell medizinische Antworten, ohne
+einen System-Prompt zu benötigen. Das Verhalten steckt in den Weights.
+Das Context Window ist frei für die detaillierte Beschreibung der
+Symptome durch den Patienten.
 
-## The cost comparison
+## Der Kostenvergleich
 
-| Aspect | Prompt Engineering | Fine-Tuning |
+| Aspekt | Prompt Engineering | Fine-Tuning |
 |---|---|---|
-| Time to implement | Minutes | Hours to days |
-| Cost | Free (API costs per query) | GPU time + data collection |
-| Expertise needed | Writing skills | ML engineering skills |
-| Consistency | Varies with prompt phrasing | Consistent across variations |
-| Context window used | 200 to 2000 tokens for prompt | 0 tokens for instructions |
-| Vulnerability to injection | High | Low |
-| Iteration speed | Instant | Hours per experiment |
-| Model dependency | Must redo for each model | Adapter transfers between models |
+| Umsetzungszeit | Minuten | Stunden bis Tage |
+| Kosten | Kostenlos (API-Kosten pro Anfrage) | GPU-Zeit + Datensammlung |
+| Benötigte Expertise | Schreibfähigkeiten | ML-Engineering-Kenntnisse |
+| Konsistenz | Variiert je nach Prompt-Formulierung | Konsistent über Variationen hinweg |
+| Genutztes Context Window | 200 bis 2000 Token für den Prompt | 0 Token für Anweisungen |
+| Anfälligkeit für Injection | Hoch | Niedrig |
+| Iterationsgeschwindigkeit | Sofort | Stunden pro Experiment |
+| Modellabhängigkeit | Muss für jedes Modell neu gemacht werden | Adapter lässt sich zwischen Modellen übertragen |
 
-## The hybrid approach
+## Der hybride Ansatz
 
-Most production systems use both. Fine-tuning teaches the model the
-core behavior. Prompt engineering handles the situation specific
-details that change with each query.
-
-```
-Fine-tuning: teaches the model to be a medical assistant
-Prompt: adds patient specific context, recent lab results, medication list
-
-Fine-tuning: teaches the model to review Python code
-Prompt: adds the specific code to review, coding standards, context
-
-Fine-tuning: teaches the model to write in a brand voice
-Prompt: adds the specific topic, target audience, desired length
-```
-
-The fine-tuned model provides the foundation. The prompt provides the
-specifics. Together they are more effective than either alone.
-
-## The decision flowchart
+Die meisten Produktivsysteme nutzen beides. Fine-Tuning bringt dem
+Modell das Kernverhalten bei. Prompt Engineering übernimmt die
+situationsspezifischen Details, die sich mit jeder Anfrage ändern.
 
 ```
-Do you have a few use cases and need results today?
-  → Prompt engineer
+Fine-Tuning: bringt dem Modell bei, ein medizinischer Assistent zu sein
+Prompt: fügt patientenspezifischen Kontext, aktuelle Laborwerte, Medikamentenliste hinzu
 
-Do you need consistent behavior across thousands of user inputs?
-  → Fine-tune
+Fine-Tuning: bringt dem Modell bei, Python-Code zu reviewen
+Prompt: fügt den konkreten zu prüfenden Code, Coding-Standards, Kontext hinzu
 
-Can you describe the desired behavior clearly in words?
-  → Prompt engineer
-
-Is the behavior hard to describe but easy to demonstrate with examples?
-  → Fine-tune
-
-Are you using a hosted API and cannot modify the model?
-  → Prompt engineer
-
-Do you have a dataset of good responses for your use case?
-  → Fine-tune
-
-Is each query unique with specific context the model needs?
-  → Prompt engineer
-
-Do you need to prevent users from overriding instructions?
-  → Fine-tune
+Fine-Tuning: bringt dem Modell bei, in einer Markenstimme zu schreiben
+Prompt: fügt das konkrete Thema, die Zielgruppe, die gewünschte Länge hinzu
 ```
 
-## What you need to remember
+Das fine-getunte Modell liefert das Fundament. Der Prompt liefert die
+Details. Zusammen sind sie wirkungsvoller als jedes für sich allein.
 
-Prompt engineering and fine-tuning are complementary. Prompt
-engineering is fast and flexible and changes with every query.
-Fine-tuning is slow and consistent and lives in the model's weights.
-Start with prompt engineering. Move to fine-tuning when you need
-consistency or scale or resistance to injection attacks. Most
-production systems combine both: fine-tuned models with task specific
-prompts.
+## Der Entscheidungsablauf
+
+```
+Hast du wenige Anwendungsfälle und brauchst noch heute Ergebnisse?
+  → Prompt Engineering
+
+Brauchst du konsistentes Verhalten über Tausende von Nutzereingaben hinweg?
+  → Fine-Tuning
+
+Lässt sich das gewünschte Verhalten klar in Worten beschreiben?
+  → Prompt Engineering
+
+Ist das Verhalten schwer zu beschreiben, aber leicht mit Beispielen zu demonstrieren?
+  → Fine-Tuning
+
+Nutzt du eine gehostete API und kannst das Modell nicht verändern?
+  → Prompt Engineering
+
+Hast du einen Datensatz guter Antworten für deinen Anwendungsfall?
+  → Fine-Tuning
+
+Ist jede Anfrage einzigartig mit spezifischem Kontext, den das Modell braucht?
+  → Prompt Engineering
+
+Musst du verhindern, dass Nutzer Anweisungen überschreiben?
+  → Fine-Tuning
+```
+
+## Was du dir merken solltest
+
+Prompt Engineering und Fine-Tuning ergänzen sich. Prompt Engineering
+ist schnell und flexibel und ändert sich mit jeder Anfrage. Fine-Tuning
+ist langsam und konsistent und steckt in den Weights des Modells.
+Beginne mit Prompt Engineering. Wechsle zu Fine-Tuning, wenn du
+Konsistenz, Skalierung oder Widerstandsfähigkeit gegen Injection-
+Angriffe brauchst. Die meisten Produktivsysteme kombinieren beides:
+fine-getunte Modelle mit aufgabenspezifischen Prompts.

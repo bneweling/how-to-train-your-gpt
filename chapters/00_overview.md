@@ -1,105 +1,105 @@
-# Chapter 0 — What Even Is a GPT?
+# Kapitel 0 — Was ist eigentlich ein GPT?
 
-> *"If you can explain it to a 5-year-old, you truly understand it."*
+> *"Wenn du es einem Fünfjährigen erklären kannst, hast du es wirklich verstanden."*
 
 ---
 
-## The 5-Year-Old Analogy
+## Die Analogie für Fünfjährige
 
-Imagine you have a friend who has read **every book in the library**. You start a sentence:
+Stell dir vor, du hast einen Freund, der **jedes Buch in der Bibliothek** gelesen hat. Du beginnst einen Satz:
 
-> *"The cat sat on the..."*
+> *"Die Katze saß auf der..."*
 
-Your friend, having read so many books, **guesses** the next word: **"mat"**.
+Dein Freund, der so viele Bücher gelesen hat, **rät** das nächste Wort: **"Matte"**.
 
-That's all a GPT is: **a machine that reads tons of text and learns to guess the next word.**
+Genau das ist ein GPT: **eine Maschine, die riesige Mengen Text liest und lernt, das nächste Wort zu erraten.**
 
-| Concept | Analogy |
+| Konzept | Analogie |
 |---|---|
-| **GPT** | A very smart "next-word guesser" |
-| **Training** | Reading millions of books to learn patterns |
-| **Text Generation** | Playing "finish my sentence" forever |
-| **Parameters** | The "memory" of all patterns it learned |
-| **Attention** | Knowing which words matter most |
+| **GPT** | Ein sehr kluger "Nächstes-Wort-Rater" |
+| **Training** | Millionen Bücher lesen, um Muster zu lernen |
+| **Textgenerierung** | Unendlich "vervollständige meinen Satz" spielen |
+| **Parameter** | Das "Gedächtnis" all der gelernten Muster |
+| **Attention** | Wissen, welche Wörter am wichtigsten sind |
 
 ```mermaid
 flowchart LR
-    A["Input Text: 'The cat sat on'"] --> B["GPT Model (The Smart Guesser)"]
-    B --> C["Next Word: 'the'"]
-    C --> D["Feed back: 'The cat sat on the'"]
+    A["Eingabetext: 'Die Katze saß auf'"] --> B["GPT-Modell (der kluge Rater)"]
+    B --> C["Nächstes Wort: 'der'"]
+    C --> D["Rückführung: 'Die Katze saß auf der'"]
     D --> B
-    D --> E["Next Word: 'mat'"]
+    D --> E["Nächstes Wort: 'Matte'"]
     style A fill:#1565c0,stroke:#0d47a1,color:#ffffff
     style B fill:#ef6c00,stroke:#bf360c,color:#ffffff
     style C fill:#2e7d32,stroke:#1b5e20,color:#ffffff
     style E fill:#2e7d32,stroke:#1b5e20,color:#ffffff
 ```
 
-## The Big Picture: Pipeline Overview
+## Das große Bild: Pipeline-Überblick
 
 ```mermaid
 flowchart TD
-    A["Raw Text: 'Hello world'"] --> B["Tokenizer: Splits into pieces"]
-    B --> C["Token IDs: [15496, 995, ...]"]
-    C --> D["Embedding: Each ID -> vector"]
-    D --> E["Position Info: RoPE"]
-    E --> F["Transformer Blocks x N"]
-    F --> G["Output Head: Predict next token"]
-    G --> H["Sample next word"]
+    A["Rohtext: 'Hello world'"] --> B["Tokenizer: Zerlegt in Teile"]
+    B --> C["Token-IDs: [15496, 995, ...]"]
+    C --> D["Embedding: Jede ID -> Vektor"]
+    D --> E["Positionsinfo: RoPE"]
+    E --> F["Transformer-Blöcke x N"]
+    F --> G["Output-Head: Sagt nächstes Token voraus"]
+    G --> H["Nächstes Wort sampeln"]
 ```
 
-## Which Models Is This Based On?
+## Auf welchen Modellen basiert das hier?
 
-**Short answer: This is a modern decoder-only Transformer (LLaMA-style), incorporating the best publicly-documented techniques from 2023-2025.**
+**Kurze Antwort: Das hier ist ein moderner decoder-only Transformer (im LLaMA-Stil), der die besten öffentlich dokumentierten Techniken aus den Jahren 2023–2025 vereint.**
 
-## What You Will Build
+## Was du bauen wirst
 
-By the end of this guide, you will have built from scratch:
+Am Ende dieses Guides wirst du Folgendes von Grund auf gebaut haben:
 
-| Component | What It Does | Chapter |
+| Komponente | Was sie macht | Kapitel |
 |---|---|---|
-| **Tokenizer** | Converts text ↔ numbers (BPE, same algorithm as GPT-4) | [2](02_tokenization.md) |
-| **Embeddings** | Gives each token a 768-dimensional "meaning vector" | [3](03_embeddings.md) |
-| **RoPE** | Teaches the model about word order using rotation | [4](04_positional_encoding.md) |
-| **Attention** | Lets words "look at" and "talk to" each other | [5](05_attention.md) |
-| **Transformer Block** | Complete thinking unit: attention + feed-forward + residuals | [6](06_transformer_block.md) |
-| **GPT Model** | Full 151M parameter language model (with SwiGLU) | [7](07_gpt_model.md) |
-| **Training Pipeline** | Data loading, AdamW, cosine schedule, mixed precision | [8](08_training.md) |
-| **Inference Engine** | Text generation with temperature, top-k, top-p, KV cache | [9](09_inference.md) |
-| **Complete Script** | One file that trains and generates — runnable start to finish | [10](10_full_script.md) |
+| **Tokenizer** | Wandelt Text ↔ Zahlen um (BPE, derselbe Algorithmus wie bei GPT-4) | [2](02_tokenization.md) |
+| **Embeddings** | Gibt jedem Token einen 768-dimensionalen "Bedeutungsvektor" | [3](03_embeddings.md) |
+| **RoPE** | Bringt dem Modell die Wortreihenfolge mittels Rotation bei | [4](04_positional_encoding.md) |
+| **Attention** | Lässt Wörter einander "ansehen" und "miteinander sprechen" | [5](05_attention.md) |
+| **Transformer-Block** | Vollständige "Denkeinheit": Attention + Feed-Forward + Residuals | [6](06_transformer_block.md) |
+| **GPT-Modell** | Vollständiges Sprachmodell mit 151M Parametern (mit SwiGLU) | [7](07_gpt_model.md) |
+| **Trainings-Pipeline** | Daten laden, AdamW, Cosine-Schedule, Mixed Precision | [8](08_training.md) |
+| **Inference-Engine** | Textgenerierung mit Temperature, Top-k, Top-p, KV-Cache | [9](09_inference.md) |
+| **Vollständiges Skript** | Eine Datei, die trainiert und generiert — von Anfang bis Ende lauffähig | [10](10_full_script.md) |
 
-**Who is this for?** Anyone who knows basic Python. No ML/AI experience needed. Every concept is explained with analogies first, then math, then annotated code.
+**Für wen ist das?** Für alle, die grundlegendes Python können. Keine ML/AI-Erfahrung nötig. Jedes Konzept wird zuerst mit Analogien erklärt, dann mit Mathematik, dann mit kommentiertem Code.
 
-**What you'll need:** A computer with Python 3.10+. A GPU is nice but not required — we provide a tiny config that runs on CPU.
+**Was du brauchst:** Einen Computer mit Python 3.10+. Eine GPU ist schön, aber nicht erforderlich — wir stellen eine winzige Konfiguration bereit, die auf der CPU läuft.
 
-## Which Models Is This Based On? (Technical)
+## Auf welchen Modellen basiert das hier? (Technisch)
 
-| Technique | Source Model | Publicly Confirmed? |
+| Technik | Quellmodell | Öffentlich bestätigt? |
 |---|---|---|
-| Decoder-only Transformer | GPT-2 (2019), GPT-3 (2020) | Yes |
-| Pre-Norm residual | GPT-3 (2020) | Yes |
-| BPE tokenizer | GPT-2/3/4 | Yes |
-| AdamW optimizer | GPT-3 (2020) | Yes |
-| Cosine LR + warmup | GPT-3 (2020) | Yes |
-| Weight tying | GPT-2/3 | Yes |
-| **RoPE** (position encoding) | **LLaMA, Mistral, Qwen** | Yes — NOT GPT-3/4 |
-| **RMSNorm** (normalization) | **LLaMA, Mistral, Gemma** | Yes — NOT GPT-3/4 |
-| **SwiGLU** (activation) | **PaLM, LLaMA, Gemini** | Yes — NOT GPT-3 |
-| Mixed precision (bfloat16) | All modern models | Yes |
+| Decoder-only Transformer | GPT-2 (2019), GPT-3 (2020) | Ja |
+| Pre-Norm Residual | GPT-3 (2020) | Ja |
+| BPE-Tokenizer | GPT-2/3/4 | Ja |
+| AdamW-Optimizer | GPT-3 (2020) | Ja |
+| Cosine-LR + Warmup | GPT-3 (2020) | Ja |
+| Weight Tying | GPT-2/3 | Ja |
+| **RoPE** (Positionscodierung) | **LLaMA, Mistral, Qwen** | Ja — NICHT GPT-3/4 |
+| **RMSNorm** (Normalisierung) | **LLaMA, Mistral, Gemma** | Ja — NICHT GPT-3/4 |
+| **SwiGLU** (Aktivierung) | **PaLM, LLaMA, Gemini** | Ja — NICHT GPT-3 |
+| Mixed Precision (bfloat16) | Alle modernen Modelle | Ja |
 
-**What about GPT-4 and Claude?** Their architectures are **proprietary and undisclosed**. We know GPT-4 is a Transformer, but not which positional encoding, normalization, or activation it uses. Claude's architecture is entirely secret.
+**Was ist mit GPT-4 und Claude?** Ihre Architekturen sind **proprietär und nicht offengelegt**. Wir wissen, dass GPT-4 ein Transformer ist, aber nicht, welche Positionscodierung, Normalisierung oder Aktivierung es verwendet. Die Architektur von Claude ist vollständig geheim.
 
-**What this guide teaches:** The most advanced **publicly documented** architecture — essentially what **LLaMA 3, Mistral, Qwen 2.5, and Gemma** use. This is the architecture behind the best open-source models and represents the state of the art that we actually have confirmed documentation for.
+**Was dieser Guide vermittelt:** Die fortschrittlichste **öffentlich dokumentierte** Architektur — im Wesentlichen das, was **LLaMA 3, Mistral, Qwen 2.5 und Gemma** verwenden. Das ist die Architektur hinter den besten Open-Source-Modellen und stellt den Stand der Technik dar, für den wir tatsächlich bestätigte Dokumentation haben.
 
-**What makes a model "world-class"?**
+**Was macht ein Modell "weltklasse"?**
 
-1. **Scale** — billions of parameters trained on trillions of tokens
-2. **Architecture** — the modern Transformer (our focus)
-3. **Data Quality** — clean, diverse, well-filtered text
-4. **Training Tricks** — mixed precision, gradient clipping, LR schedules
+1. **Skalierung** — Milliarden Parameter, trainiert mit Billionen Token
+2. **Architektur** — der moderne Transformer (unser Fokus)
+3. **Datenqualität** — sauberer, vielfältiger, gut gefilterter Text
+4. **Trainings-Tricks** — Mixed Precision, Gradient Clipping, LR-Schedules
 
-> We'll build a tiny version using the **same publicly-documented techniques** as the best open-source models.
+> Wir werden eine winzige Version bauen, die die **gleichen öffentlich dokumentierten Techniken** wie die besten Open-Source-Modelle verwendet.
 
 ---
 
-**Next:** [Chapter 1 — Setup & Tooling](01_setup.md)
+**Weiter:** [Kapitel 1 — Setup & Tooling](01_setup.md)

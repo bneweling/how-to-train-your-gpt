@@ -1,150 +1,163 @@
-# Mixed Precision Training: Speed Without Sacrifice
+# Mixed Precision Training: Geschwindigkeit ohne Kompromisse
 
-## What is it
+## Was ist das
 
-Mixed precision training uses two different number formats during
-training. Most operations use bfloat16 a compact format that
-takes less memory and runs faster. A few critical operations use
-float32 the standard format that is more precise. The mix gives
-you the speed of the compact format with the accuracy of the
-standard one.
+Mixed Precision Training verwendet zwei verschiedene Zahlenformate
+während des Trainings. Die meisten Operationen verwenden bfloat16,
+ein kompaktes Format, das weniger Speicher belegt und schneller
+läuft. Einige kritische Operationen verwenden float32, das
+Standardformat, das präziser ist. Diese Mischung gibt dir die
+Geschwindigkeit des kompakten Formats bei der Genauigkeit des
+Standardformats.
 
-Think of it like carrying groceries. You can carry items in your
-hands with full control over each one. That is float32. Or you
-can put everything in a bag and carry the bag. That is bfloat16.
-You lose some control over individual items but you can carry
-twice as many in a single trip.
+Stell es dir vor wie das Tragen von Einkäufen. Du kannst Dinge in
+den Händen tragen und hast dabei volle Kontrolle über jedes
+einzelne Stück. Das ist float32. Oder du packst alles in eine
+Tüte und trägst die Tüte. Das ist bfloat16. Du verlierst etwas
+Kontrolle über die einzelnen Gegenstände, kannst dafür aber die
+doppelte Menge in einem Durchgang tragen.
 
-Mixed precision means using the bag for the heavy lifting but
-taking items out to handle them carefully when precision matters.
+Mixed Precision bedeutet, die Tüte für die schwere Arbeit zu
+nutzen, aber Dinge herauszunehmen und sorgfältig zu behandeln,
+wenn es auf Präzision ankommt.
 
-## Where is it used
+## Wo wird es eingesetzt
 
-Mixed precision wraps the forward pass of the model. Every matrix
-multiplication inside the attention and feed forward layers runs
-in bfloat16. The loss is computed in float32. The weight updates
-are stored in float32.
+Mixed Precision umschließt den Forward Pass des Modells. Jede
+Matrixmultiplikation in den Attention- und Feed-Forward-Layern
+läuft in bfloat16. Der Loss wird in float32 berechnet. Die
+Gewichts-Updates werden in float32 gespeichert.
 
 ```python
 with torch.amp.autocast('cuda', enabled=True):
-    # Everything here runs in bfloat16
+    # Alles hier läuft in bfloat16
     logits, loss = model(input_ids, target_ids)
 
-# The loss is float32 for accurate backward pass
+# Der Loss ist float32 für einen präzisen Backward Pass
 loss.backward()
 ```
 
-Without mixed precision training a large language model would
-take twice as long and use twice as much GPU memory. With it you
-can train bigger models on the same hardware.
+Ohne Mixed Precision Training würde ein großes Sprachmodell
+doppelt so lange brauchen und doppelt so viel GPU-Speicher
+belegen. Mit Mixed Precision kannst du größere Modelle auf
+derselben Hardware trainieren.
 
-## Why we need it
+## Warum wir es brauchen
 
-The bottleneck in neural network training is matrix
-multiplication. The attention layer does Q times K transpose. The
-feed forward layer does input times weight matrix. These
-operations dominate the training time. If we can make them twice
-as fast we cut training time in half.
+Der Flaschenhals beim Training neuronaler Netze ist die
+Matrixmultiplikation. Der Attention-Layer berechnet Q mal K
+transponiert. Der Feed-Forward-Layer berechnet Input mal
+Gewichtsmatrix. Diese Operationen dominieren die Trainingszeit.
+Wenn wir sie doppelt so schnell machen können, halbieren wir die
+Trainingszeit.
 
-Smaller number formats make matrix multiplication faster because
-each number takes less memory. With float32 each number is four
-bytes. With bfloat16 each number is two bytes. You can fit twice
-as many numbers in the same memory. The GPU can process them in
-wider batches. The result is roughly twice the speed.
+Kleinere Zahlenformate machen die Matrixmultiplikation schneller,
+weil jede Zahl weniger Speicher belegt. Bei float32 belegt jede
+Zahl vier Byte. Bei bfloat16 belegt jede Zahl zwei Byte. Du kannst
+doppelt so viele Zahlen im selben Speicher unterbringen. Die GPU
+kann sie in breiteren Batches verarbeiten. Das Ergebnis ist etwa
+die doppelte Geschwindigkeit.
 
-But why not use float16 everywhere and get even more speed? The
-problem is range. Float16 can only represent numbers up to about
-sixty five thousand. During training intermediate values can
-exceed this limit. The number overflows and becomes infinity. The
-model produces garbage. This is why early attempts at half
-precision training failed.
+Aber warum nicht überall float16 verwenden und noch mehr
+Geschwindigkeit gewinnen? Das Problem ist der Wertebereich.
+Float16 kann nur Zahlen bis etwa fünfundsechzigtausend darstellen.
+Während des Trainings können Zwischenwerte dieses Limit
+überschreiten. Die Zahl läuft über und wird zu unendlich. Das
+Modell produziert Unsinn. Deshalb sind frühe Versuche mit Half
+Precision Training gescheitert.
 
-Bfloat16 fixes this by keeping the same range as float32. The
-maximum possible value is about three point four times ten to
-the thirty eighth power for both formats. Bfloat16 cannot
-overflow. It just has less precision within that range. For
-neural network training this tradeoff is perfect. We need the
-range for intermediate values but we do not need seven decimal
-digits of precision for every activation.
+Bfloat16 löst dieses Problem, indem es denselben Wertebereich wie
+float32 beibehält. Der maximal mögliche Wert liegt für beide
+Formate bei etwa drei Komma vier mal zehn hoch achtunddreißig.
+Bfloat16 kann nicht überlaufen. Es hat innerhalb dieses Bereichs
+nur weniger Präzision. Für das Training neuronaler Netze ist
+dieser Kompromiss perfekt. Wir brauchen den Wertebereich für
+Zwischenwerte, aber wir brauchen nicht sieben Dezimalstellen
+Präzision für jede Aktivierung.
 
-## When was it invented
+## Wann wurde es erfunden
 
-Bfloat16 was created by Google in 2017 specifically for their
-TPU hardware. It was designed from scratch for neural network
-training. NVIDIA adopted it in their A100 GPUs in 2020. Now
-every major GPU supports bfloat16 natively. Mixed precision
-training using bfloat16 is the default for all production
-language model training.
+Bfloat16 wurde 2017 von Google speziell für ihre TPU-Hardware
+entwickelt. Es wurde von Grund auf für das Training neuronaler
+Netze konzipiert. NVIDIA übernahm es 2020 in ihren A100-GPUs.
+Heute unterstützt jede größere GPU bfloat16 nativ. Mixed Precision
+Training mit bfloat16 ist der Standard für das gesamte
+produktive Training von Sprachmodellen.
 
-## The three number formats compared
+## Die drei Zahlenformate im Vergleich
 
 ```
-Float32:    32 bits total
-            1 bit for sign
-            8 bits for exponent (range)
-            23 bits for mantissa (precision)
-            Range: up to ±3.4 × 10³⁸
-            Precision: 7 decimal digits
+Float32:    32 Bit gesamt
+            1 Bit für Vorzeichen
+            8 Bit für Exponent (Wertebereich)
+            23 Bit für Mantisse (Präzision)
+            Wertebereich: bis zu ±3,4 × 10³⁸
+            Präzision: 7 Dezimalstellen
 
-Bfloat16:   16 bits total
-            1 bit for sign
-            8 bits for exponent (range)
-            7 bits for mantissa (precision)
-            Range: up to ±3.4 × 10³⁸ (same as float32!)
-            Precision: 2 decimal digits
+Bfloat16:   16 Bit gesamt
+            1 Bit für Vorzeichen
+            8 Bit für Exponent (Wertebereich)
+            7 Bit für Mantisse (Präzision)
+            Wertebereich: bis zu ±3,4 × 10³⁸ (wie float32!)
+            Präzision: 2 Dezimalstellen
 
-Float16:    16 bits total
-            1 bit for sign
-            5 bits for exponent (range)
-            10 bits for mantissa (precision)
-            Range: up to ±65504 (can overflow!)
-            Precision: 3 decimal digits
+Float16:    16 Bit gesamt
+            1 Bit für Vorzeichen
+            5 Bit für Exponent (Wertebereich)
+            10 Bit für Mantisse (Präzision)
+            Wertebereich: bis zu ±65504 (kann überlaufen!)
+            Präzision: 3 Dezimalstellen
 ```
 
-Notice that bfloat16 and float32 have the same range. The only
-difference is precision. Bfloat16 has seven bits for the mantissa
-while float32 has twenty three. This means bfloat16 can represent
-numbers with about two decimal digits of accuracy. Float32 can
-represent seven. For neural network training two digits is enough.
-The gradients and activations do not need extreme precision. They
-just need consistent ballpark numbers.
+Beachte, dass bfloat16 und float32 denselben Wertebereich haben.
+Der einzige Unterschied ist die Präzision. Bfloat16 hat sieben
+Bit für die Mantisse, während float32 dreiundzwanzig hat. Das
+bedeutet, bfloat16 kann Zahlen mit etwa zwei Dezimalstellen
+Genauigkeit darstellen. Float32 kann sieben darstellen. Für das
+Training neuronaler Netze reichen zwei Stellen aus. Die
+Gradienten und Aktivierungen brauchen keine extreme Präzision.
+Sie brauchen nur konsistente Größenordnungen.
 
-Float16 has better precision than bfloat16 but terrible range. In
-practice float16 overflows during long training runs. Bfloat16
-does not. This is why bfloat16 won.
+Float16 hat eine bessere Präzision als bfloat16, aber einen
+miserablen Wertebereich. In der Praxis läuft float16 bei langen
+Trainingsläufen über. Bfloat16 nicht. Deshalb hat sich bfloat16
+durchgesetzt.
 
-## How it works in practice
+## Wie es in der Praxis funktioniert
 
-The training loop has three parts and each uses a different
-precision strategy.
+Die Trainingsschleife besteht aus drei Teilen, und jeder nutzt
+eine andere Precision-Strategie.
 
-### Part 1: the forward pass
+### Teil 1: der Forward Pass
 
-Most operations run in bfloat16 inside an autocast context.
+Die meisten Operationen laufen in bfloat16 innerhalb eines
+Autocast-Kontexts.
 
 ```python
 with torch.amp.autocast('cuda', enabled=True):
     logits, loss = model(input_ids, target_ids)
 ```
 
-The autocast context manager automatically converts operations to
-bfloat16 wherever it is safe. Matrix multiplications and
-convolutions are converted. Normalization operations like RMSNorm
-stay in float32 because they need more precision. The developer
-does not need to manually specify which operations to convert.
-Autocast handles it.
+Der Autocast-Kontextmanager konvertiert Operationen automatisch
+zu bfloat16, wo immer es sicher ist. Matrixmultiplikationen und
+Convolutions werden konvertiert. Normalisierungsoperationen wie
+RMSNorm bleiben in float32, weil sie mehr Präzision brauchen. Der
+Entwickler muss nicht manuell festlegen, welche Operationen
+konvertiert werden. Autocast übernimmt das.
 
-### Part 2: the backward pass
+### Teil 2: der Backward Pass
 
-The loss is in float32 for accuracy. The backward pass computes
-gradients. Some gradients are in float32 and some in bfloat16.
-A gradient scaler watches for underflow.
+Der Loss liegt für die Genauigkeit in float32 vor. Der Backward
+Pass berechnet die Gradienten. Manche Gradienten liegen in
+float32 vor, manche in bfloat16. Ein Gradient Scaler achtet auf
+Underflow.
 
-The gradient scaler multiplies the loss by a large number before
-the backward pass. This pushes small gradients into the
-representable range of bfloat16. After the backward pass the
-scaler divides the gradients back down before the weight update.
-This prevents tiny gradients from becoming zero in bfloat16.
+Der Gradient Scaler multipliziert den Loss vor dem Backward Pass
+mit einer großen Zahl. Das schiebt kleine Gradienten in den
+darstellbaren Bereich von bfloat16. Nach dem Backward Pass
+dividiert der Scaler die Gradienten vor dem Weight Update wieder
+herunter. Das verhindert, dass winzige Gradienten in bfloat16 zu
+null werden.
 
 ```python
 scaler = torch.amp.GradScaler('cuda', enabled=True)
@@ -153,26 +166,27 @@ scaler.step(optimizer)
 scaler.update()
 ```
 
-### Part 3: the weight update
+### Teil 3: das Weight Update
 
-The master weights are always stored in float32. After the
-backward pass the gradients are applied to the float32 weights.
-This ensures that even if the forward pass computes in bfloat16
-the weights themselves never lose precision over many updates.
-This is called mixed precision because the forward pass is half
-precision and the weight storage is full precision.
+Die Master-Gewichte werden immer in float32 gespeichert. Nach dem
+Backward Pass werden die Gradienten auf die float32-Gewichte
+angewendet. Das stellt sicher, dass die Gewichte selbst über
+viele Updates hinweg nie an Präzision verlieren, auch wenn der
+Forward Pass in bfloat16 rechnet. Man nennt das Mixed Precision,
+weil der Forward Pass mit halber Precision arbeitet und die
+Gewichtsspeicherung mit voller Precision.
 
 ```python
-# Master weights are float32 always
-optimizer.step()  # Applies float32 gradients to float32 weights
+# Master-Gewichte sind immer float32
+optimizer.step()  # Wendet float32-Gradienten auf float32-Gewichte an
 ```
 
-## A tiny code example
+## Ein kleines Codebeispiel
 
 ```python
 import torch
 
-# Check if your GPU supports bfloat16
+# Prüfen, ob deine GPU bfloat16 unterstützt
 if torch.cuda.is_available():
     capability = torch.cuda.get_device_capability()
     print(f"GPU compute capability: {capability}")
@@ -182,7 +196,7 @@ else:
     print("No GPU available. Mixed precision requires CUDA.")
     print("CPU training runs in float32 only.")
 
-# Simple speed comparison
+# Einfacher Geschwindigkeitsvergleich
 if torch.cuda.is_available():
     size = 4096
     a = torch.randn(size, size, device='cuda')
@@ -212,28 +226,31 @@ if torch.cuda.is_available():
     print(f"Speedup:       {t32/t16:.1f}x")
 ```
 
-## When not to use mixed precision
+## Wann Mixed Precision nicht verwendet werden sollte
 
-Some operations degrade with reduced precision. Normalization
-layers like RMSNorm should stay in float32. The softmax in
-attention should run in float32 for stability. The loss
-computation must be in float32 for accurate gradients. Autocast
-handles most of these automatically.
+Manche Operationen verschlechtern sich bei reduzierter Precision.
+Normalisierungslayer wie RMSNorm sollten in float32 bleiben. Der
+Softmax in der Attention sollte für die Stabilität in float32
+laufen. Die Loss-Berechnung muss für präzise Gradienten in
+float32 erfolgen. Autocast übernimmt das meiste davon automatisch.
 
-If you train on CPU mixed precision provides no benefit. CPU does
-not have native bfloat16 support. The conversions would add
-overhead without speedup. Our code checks for CUDA availability
-and only enables mixed precision on GPU.
+Wenn du auf der CPU trainierst, bringt Mixed Precision keinen
+Vorteil. Die CPU hat keine native bfloat16-Unterstützung. Die
+Konvertierungen würden nur Overhead ohne Geschwindigkeitsgewinn
+hinzufügen. Unser Code prüft die CUDA-Verfügbarkeit und aktiviert
+Mixed Precision nur auf der GPU.
 
-## What you need to remember
+## Was du dir merken solltest
 
-Mixed precision training runs most operations in bfloat16 for
-speed while keeping critical values in float32 for accuracy. The
-bfloat16 format has the same range as float32 so it never
-overflows. It has less precision but neural networks do not need
-seven decimal digits for every number.
+Mixed Precision Training führt die meisten Operationen zugunsten
+der Geschwindigkeit in bfloat16 aus, während kritische Werte für
+die Genauigkeit in float32 gehalten werden. Das bfloat16-Format
+hat denselben Wertebereich wie float32, sodass es nie überläuft.
+Es hat weniger Präzision, aber neuronale Netze brauchen nicht für
+jede Zahl sieben Dezimalstellen.
 
-The result is roughly twice the speed and half the memory usage
-with no measurable loss in model quality. Every production
-language model is trained with mixed precision. It is not an
-optional optimization. It is the standard way to train.
+Das Ergebnis ist etwa die doppelte Geschwindigkeit und der halbe
+Speicherverbrauch, ohne messbaren Qualitätsverlust des Modells.
+Jedes produktive Sprachmodell wird mit Mixed Precision trainiert.
+Das ist keine optionale Optimierung. Es ist die Standardmethode
+zu trainieren.

@@ -1,191 +1,199 @@
-# KV Cache: Making Text Generation Fast
+# KV-Cache: Textgenerierung schnell machen
 
-## What is it
+## Was ist das
 
-The KV cache stores the Key and Value vectors from all previous
-tokens during text generation. When the model generates the next
-token it reuses these stored vectors instead of recomputing them
-from scratch. This makes generation hundreds of times faster.
+Der KV-Cache speichert die Key- und Value-Vektoren aller vorherigen
+Tokens während der Textgenerierung. Wenn das Modell das nächste
+Token generiert, verwendet es diese gespeicherten Vektoren wieder,
+anstatt sie von Grund auf neu zu berechnen. Das macht die
+Generierung hunderte Male schneller.
 
-Think of it like writing a long email. Without a KV cache you
-would reread the entire email from the start every time you typed
-a new word. With a KV cache you remember everything you already
-wrote and only think about the new word. The difference in
-effort is enormous.
+Man kann es sich wie das Schreiben einer langen E-Mail vorstellen.
+Ohne KV-Cache würde man die gesamte E-Mail jedes Mal von vorne
+lesen, sobald man ein neues Wort tippt. Mit einem KV-Cache
+erinnert man sich an alles, was man bereits geschrieben hat, und
+muss nur noch über das neue Wort nachdenken. Der Unterschied im
+Aufwand ist enorm.
 
-## Where is it used
+## Wo wird er verwendet
 
-The KV cache lives inside the attention layer. Every attention
-head in every transformer block has its own cache. For a twelve
-block model with twelve heads there are one hundred and forty
-four separate caches. Each stores the Keys and Values for every
-token generated so far.
-
-```
-Text generation without cache:
-  For each new token:
-    Run the ENTIRE sequence through all layers
-    This recomputes K and V for every past token
-    Time grows quadratically with sequence length
-
-Text generation with cache:
-  For each new token:
-    Only compute K and V for the new token
-    Append to cache
-    Reuse cached K and V for all past tokens
-    Time grows linearly with sequence length
-```
-
-## Why we need it
-
-The attention formula is Q times K transpose. The Q matrix has
-one row per token. The K matrix has one row per token. If we have
-five hundred tokens we multiply a five hundred by sixty four
-matrix by a sixty four by five hundred matrix. That is already
-some work.
-
-Without a cache we would do this multiplication from scratch for
-every new token. When the sequence is one token long we do one
-comparison. When it is two tokens long we do two comparisons for
-token zero and two for token one. When it is five hundred tokens
-long we do five hundred comparisons for each of the five hundred
-tokens. The total work grows with the square of the sequence
-length. This is painfully slow.
-
-With a cache we only compute the comparisons involving the new
-token. Token five hundred compares itself against all five hundred
-previous tokens. That is five hundred new comparisons. Not five
-hundred squared. The cached Keys save us from recomputing the old
-comparisons that have not changed.
-
-### The speed numbers
+Der KV-Cache befindet sich innerhalb des Attention-Layers. Jeder
+Attention Head in jedem Transformer-Block hat seinen eigenen
+Cache. Bei einem Modell mit zwölf Blöcken und zwölf Heads gibt es
+einhundertvierundvierzig separate Caches. Jeder speichert die
+Keys und Values für jedes bisher generierte Token.
 
 ```
-Sequence length 100:
-  Without cache: 100² = 10,000 comparisons per generation step
-  With cache:    100 comparisons per generation step
+Textgenerierung ohne Cache:
+  Für jedes neue Token:
+    Die GESAMTE Sequenz durch alle Layer laufen lassen
+    Dies berechnet K und V für jedes vergangene Token neu
+    Die Zeit wächst quadratisch mit der Sequenzlänge
+
+Textgenerierung mit Cache:
+  Für jedes neue Token:
+    Nur K und V für das neue Token berechnen
+    An den Cache anhängen
+    Gecachte K und V für alle vergangenen Token wiederverwenden
+    Die Zeit wächst linear mit der Sequenzlänge
+```
+
+## Warum wir ihn brauchen
+
+Die Attention-Formel lautet Q mal K transponiert. Die Q-Matrix hat
+eine Zeile pro Token. Die K-Matrix hat eine Zeile pro Token. Wenn
+wir fünfhundert Tokens haben, multiplizieren wir eine
+Fünfhundert-mal-vierundsechzig-Matrix mit einer
+Vierundsechzig-mal-fünfhundert-Matrix. Das ist bereits einiges an
+Arbeit.
+
+Ohne Cache würden wir diese Multiplikation für jedes neue Token
+von Grund auf neu durchführen. Wenn die Sequenz ein Token lang
+ist, machen wir einen Vergleich. Wenn sie zwei Tokens lang ist,
+machen wir zwei Vergleiche für Token null und zwei für Token eins.
+Wenn sie fünfhundert Tokens lang ist, machen wir fünfhundert
+Vergleiche für jedes der fünfhundert Tokens. Der Gesamtaufwand
+wächst mit dem Quadrat der Sequenzlänge. Das ist quälend langsam.
+
+Mit einem Cache berechnen wir nur die Vergleiche, an denen das
+neue Token beteiligt ist. Token fünfhundert vergleicht sich mit
+allen fünfhundert vorherigen Tokens. Das sind fünfhundert neue
+Vergleiche. Nicht fünfhundert zum Quadrat. Die gecachten Keys
+ersparen uns die Neuberechnung der alten Vergleiche, die sich
+nicht verändert haben.
+
+### Die Geschwindigkeitszahlen
+
+```
+Sequenzlänge 100:
+  Ohne Cache: 100² = 10,000 Vergleiche pro Generierungsschritt
+  Mit Cache:  100 Vergleiche pro Generierungsschritt
   Speedup: 100×
 
-Sequence length 1000:
-  Without cache: 1,000² = 1,000,000 comparisons
-  With cache:    1,000 comparisons
+Sequenzlänge 1000:
+  Ohne Cache: 1,000² = 1,000,000 Vergleiche
+  Mit Cache:  1,000 Vergleiche
   Speedup: 1,000×
 ```
 
-For a long conversation with thousands of tokens the KV cache
-makes the difference between waiting seconds and waiting minutes
-for each new word.
+Bei einer langen Konversation mit tausenden Tokens macht der
+KV-Cache den Unterschied zwischen Sekunden und Minuten Wartezeit
+für jedes neue Wort.
 
-## When was it invented
+## Wann wurde er erfunden
 
-The KV cache was described in the original transformer paper in
-2017. It was not an optimization added later. It was part of the
-design from the beginning. The authors knew that autoregressive
-generation would be painfully slow without it. Every transformer
-implementation since 2017 uses some form of KV cache.
+Der KV-Cache wurde bereits im ursprünglichen Transformer-Paper aus
+dem Jahr 2017 beschrieben. Er war keine später hinzugefügte
+Optimierung, sondern von Anfang an Teil des Designs. Die Autoren
+wussten, dass autoregressive Generierung ohne ihn quälend langsam
+wäre. Jede Transformer-Implementierung seit 2017 verwendet eine
+Form von KV-Cache.
 
-## How it works step by step
+## Wie er Schritt für Schritt funktioniert
 
-### Step 1: the first token
+### Schritt 1: das erste Token
 
-We have a prompt that is five tokens long. The model processes
-all five tokens in parallel during a prefill step.
+Wir haben einen Prompt, der fünf Tokens lang ist. Das Modell
+verarbeitet alle fünf Tokens parallel während eines
+Prefill-Schritts.
 
 ```
 Prefill:
   Tokens: [The, cat, sat, on, the]
-  K cache for head 0: store K for all 5 tokens  (5 × 64 matrix)
-  V cache for head 0: store V for all 5 tokens  (5 × 64 matrix)
-  ... repeat for all 12 heads ...
+  K-Cache für Head 0: speichert K für alle 5 Tokens  (5 × 64 Matrix)
+  V-Cache für Head 0: speichert V für alle 5 Tokens  (5 × 64 Matrix)
+  ... wiederholen für alle 12 Heads ...
 ```
 
-This initial step is expensive but it only happens once.
+Dieser erste Schritt ist aufwendig, aber er passiert nur einmal.
 
-### Step 2: generating the next token
+### Schritt 2: das nächste Token generieren
 
-The model predicts that the next token is *mat*. We append *mat*
-to the sequence. Now we have six tokens.
-
-```
-Generation step 1:
-  New token: [mat]
-  Compute K for "mat" only: (1 × 64 matrix)
-  Compute V for "mat" only: (1 × 64 matrix)
-  Full K cache: 5 old rows + 1 new row = 6 × 64 matrix
-  Full V cache: 5 old rows + 1 new row = 6 × 64 matrix
-  Compute Q for "mat" only: (1 × 64 matrix)
-  Attention scores: Q_mat × K_full^T = 1 × 6 comparisons
-  Only the new token's Q was computed. Old Q values are not needed.
-```
-
-We computed only one new Key one new Value and one new Query. The
-attention scores for *mat* are computed against all six tokens
-because *mat* needs to attend to everything that came before. But
-the attention scores for *The* and *cat* and *sat* are not
-recomputed. They do not change. Why would they. Their context has
-not changed. Only the new token has new context to process.
-
-### Step 3: memory growth
-
-For each new token we add one row to every K cache and every V
-cache. The cache grows linearly with the sequence length.
+Das Modell sagt voraus, dass das nächste Token *mat* ist. Wir
+hängen *mat* an die Sequenz an. Jetzt haben wir sechs Tokens.
 
 ```
-Memory for a GPT-2 Small model generating 1000 tokens:
+Generierungsschritt 1:
+  Neues Token: [mat]
+  Berechne K nur für "mat": (1 × 64 Matrix)
+  Berechne V nur für "mat": (1 × 64 Matrix)
+  Vollständiger K-Cache: 5 alte Zeilen + 1 neue Zeile = 6 × 64 Matrix
+  Vollständiger V-Cache: 5 alte Zeilen + 1 neue Zeile = 6 × 64 Matrix
+  Berechne Q nur für "mat": (1 × 64 Matrix)
+  Attention-Scores: Q_mat × K_full^T = 1 × 6 Vergleiche
+  Nur das Q des neuen Tokens wurde berechnet. Alte Q-Werte werden nicht benötigt.
+```
 
-K cache: 12 layers × 12 heads × 1000 tokens × 64 dims × 2 bytes (bfloat16)
-       = 18,432,000 bytes
+Wir haben nur einen neuen Key, einen neuen Value und eine neue
+Query berechnet. Die Attention-Scores für *mat* werden gegen alle
+sechs Tokens berechnet, weil *mat* auf alles achten muss, was
+zuvor kam. Aber die Attention-Scores für *The*, *cat* und *sat*
+werden nicht neu berechnet. Sie ändern sich nicht. Warum sollten
+sie auch. Ihr Kontext hat sich nicht verändert. Nur das neue Token
+hat neuen Kontext zu verarbeiten.
+
+### Schritt 3: Speicherwachstum
+
+Für jedes neue Token fügen wir jedem K-Cache und jedem V-Cache
+eine Zeile hinzu. Der Cache wächst linear mit der Sequenzlänge.
+
+```
+Speicherbedarf für ein GPT-2-Small-Modell bei der Generierung von 1000 Tokens:
+
+K-Cache: 12 Layer × 12 Heads × 1000 Tokens × 64 Dimensionen × 2 Bytes (bfloat16)
+       = 18,432,000 Bytes
        = 17.6 MB
 
-V cache: same as K cache = 17.6 MB
+V-Cache: gleich wie K-Cache = 17.6 MB
 
-Total KV cache: 35.2 MB
+Gesamter KV-Cache: 35.2 MB
 ```
 
-Thirty five megabytes is nothing for a modern GPU. But remember
-this is GPT-2 Small with only twelve layers and 768 dimensions.
+Fünfunddreißig Megabyte sind nichts für eine moderne GPU. Aber
+bedenke, das ist GPT-2 Small mit nur zwölf Layern und 768
+Dimensionen.
 
 ```
-Memory for a GPT-3 Large model generating 1000 tokens:
+Speicherbedarf für ein GPT-3-Large-Modell bei der Generierung von 1000 Tokens:
 
-K cache: 96 layers × 96 heads × 1000 tokens × 128 dims × 2 bytes
-       = 2,359,296,000 bytes
+K-Cache: 96 Layer × 96 Heads × 1000 Tokens × 128 Dimensionen × 2 Bytes
+       = 2,359,296,000 Bytes
        = 2.2 GB
 
-V cache: same as K cache = 2.2 GB
+V-Cache: gleich wie K-Cache = 2.2 GB
 
-Total KV cache: 4.4 GB
+Gesamter KV-Cache: 4.4 GB
 ```
 
-Now the cache is a significant portion of GPU memory. For long
-conversations spanning thousands of tokens the KV cache can
-become the dominant memory consumer. This is one reason why
-running large models at long context lengths requires enormous
-amounts of VRAM.
+Jetzt macht der Cache einen erheblichen Teil des GPU-Speichers
+aus. Bei langen Konversationen über tausende Tokens hinweg kann
+der KV-Cache zum dominanten Speicherverbraucher werden. Das ist
+einer der Gründe, warum der Betrieb großer Modelle bei langen
+Kontextlängen enorme Mengen an VRAM erfordert.
 
-## A simplified code sketch
+## Eine vereinfachte Code-Skizze
 
-This is not production code but it shows the idea.
+Das ist kein Produktionscode, aber es zeigt die Idee.
 
 ```python
 class AttentionWithCache:
     def __init__(self):
-        self.k_cache = None  # Will hold accumulated K values
-        self.v_cache = None  # Will hold accumulated V values
+        self.k_cache = None  # Speichert die akkumulierten K-Werte
+        self.v_cache = None  # Speichert die akkumulierten V-Werte
 
     def forward(self, x, use_cache=False):
         q, k, v = self.qkv_proj(x)
 
         if use_cache and self.k_cache is not None:
-            # Append new K and V to cache
+            # Neue K- und V-Werte an den Cache anhängen
             k = torch.cat([self.k_cache, k], dim=2)
             v = torch.cat([self.v_cache, v], dim=2)
 
-        # Update cache for next step
+        # Cache für den nächsten Schritt aktualisieren
         self.k_cache = k
         self.v_cache = v
 
-        # Normal attention computation
+        # Normale Attention-Berechnung
         scores = (q @ k.transpose(-2, -1)) / math.sqrt(self.head_dim)
         weights = F.softmax(scores, dim=-1)
         return weights @ v
@@ -195,39 +203,41 @@ class AttentionWithCache:
         self.v_cache = None
 ```
 
-The key idea is on lines eleven and twelve. Instead of throwing
-away the old K and V we append the new ones. The cache grows over
-time. At the start of a new conversation we reset the cache to
-empty.
+Die Kernidee steht in den Zeilen elf und zwölf. Anstatt die alten
+K- und V-Werte zu verwerfen, hängen wir die neuen an. Der Cache
+wächst mit der Zeit. Zu Beginn einer neuen Konversation setzen wir
+den Cache auf leer zurück.
 
-## The tradeoff
+## Der Kompromiss
 
-KV cache trades memory for speed. We accept that generation will
-use more GPU memory in exchange for making each step much faster.
-For most real world applications this is a good trade. Memory is
-relatively cheap compared to the user's patience waiting for
-each word to appear.
+Der KV-Cache tauscht Speicher gegen Geschwindigkeit. Wir nehmen in
+Kauf, dass die Generierung mehr GPU-Speicher verbraucht, um jeden
+Schritt deutlich schneller zu machen. Für die meisten realen
+Anwendungen ist das ein guter Tausch. Speicher ist vergleichsweise
+billig, verglichen mit der Geduld des Nutzers, der auf jedes neue
+Wort wartet.
 
-However for very long sequences the memory cost becomes
-prohibitive. Researchers have developed techniques like grouped
-query attention and multi query attention that reduce the number
-of K and V heads. Fewer heads means a smaller cache. These
-techniques are standard in modern models like LLaMA 2 and Mistral.
+Bei sehr langen Sequenzen wird der Speicherbedarf jedoch
+unerschwinglich. Forscher haben Techniken wie Grouped Query
+Attention und Multi Query Attention entwickelt, die die Anzahl der
+K- und V-Heads reduzieren. Weniger Heads bedeuten einen kleineren
+Cache. Diese Techniken sind in modernen Modellen wie LLaMA 2 und
+Mistral Standard.
 
-## What you need to remember
+## Was man sich merken sollte
 
-The KV cache stores previously computed Keys and Values so they
-do not need to be recomputed for each new token. This changes the
-complexity of text generation from quadratic to linear in the
-sequence length. For a thousand token sequence this is a thousand
-times speedup.
+Der KV-Cache speichert zuvor berechnete Keys und Values, sodass
+sie nicht für jedes neue Token neu berechnet werden müssen. Das
+ändert die Komplexität der Textgenerierung von quadratisch zu
+linear in der Sequenzlänge. Bei einer Sequenz von tausend Tokens
+ist das eine tausendfache Beschleunigung.
 
-The cost is memory. The cache grows with the sequence length and
-the model size. For small models the memory cost is negligible.
-For large models at long context lengths the cache can consume
-tens of gigabytes.
+Der Preis dafür ist Speicher. Der Cache wächst mit der
+Sequenzlänge und der Modellgröße. Bei kleinen Modellen ist der
+Speicherbedarf vernachlässigbar. Bei großen Modellen mit langen
+Kontextlängen kann der Cache zig Gigabyte verbrauchen.
 
-Without a KV cache text generation would be slow enough that
-chatbots would be unusable. Every response would take minutes
-instead of seconds. The cache is a necessary optimization for
-any real world deployment.
+Ohne KV-Cache wäre die Textgenerierung so langsam, dass Chatbots
+unbenutzbar wären. Jede Antwort würde Minuten statt Sekunden
+dauern. Der Cache ist eine notwendige Optimierung für jeden
+produktiven Einsatz.
